@@ -107,7 +107,7 @@
       "id": "F7",
       "name": "Step 5: Export",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "description": "Export all data to CSV with user's flexible schema",
       "steps": [
         "Create src/app/project/[id]/export/page.tsx",

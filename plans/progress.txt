@@ -14,3 +14,6 @@ Files: src/app/project/[id]/contacts/page.tsx (Apollo search, select contacts, s
 
 F6: Step 4: Generate emails - DONE
 Files: src/app/project/[id]/emails/page.tsx (generate via Gemini, edit, bulk refine, save to Supabase)
+
+F7: Step 5: Export - DONE
+Files: src/app/project/[id]/export/page.tsx (preview table, drag-reorder columns, rename columns, export CSV)
