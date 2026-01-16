@@ -76,7 +76,7 @@
       "id": "F5",
       "name": "Step 3: Find contacts",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "description": "Use Apollo People Search to find contacts at each company",
       "steps": [
         "Create src/app/project/[id]/contacts/page.tsx",

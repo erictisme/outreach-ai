@@ -8,3 +8,6 @@ Files: src/app/new/page.tsx, src/components/ProjectForm.tsx, src/lib/supabase.ts
 
 F4: Step 2: Companies list - DONE
 Files: src/app/project/[id]/companies/page.tsx (AI generate, manual add, CSV/Excel import, enrich, save to Supabase)
+
+F5: Step 3: Find contacts - DONE
+Files: src/app/project/[id]/contacts/page.tsx (Apollo search, select contacts, save to Supabase)
