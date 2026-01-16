@@ -181,7 +181,7 @@ export function ProjectForm({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="targetMarket" className="block text-sm font-medium text-gray-700 mb-1">
               Target Market
@@ -235,7 +235,7 @@ export function ProjectForm({
         {/* File upload area */}
         <div
           className={cn(
-            "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
+            "border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors",
             dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
           )}
           onDragEnter={handleDrag}
@@ -285,7 +285,7 @@ export function ProjectForm({
         )}
 
         {/* Extract button */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <button
             type="button"
             onClick={handleExtract}
@@ -334,7 +334,7 @@ export function ProjectForm({
 
       {/* Custom Schema Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Export Schema</h2>
             <p className="text-sm text-gray-500">
@@ -344,7 +344,7 @@ export function ProjectForm({
           <button
             type="button"
             onClick={() => setShowSchemaEditor(!showSchemaEditor)}
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-blue-600 hover:underline self-start sm:self-center"
           >
             {showSchemaEditor ? 'Hide' : schemaColumns.length > 0 ? 'Edit' : 'Customize'}
           </button>

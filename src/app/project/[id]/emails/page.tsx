@@ -615,10 +615,10 @@ export default function EmailsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-8 max-w-6xl mx-auto">
+      <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-48 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-96 mb-8"></div>
+          <div className="h-4 bg-gray-200 rounded w-full sm:w-96 mb-8"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </main>
@@ -632,12 +632,12 @@ export default function EmailsPage() {
   if (emails.length > 0) completedSteps.push('emails')
 
   return (
-    <main className="min-h-screen p-8 max-w-6xl mx-auto">
+    <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       <header className="mb-4">
         <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
           ← All Projects
         </Link>
-        <h1 className="text-2xl font-bold">{project?.client_name || 'Project'}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold truncate">{project?.client_name || 'Project'}</h1>
       </header>
 
       <WizardNav projectId={projectId} completedSteps={completedSteps} />
@@ -793,8 +793,8 @@ export default function EmailsPage() {
       )}
 
       {/* Summary */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <div className="flex gap-8 text-sm">
+      <div className="mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           <div>
             <span className="text-gray-500">Contacts:</span>{' '}
             <span className="font-medium">{contacts.length}</span>
@@ -831,29 +831,32 @@ export default function EmailsPage() {
             className={`border rounded-lg overflow-hidden ${email.isNew ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200'}`}
           >
             {/* Email header */}
-            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-4">
-              <input
-                type="checkbox"
-                checked={selectedIds.has(email.id)}
-                onChange={() => toggleSelect(email.id)}
-                className="rounded border-gray-300"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{email.contactName}</span>
-                  <span className="text-gray-400">at</span>
-                  <span className="font-medium">{email.companyName}</span>
-                  {email.isSaved && (
-                    <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">Saved</span>
-                  )}
-                  {email.isNew && !email.isSaved && (
-                    <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">New</span>
-                  )}
+            <div className="px-3 sm:px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(email.id)}
+                  onChange={() => toggleSelect(email.id)}
+                  className="rounded border-gray-300"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium truncate">{email.contactName}</span>
+                    <span className="text-gray-400 hidden sm:inline">at</span>
+                    <span className="font-medium truncate hidden sm:inline">{email.companyName}</span>
+                    {email.isSaved && (
+                      <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">Saved</span>
+                    )}
+                    {email.isNew && !email.isSaved && (
+                      <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">New</span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-500 truncate">{email.contactEmail}</div>
+                  <div className="text-sm text-gray-500 truncate sm:hidden">{email.companyName}</div>
                 </div>
-                <div className="text-sm text-gray-500">{email.contactEmail}</div>
               </div>
               {editingId !== email.id && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 ml-7 sm:ml-0">
                   <button
                     onClick={() => openSaveTemplateModal(email)}
                     className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded"
@@ -873,7 +876,7 @@ export default function EmailsPage() {
             </div>
 
             {/* Email content */}
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               {editingId === email.id ? (
                 <div className="space-y-3">
                   <div>

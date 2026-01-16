@@ -89,7 +89,7 @@ export default function EditProjectPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-8 max-w-2xl mx-auto">
+      <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-2xl mx-auto">
         <div className="flex items-center justify-center py-12">
           <Spinner size="lg" />
         </div>
@@ -99,7 +99,7 @@ export default function EditProjectPage() {
 
   if (!project) {
     return (
-      <main className="min-h-screen p-8 max-w-2xl mx-auto">
+      <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-2xl mx-auto">
         <ErrorMessage message="Project not found" />
         <Link href="/" className="text-blue-600 hover:underline mt-4 inline-block">
           Back to Dashboard
@@ -122,7 +122,7 @@ export default function EditProjectPage() {
   }
 
   return (
-    <main className="min-h-screen p-8 max-w-2xl mx-auto">
+    <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-2xl mx-auto">
       <div className="mb-6">
         <Link
           href={`/project/${projectId}`}
@@ -133,9 +133,9 @@ export default function EditProjectPage() {
         </Link>
       </div>
 
-      <header className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Edit Project</h1>
-        <p className="text-gray-600 mt-1">
+      <header className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Project</h1>
+        <p className="text-gray-600 mt-1 text-sm sm:text-base">
           Update project details and settings.
         </p>
       </header>
@@ -148,7 +148,7 @@ export default function EditProjectPage() {
         />
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <ProjectForm
           initialData={initialData}
           onSubmit={handleSubmit}

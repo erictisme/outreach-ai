@@ -231,7 +231,7 @@
       "id": "F15",
       "name": "Mobile responsive design",
       "priority": 15,
-      "passes": false,
+      "passes": true,
       "description": "Make the app work well on mobile devices",
       "steps": [
         "Add responsive breakpoints to all pages",

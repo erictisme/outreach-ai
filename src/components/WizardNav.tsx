@@ -36,19 +36,19 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
   const nextStep = currentStepIndex < STEPS.length - 1 ? STEPS[currentStepIndex + 1] : null
 
   return (
-    <div className="mb-8">
+    <div className="mb-6 sm:mb-8">
       {/* Progress bar */}
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-1 px-1">
         {STEPS.map((step, index) => {
           const isActive = step.key === currentStep
           const isCompleted = completedSteps.includes(step.key) || index < currentStepIndex
           const Icon = step.icon
 
           return (
-            <div key={step.key} className="flex-1 flex items-center">
+            <div key={step.key} className="flex-1 flex items-center min-w-0">
               <Link
                 href={`/project/${projectId}/${step.key}`}
-                className={`flex items-center gap-2 flex-1 p-3 rounded-lg transition-all ${
+                className={`flex items-center gap-1 sm:gap-2 flex-1 p-2 sm:p-3 rounded-lg transition-all ${
                   isActive
                     ? 'bg-blue-50 border-2 border-blue-500'
                     : isCompleted
@@ -57,7 +57,7 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
                 }`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     isActive
                       ? 'bg-blue-500 text-white'
                       : isCompleted
@@ -66,9 +66,9 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
                   }`}
                 >
                   {isCompleted && !isActive ? (
-                    <Check className="w-4 h-4" />
+                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
                   ) : (
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   )}
                 </div>
                 <div className="min-w-0 hidden sm:block">
@@ -81,7 +81,7 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
                 </div>
               </Link>
               {index < STEPS.length - 1 && (
-                <div className={`w-4 h-0.5 mx-1 flex-shrink-0 ${
+                <div className={`w-2 sm:w-4 h-0.5 mx-0.5 sm:mx-1 flex-shrink-0 hidden xs:block ${
                   completedSteps.includes(step.key) || index < currentStepIndex
                     ? 'bg-green-300'
                     : 'bg-gray-200'
@@ -93,31 +93,32 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
       </div>
 
       {/* Back/Next navigation */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-2">
         {prevStep ? (
           <Link
             href={`/project/${projectId}/${prevStep.key}`}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            Back to {prevStep.label}
+            <span className="hidden xs:inline">Back to</span> {prevStep.label}
           </Link>
         ) : (
           <Link
             href={`/project/${projectId}`}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            Project Overview
+            <span className="hidden sm:inline">Project Overview</span>
+            <span className="sm:hidden">Overview</span>
           </Link>
         )}
 
         {nextStep && (
           <Link
             href={`/project/${projectId}/${nextStep.key}`}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
           >
-            Next: {nextStep.label}
+            <span className="hidden xs:inline">Next:</span> {nextStep.label}
             <ChevronRight className="w-4 h-4" />
           </Link>
         )}

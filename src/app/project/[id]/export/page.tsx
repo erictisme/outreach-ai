@@ -395,10 +395,10 @@ export default function ExportPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-8 max-w-6xl mx-auto">
+      <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-48 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-96 mb-8"></div>
+          <div className="h-4 bg-gray-200 rounded w-full sm:w-96 mb-8"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </main>
@@ -412,12 +412,12 @@ export default function ExportPage() {
   if (emails.length > 0) completedSteps.push('emails')
 
   return (
-    <main className="min-h-screen p-8 max-w-6xl mx-auto">
+    <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       <header className="mb-4">
         <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
           ← All Projects
         </Link>
-        <h1 className="text-2xl font-bold">{project?.client_name || 'Project'}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold truncate">{project?.client_name || 'Project'}</h1>
       </header>
 
       <WizardNav projectId={projectId} completedSteps={completedSteps} />
@@ -436,8 +436,8 @@ export default function ExportPage() {
       )}
 
       {/* Summary */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+      <div className="mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+        <div className="flex flex-wrap gap-x-4 sm:gap-x-8 gap-y-2 text-sm">
           <div>
             <span className="text-gray-500">Companies:</span>{' '}
             <span className="font-medium">{companies.length}</span>
@@ -586,7 +586,7 @@ export default function ExportPage() {
           </div>
         ) : (
           <div className="border border-gray-200 rounded-lg overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[600px]">
               <thead className="bg-gray-50">
                 <tr>
                   {columns.filter(c => c.enabled).map(col => (

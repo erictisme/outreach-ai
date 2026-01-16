@@ -411,10 +411,10 @@ export default function CompaniesPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-8 max-w-6xl mx-auto">
+      <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-48 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-96 mb-8"></div>
+          <div className="h-4 bg-gray-200 rounded w-full sm:w-96 mb-8"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </main>
@@ -426,12 +426,12 @@ export default function CompaniesPage() {
   if (companies.length > 0) completedSteps.push('companies')
 
   return (
-    <main className="min-h-screen p-8 max-w-6xl mx-auto">
+    <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       <header className="mb-4">
         <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
           ← All Projects
         </Link>
-        <h1 className="text-2xl font-bold">{project?.client_name || 'Project'}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold truncate">{project?.client_name || 'Project'}</h1>
       </header>
 
       <WizardNav projectId={projectId} completedSteps={completedSteps} />
@@ -602,8 +602,8 @@ export default function CompaniesPage() {
       )}
 
       {/* Companies table */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full">
+      <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead className="bg-gray-50">
             <tr>
               <th className="w-10 px-4 py-3 text-left">

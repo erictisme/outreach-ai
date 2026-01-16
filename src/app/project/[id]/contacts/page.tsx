@@ -472,10 +472,10 @@ export default function ContactsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-8 max-w-6xl mx-auto">
+      <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-48 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-96 mb-8"></div>
+          <div className="h-4 bg-gray-200 rounded w-full sm:w-96 mb-8"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </main>
@@ -488,20 +488,20 @@ export default function ContactsPage() {
   if (totalContacts > 0) completedSteps.push('contacts')
 
   return (
-    <main className="min-h-screen p-8 max-w-6xl mx-auto">
+    <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       <header className="mb-4">
         <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
           ← All Projects
         </Link>
-        <h1 className="text-2xl font-bold">{project?.client_name || 'Project'}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold truncate">{project?.client_name || 'Project'}</h1>
       </header>
 
       <WizardNav projectId={projectId} completedSteps={completedSteps} />
 
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">Find Contacts</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-lg sm:text-xl font-semibold">Find Contacts</h2>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
             Search for decision makers at your target companies
           </p>
         </div>
@@ -711,8 +711,8 @@ export default function ContactsPage() {
       </div>
 
       {/* Summary */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <div className="flex gap-8 text-sm">
+      <div className="mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           <div>
             <span className="text-gray-500">Companies:</span>{' '}
             <span className="font-medium">{companies.length}</span>
@@ -773,35 +773,37 @@ export default function ContactsPage() {
                 {company.contacts.map(contact => (
                   <div
                     key={contact.id}
-                    className={`px-4 py-3 flex items-center gap-4 hover:bg-gray-50 ${contact.isNew ? 'bg-blue-50/50' : ''}`}
+                    className={`px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 hover:bg-gray-50 ${contact.isNew ? 'bg-blue-50/50' : ''}`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(contact.id)}
-                      onChange={() => toggleSelect(contact.id)}
-                      className="rounded border-gray-300"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{contact.name}</span>
-                        {contact.isSaved && (
-                          <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">Saved</span>
-                        )}
-                        {contact.isNew && !contact.isSaved && (
-                          <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">New</span>
-                        )}
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(contact.id)}
+                        onChange={() => toggleSelect(contact.id)}
+                        className="rounded border-gray-300"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-gray-900">{contact.name}</span>
+                          {contact.isSaved && (
+                            <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">Saved</span>
+                          )}
+                          {contact.isNew && !contact.isSaved && (
+                            <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">New</span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-600 truncate">{contact.title}</div>
                       </div>
-                      <div className="text-sm text-gray-600">{contact.title}</div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 ml-7 sm:ml-0">
                       {contact.email && (
                         <a
                           href={`mailto:${contact.email}`}
                           className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-600"
                           title={`${contact.emailCertainty}% confidence`}
                         >
-                          <Mail className="w-4 h-4" />
-                          <span className="max-w-[150px] truncate">{contact.email}</span>
+                          <Mail className="w-4 h-4 flex-shrink-0" />
+                          <span className="max-w-[120px] sm:max-w-[150px] truncate">{contact.email}</span>
                           {contact.emailCertainty > 0 && (
                             <span className={`text-xs ${contact.emailCertainty >= 90 ? 'text-green-600' : contact.emailCertainty >= 70 ? 'text-yellow-600' : 'text-gray-400'}`}>
                               {contact.emailCertainty}%

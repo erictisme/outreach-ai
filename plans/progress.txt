@@ -1,10 +1,4 @@
-# Ralph run Fri Jan 16 09:20:24 +08 2026
+# Ralph run Fri Jan 16 09:35:16 +08 2026
 
-F12: Project management (edit/delete) - DONE
-Files: src/app/page.tsx (edit/duplicate/delete buttons, cascade delete), src/app/project/[id]/edit/page.tsx (new)
-
-F13: Contact search filters - DONE
-Files: src/app/project/[id]/contacts/page.tsx (title presets dropdown, filter chips, localStorage persistence)
-
-F14: Email templates - DONE
-Files: supabase/migrations/003_email_templates.sql (new), src/types/index.ts, src/lib/supabase.ts, src/app/project/[id]/emails/page.tsx (template picker, save as template)
+F15: Mobile responsive design - added responsive padding (p-4/p-6/p-8), stacked forms on mobile, scrollable tables, improved WizardNav
+Files: page.tsx (home), new/page.tsx, project/[id]/*.tsx pages, WizardNav.tsx, ProjectForm.tsx

@@ -216,10 +216,10 @@ export default function Home() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-8 max-w-4xl mx-auto">
+      <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-48 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-96 mb-8"></div>
+          <div className="h-4 bg-gray-200 rounded w-full sm:w-96 mb-8"></div>
           <div className="grid gap-4 md:grid-cols-2">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
@@ -231,7 +231,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen p-8 max-w-4xl mx-auto">
+    <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
       <header className="mb-8">
         <h1 className="text-3xl font-bold">Outreach AI</h1>
         <p className="text-gray-600 mt-2">
