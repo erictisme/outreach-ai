@@ -138,7 +138,7 @@
       "id": "F9",
       "name": "Dashboard and navigation",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "description": "Landing page showing all projects, wizard step navigation",
       "steps": [
         "Update src/app/page.tsx to list all projects from Supabase",

@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Wand2, Check, RefreshCw, ChevronRight, Edit3, Save, X } from 'lucide-react'
+import { Wand2, Check, RefreshCw, Edit3, Save, X } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, Email as DbEmail } from '@/lib/supabase'
 import { ProjectContext, Company, Person, EmailDraft } from '@/types'
+import { WizardNav, WizardStep } from '@/components/WizardNav'
 
 interface LocalEmail {
   id: string
@@ -420,21 +421,29 @@ export default function EmailsPage() {
     )
   }
 
+  // Determine completed steps
+  const completedSteps: WizardStep[] = []
+  if (companies.length > 0) completedSteps.push('companies')
+  if (contacts.length > 0) completedSteps.push('contacts')
+  if (emails.length > 0) completedSteps.push('emails')
+
   return (
     <main className="min-h-screen p-8 max-w-6xl mx-auto">
-      <header className="mb-8">
-        <Link
-          href={`/project/${projectId}`}
-          className="text-blue-600 hover:underline text-sm mb-2 inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to project
+      <header className="mb-4">
+        <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
+          ← All Projects
         </Link>
-        <h1 className="text-2xl font-bold">Generate Emails</h1>
+        <h1 className="text-2xl font-bold">{project?.client_name || 'Project'}</h1>
+      </header>
+
+      <WizardNav projectId={projectId} completedSteps={completedSteps} />
+
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold">Generate Emails</h2>
         <p className="text-gray-600 mt-1">
           Create personalized outreach emails for your contacts
         </p>
-      </header>
+      </div>
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -670,18 +679,6 @@ export default function EmailsPage() {
         </div>
       )}
 
-      {/* Next step */}
-      {emails.length > 0 && (
-        <div className="mt-6 flex items-center justify-end">
-          <Link
-            href={`/project/${projectId}/export`}
-            className="inline-flex items-center gap-2 text-blue-600 hover:underline"
-          >
-            Next: Export data
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-      )}
     </main>
   )
 }

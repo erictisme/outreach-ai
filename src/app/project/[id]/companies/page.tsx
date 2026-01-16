@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Sparkles, Upload, Trash2, RefreshCw, Check } from 'lucide-react'
+import { Plus, Sparkles, Upload, Trash2, RefreshCw, Check } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Project as DbProject } from '@/lib/supabase'
+import { WizardNav, WizardStep } from '@/components/WizardNav'
 
 interface LocalCompany {
   id: string
@@ -407,21 +408,27 @@ export default function CompaniesPage() {
     )
   }
 
+  // Determine completed steps
+  const completedSteps: WizardStep[] = []
+  if (companies.length > 0) completedSteps.push('companies')
+
   return (
     <main className="min-h-screen p-8 max-w-6xl mx-auto">
-      <header className="mb-8">
-        <Link
-          href={`/project/${projectId}`}
-          className="text-blue-600 hover:underline text-sm mb-2 inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to project
+      <header className="mb-4">
+        <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
+          ← All Projects
         </Link>
-        <h1 className="text-2xl font-bold">Companies</h1>
-        <p className="text-gray-600 mt-1">
-          Build your target company list for {project?.client_name || 'this project'}
-        </p>
+        <h1 className="text-2xl font-bold">{project?.client_name || 'Project'}</h1>
       </header>
+
+      <WizardNav projectId={projectId} completedSteps={completedSteps} />
+
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold">Companies</h2>
+        <p className="text-gray-600 mt-1">
+          Build your target company list
+        </p>
+      </div>
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -690,15 +697,8 @@ export default function CompaniesPage() {
 
       {/* Summary */}
       {companies.length > 0 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+        <div className="mt-4 text-sm text-gray-600">
           <span>{companies.length} companies</span>
-          <Link
-            href={`/project/${projectId}/contacts`}
-            className="inline-flex items-center gap-2 text-blue-600 hover:underline"
-          >
-            Next: Find contacts
-            <Check className="w-4 h-4" />
-          </Link>
         </div>
       )}
     </main>

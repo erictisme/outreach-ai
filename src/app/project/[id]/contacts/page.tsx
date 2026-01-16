@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Search, Check, X, Linkedin, Mail, RefreshCw, ChevronRight } from 'lucide-react'
+import { Search, Check, X, Linkedin, Mail, RefreshCw } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject } from '@/lib/supabase'
+import { WizardNav, WizardStep } from '@/components/WizardNav'
 
 interface LocalContact {
   id: string
@@ -386,21 +387,28 @@ export default function ContactsPage() {
     )
   }
 
+  // Determine completed steps
+  const completedSteps: WizardStep[] = []
+  if (companies.length > 0) completedSteps.push('companies')
+  if (totalContacts > 0) completedSteps.push('contacts')
+
   return (
     <main className="min-h-screen p-8 max-w-6xl mx-auto">
-      <header className="mb-8">
-        <Link
-          href={`/project/${projectId}`}
-          className="text-blue-600 hover:underline text-sm mb-2 inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to project
+      <header className="mb-4">
+        <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
+          ← All Projects
         </Link>
-        <h1 className="text-2xl font-bold">Find Contacts</h1>
+        <h1 className="text-2xl font-bold">{project?.client_name || 'Project'}</h1>
+      </header>
+
+      <WizardNav projectId={projectId} completedSteps={completedSteps} />
+
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold">Find Contacts</h2>
         <p className="text-gray-600 mt-1">
           Search for decision makers at your target companies
         </p>
-      </header>
+      </div>
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -591,18 +599,6 @@ export default function ContactsPage() {
         ))}
       </div>
 
-      {/* Next step */}
-      {selectedCount > 0 && (
-        <div className="mt-6 flex items-center justify-end">
-          <Link
-            href={`/project/${projectId}/emails`}
-            className="inline-flex items-center gap-2 text-blue-600 hover:underline"
-          >
-            Next: Generate emails
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-      )}
     </main>
   )
 }

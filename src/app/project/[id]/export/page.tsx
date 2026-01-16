@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Download, GripVertical, Check, X, Settings } from 'lucide-react'
+import { Download, GripVertical, Check, X, Settings } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, Email as DbEmail } from '@/lib/supabase'
 import { SchemaColumn, DEFAULT_SCHEMA } from '@/components/SchemaEditor'
+import { WizardNav, WizardStep } from '@/components/WizardNav'
 
 interface ExportColumn {
   id: string
@@ -404,21 +405,29 @@ export default function ExportPage() {
     )
   }
 
+  // Determine completed steps
+  const completedSteps: WizardStep[] = []
+  if (companies.length > 0) completedSteps.push('companies')
+  if (contacts.length > 0) completedSteps.push('contacts')
+  if (emails.length > 0) completedSteps.push('emails')
+
   return (
     <main className="min-h-screen p-8 max-w-6xl mx-auto">
-      <header className="mb-8">
-        <Link
-          href={`/project/${projectId}`}
-          className="text-blue-600 hover:underline text-sm mb-2 inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to project
+      <header className="mb-4">
+        <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
+          ← All Projects
         </Link>
-        <h1 className="text-2xl font-bold">Export Data</h1>
+        <h1 className="text-2xl font-bold">{project?.client_name || 'Project'}</h1>
+      </header>
+
+      <WizardNav projectId={projectId} completedSteps={completedSteps} />
+
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold">Export Data</h2>
         <p className="text-gray-600 mt-1">
           Preview and export your project data to CSV
         </p>
-      </header>
+      </div>
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -615,16 +624,6 @@ export default function ExportPage() {
         )}
       </div>
 
-      {/* Back to emails link */}
-      <div className="flex items-center justify-between">
-        <Link
-          href={`/project/${projectId}/emails`}
-          className="inline-flex items-center gap-2 text-blue-600 hover:underline"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to emails
-        </Link>
-      </div>
     </main>
   )
 }

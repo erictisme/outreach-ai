@@ -20,3 +20,6 @@ Files: src/app/project/[id]/export/page.tsx (preview table, drag-reorder columns
 
 F8: Flexible schema system - DONE
 Files: src/components/SchemaEditor.tsx, src/components/ProjectForm.tsx (schema section), src/app/new/page.tsx, src/app/project/[id]/export/page.tsx
+
+F9: Dashboard and navigation - DONE
+Files: src/app/page.tsx (project list with counts), src/components/WizardNav.tsx (step nav), all step pages updated
