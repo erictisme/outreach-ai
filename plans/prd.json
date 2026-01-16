@@ -165,6 +165,67 @@
         "Add settings page or gear icon to update/clear saved keys"
       ],
       "acceptance": "App prompts for API key if not set, keys stored in browser only, API calls work with user-provided keys"
+    },
+    {
+      "id": "F11",
+      "name": "Loading states and error handling",
+      "priority": 11,
+      "passes": false,
+      "description": "Add proper loading spinners and error messages throughout the app",
+      "steps": [
+        "Create src/components/ui/Spinner.tsx - reusable loading spinner",
+        "Create src/components/ui/ErrorMessage.tsx - reusable error display",
+        "Add loading states to all async operations (API calls, saves)",
+        "Show skeleton loaders while fetching data",
+        "Display user-friendly error messages when API calls fail",
+        "Add toast notifications for success/error feedback"
+      ],
+      "acceptance": "All async operations show loading state, errors display clearly"
+    },
+    {
+      "id": "F12",
+      "name": "Project management (edit/delete)",
+      "priority": 12,
+      "passes": false,
+      "description": "Allow users to edit and delete existing projects",
+      "steps": [
+        "Add edit button on project card in dashboard",
+        "Create src/app/project/[id]/edit/page.tsx for editing project details",
+        "Add delete button with confirmation modal",
+        "Cascade delete companies, contacts, emails when project deleted",
+        "Add 'Duplicate project' feature to copy a project as template"
+      ],
+      "acceptance": "Can edit project details, delete projects with confirmation"
+    },
+    {
+      "id": "F13",
+      "name": "Contact search filters",
+      "priority": 13,
+      "passes": false,
+      "description": "Filter contacts by role/title when searching Apollo",
+      "steps": [
+        "Add title/role filter input on contacts page",
+        "Common presets: CEO, Founder, Director, Manager, Buyer, Procurement",
+        "Pass title filter to Apollo API search",
+        "Show filter chips for active filters",
+        "Remember last used filters per project"
+      ],
+      "acceptance": "Can filter Apollo search by title, presets work"
+    },
+    {
+      "id": "F14",
+      "name": "Email templates",
+      "priority": 14,
+      "passes": false,
+      "description": "Save and reuse email templates across projects",
+      "steps": [
+        "Create email_templates table in Supabase",
+        "Add 'Save as template' button on email editor",
+        "Create template picker when generating emails",
+        "Include variables like {{contact_name}}, {{company_name}}",
+        "Default templates: Cold outreach, Follow-up, Introduction request"
+      ],
+      "acceptance": "Can save templates, use templates with variable substitution"
     }
   ]
 }
