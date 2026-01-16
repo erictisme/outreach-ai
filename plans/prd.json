@@ -43,7 +43,7 @@
       "id": "F3",
       "name": "Step 1: Project creation",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "description": "UI to create a new project with client info + optional doc upload",
       "steps": [
         "Create src/app/new/page.tsx with project form",

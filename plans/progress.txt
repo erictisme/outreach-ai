@@ -2,3 +2,6 @@
 
 F1: Fresh project structure - DONE
 Files: src/app/layout.tsx, src/app/page.tsx, src/app/project/[id]/page.tsx, src/lib/apollo.ts, src/components/ui/.gitkeep
+
+F3: Step 1: Project creation - DONE
+Files: src/app/new/page.tsx, src/components/ProjectForm.tsx, src/lib/supabase.ts (lazy init)
