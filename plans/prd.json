@@ -246,7 +246,7 @@
       "id": "F16",
       "name": "Company enrichment with AI",
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "description": "Use AI to research and enrich company data automatically",
       "steps": [
         "Add 'Enrich All' button on companies page",

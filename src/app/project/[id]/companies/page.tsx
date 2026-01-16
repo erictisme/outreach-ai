@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Sparkles, Upload, Trash2, RefreshCw, Check } from 'lucide-react'
+import { Plus, Sparkles, Upload, Trash2, RefreshCw, Check, X, Pencil } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Project as DbProject } from '@/lib/supabase'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
 import { useToast, ErrorMessage } from '@/components/ui'
@@ -18,6 +18,13 @@ interface LocalCompany {
   type: string
   status: string
   isNew?: boolean
+}
+
+interface EnrichmentProgress {
+  total: number
+  completed: number
+  current: string | null
+  isRunning: boolean
 }
 
 export default function CompaniesPage() {
@@ -36,6 +43,20 @@ export default function CompaniesPage() {
   const [importType, setImportType] = useState<'csv' | 'paste'>('paste')
   const [error, setError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [enrichProgress, setEnrichProgress] = useState<EnrichmentProgress>({
+    total: 0,
+    completed: 0,
+    current: null,
+    isRunning: false
+  })
+  const [editingCompany, setEditingCompany] = useState<LocalCompany | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: '',
+    website: '',
+    description: '',
+    type: '',
+    relevance_notes: ''
+  })
 
   // Manual add form state
   const [newCompany, setNewCompany] = useState({
@@ -362,6 +383,186 @@ export default function CompaniesPage() {
     }
   }
 
+  // Enrich all companies with AI (batch processing)
+  const handleEnrichAll = async () => {
+    const unenriched = companies.filter(c => c.relevance_score === null)
+    if (unenriched.length === 0) {
+      addToast('All companies are already enriched', 'info')
+      return
+    }
+
+    setEnrichProgress({
+      total: unenriched.length,
+      completed: 0,
+      current: unenriched[0]?.name || null,
+      isRunning: true
+    })
+    setError(null)
+
+    const context = project ? {
+      clientName: project.client_name,
+      product: project.product_description || '',
+      valueProposition: project.product_description || '',
+      targetMarket: project.target_market || '',
+      targetSegment: project.target_segment || '',
+      keyDifferentiators: [],
+      credibilitySignals: []
+    } : null
+
+    // Process in batches of 5 for efficiency
+    const batchSize = 5
+    let completedCount = 0
+
+    for (let i = 0; i < unenriched.length; i += batchSize) {
+      const batch = unenriched.slice(i, i + batchSize)
+
+      setEnrichProgress(prev => ({
+        ...prev,
+        current: batch.map(c => c.name).join(', ')
+      }))
+
+      try {
+        const response = await fetch('/api/enrich-companies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companies: batch.map(c => ({
+              name: c.name,
+              website: c.website,
+              description: c.description,
+              type: c.type
+            })),
+            context
+          })
+        })
+
+        if (!response.ok) throw new Error('Failed to enrich batch')
+
+        const data = await response.json()
+
+        if (data.companies && data.companies.length > 0) {
+          const supabase = getSupabase()
+
+          // Update each company in the batch
+          for (let j = 0; j < batch.length; j++) {
+            const original = batch[j]
+            const enriched = data.companies[j]
+            if (!enriched) continue
+
+            const { error: updateError } = await supabase
+              .from('companies')
+              .update({
+                website: enriched.website || original.website,
+                description: enriched.description || original.description,
+                relevance_score: enriched.relevance?.toLowerCase().includes('high') ? 9 :
+                                 enriched.relevance?.toLowerCase().includes('medium') ? 6 : 3,
+                relevance_notes: enriched.relevance || original.relevance_notes,
+                custom_fields: { type: enriched.type || original.type }
+              })
+              .eq('id', original.id)
+
+            if (updateError) {
+              console.error('Update error for', original.name, updateError)
+            }
+
+            // Update local state
+            setCompanies(prev => prev.map(c =>
+              c.id === original.id ? {
+                ...c,
+                website: enriched.website || c.website,
+                description: enriched.description || c.description,
+                relevance_score: enriched.relevance?.toLowerCase().includes('high') ? 9 :
+                                 enriched.relevance?.toLowerCase().includes('medium') ? 6 : 3,
+                relevance_notes: enriched.relevance || c.relevance_notes,
+                type: enriched.type || c.type
+              } : c
+            ))
+          }
+        }
+
+        completedCount += batch.length
+        setEnrichProgress(prev => ({
+          ...prev,
+          completed: completedCount
+        }))
+
+      } catch (err) {
+        console.error('Error enriching batch:', err)
+        // Continue with next batch even if one fails
+      }
+    }
+
+    setEnrichProgress(prev => ({
+      ...prev,
+      isRunning: false,
+      current: null
+    }))
+    addToast(`Enriched ${completedCount} companies`, 'success')
+  }
+
+  // Cancel enrichment
+  const cancelEnrichAll = () => {
+    setEnrichProgress({
+      total: 0,
+      completed: 0,
+      current: null,
+      isRunning: false
+    })
+  }
+
+  // Start editing a company
+  const startEdit = (company: LocalCompany) => {
+    setEditingCompany(company)
+    setEditForm({
+      name: company.name,
+      website: company.website,
+      description: company.description,
+      type: company.type,
+      relevance_notes: company.relevance_notes
+    })
+  }
+
+  // Save edited company
+  const saveEdit = async () => {
+    if (!editingCompany) return
+    setError(null)
+
+    try {
+      const supabase = getSupabase()
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update({
+          name: editForm.name.trim(),
+          website: editForm.website.trim() || null,
+          description: editForm.description.trim() || null,
+          relevance_notes: editForm.relevance_notes.trim() || null,
+          custom_fields: { type: editForm.type.trim() }
+        })
+        .eq('id', editingCompany.id)
+
+      if (updateError) throw updateError
+
+      // Update local state
+      setCompanies(prev => prev.map(c =>
+        c.id === editingCompany.id ? {
+          ...c,
+          name: editForm.name.trim(),
+          website: editForm.website.trim(),
+          description: editForm.description.trim(),
+          type: editForm.type.trim(),
+          relevance_notes: editForm.relevance_notes.trim()
+        } : c
+      ))
+
+      setEditingCompany(null)
+      addToast('Company updated', 'success')
+    } catch (err) {
+      console.error('Error updating company:', err)
+      setError('Failed to update company')
+      addToast('Failed to update company', 'error')
+    }
+  }
+
   // Delete selected companies
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return
@@ -487,6 +688,17 @@ export default function CompaniesPage() {
           Import CSV / Paste
         </button>
 
+        {companies.length > 0 && !enrichProgress.isRunning && (
+          <button
+            onClick={handleEnrichAll}
+            disabled={enrichProgress.isRunning}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-purple-300 text-purple-600 rounded-lg hover:bg-purple-50"
+          >
+            <Sparkles className="w-4 h-4" />
+            Enrich All
+          </button>
+        )}
+
         {selectedIds.size > 0 && (
           <button
             onClick={handleDeleteSelected}
@@ -497,6 +709,38 @@ export default function CompaniesPage() {
           </button>
         )}
       </div>
+
+      {/* Enrichment progress bar */}
+      {enrichProgress.isRunning && (
+        <div className="mb-6 p-4 border border-purple-200 rounded-lg bg-purple-50">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-purple-600 animate-spin" />
+              <span className="font-medium text-purple-700">Enriching companies...</span>
+            </div>
+            <button
+              onClick={cancelEnrichAll}
+              className="text-purple-600 hover:text-purple-800 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="w-full bg-purple-200 rounded-full h-2 mb-2">
+            <div
+              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${(enrichProgress.completed / enrichProgress.total) * 100}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-sm text-purple-600">
+            <span>{enrichProgress.completed} of {enrichProgress.total} companies</span>
+            {enrichProgress.current && (
+              <span className="text-purple-500 truncate max-w-xs">
+                Processing: {enrichProgress.current}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Manual add form */}
       {showAddForm && (
@@ -601,6 +845,105 @@ export default function CompaniesPage() {
         </div>
       )}
 
+      {/* Edit company modal */}
+      {editingCompany && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg">Edit Company</h3>
+              <button
+                onClick={() => setEditingCompany(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Company Name
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Website
+                </label>
+                <input
+                  type="text"
+                  value={editForm.website}
+                  onChange={e => setEditForm(prev => ({ ...prev, website: e.target.value }))}
+                  placeholder="https://example.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type / Category
+                </label>
+                <input
+                  type="text"
+                  value={editForm.type}
+                  onChange={e => setEditForm(prev => ({ ...prev, type: e.target.value }))}
+                  placeholder="e.g., Distributor, Manufacturer, Retailer"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={editForm.description}
+                  onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  placeholder="Brief description of the company"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Relevance Notes
+                </label>
+                <textarea
+                  value={editForm.relevance_notes}
+                  onChange={e => setEditForm(prev => ({ ...prev, relevance_notes: e.target.value }))}
+                  rows={2}
+                  placeholder="Why is this company relevant?"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={saveEdit}
+                disabled={!editForm.name.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => setEditingCompany(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Companies table */}
       <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
         <table className="w-full min-w-[600px]">
@@ -690,18 +1033,27 @@ export default function CompaniesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleEnrich(company)}
-                      disabled={enriching === company.id}
-                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
-                      title="Enrich with AI"
-                    >
-                      {enriching === company.id ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-4 h-4" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleEnrich(company)}
+                        disabled={enriching === company.id || enrichProgress.isRunning}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
+                        title="Enrich with AI"
+                      >
+                        {enriching === company.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => startEdit(company)}
+                        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                        title="Edit company"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
