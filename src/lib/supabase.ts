@@ -77,3 +77,17 @@ export interface Email {
   created_at: string
   updated_at: string
 }
+
+export interface EmailTemplate {
+  id: string
+  project_id: string | null
+  name: string
+  category: string
+  description: string | null
+  subject: string
+  body: string
+  variables: string[]
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}

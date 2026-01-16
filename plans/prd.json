@@ -216,7 +216,7 @@
       "id": "F14",
       "name": "Email templates",
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "description": "Save and reuse email templates across projects",
       "steps": [
         "Create email_templates table in Supabase",

@@ -124,6 +124,36 @@ export interface EmailDraft {
   currentVersionIndex?: number // Which version is currently shown
 }
 
+// Email template for reuse
+export type EmailTemplateCategory = 'cold_outreach' | 'followup' | 'introduction_request'
+
+export interface EmailTemplate {
+  id: string
+  projectId: string | null // null = global template
+  name: string
+  category: EmailTemplateCategory
+  description: string | null
+  subject: string
+  body: string
+  variables: string[] // ['contact_name', 'company_name', 'client_name', etc.]
+  isDefault: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+// Available template variables
+export const TEMPLATE_VARIABLES = [
+  { key: 'contact_name', label: 'Contact Name', description: 'Name of the contact person' },
+  { key: 'contact_title', label: 'Contact Title', description: 'Job title of the contact' },
+  { key: 'contact_email', label: 'Contact Email', description: 'Email address of the contact' },
+  { key: 'company_name', label: 'Company Name', description: 'Name of the target company' },
+  { key: 'client_name', label: 'Client Name', description: 'Your client/company name' },
+  { key: 'product_description', label: 'Product Description', description: 'Description of the product/service' },
+  { key: 'value_proposition', label: 'Value Proposition', description: 'Key value proposition' },
+  { key: 'visit_dates', label: 'Visit Dates', description: 'Dates of visit (if applicable)' },
+  { key: 'previous_subject', label: 'Previous Subject', description: 'Subject of previous email (for followups)' },
+] as const
+
 // Conversation types
 export type ConversationStatus = 'awaiting_reply' | 'reply_received' | 'meeting_set' | 'declined' | 'closed'
 

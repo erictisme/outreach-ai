@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Wand2, Check, RefreshCw, Edit3, Save, X } from 'lucide-react'
-import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, Email as DbEmail } from '@/lib/supabase'
-import { ProjectContext, Company, Person, EmailDraft } from '@/types'
+import { Wand2, Check, RefreshCw, Edit3, Save, X, FileText, BookmarkPlus, ChevronDown } from 'lucide-react'
+import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, EmailTemplate as DbEmailTemplate } from '@/lib/supabase'
+import { ProjectContext, Company, Person, EmailDraft, EmailTemplate, EmailTemplateCategory, TEMPLATE_VARIABLES } from '@/types'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
 import { useToast, ErrorMessage } from '@/components/ui'
 
@@ -46,6 +46,16 @@ export default function EmailsPage() {
   // Bulk refine state
   const [refineInstruction, setRefineInstruction] = useState('')
   const [refining, setRefining] = useState(false)
+
+  // Template state
+  const [templates, setTemplates] = useState<DbEmailTemplate[]>([])
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [saveTemplateEmail, setSaveTemplateEmail] = useState<LocalEmail | null>(null)
+  const [newTemplateName, setNewTemplateName] = useState('')
+  const [newTemplateCategory, setNewTemplateCategory] = useState<EmailTemplateCategory>('cold_outreach')
+  const [newTemplateDescription, setNewTemplateDescription] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
 
   // Load project data
   useEffect(() => {
@@ -117,6 +127,18 @@ export default function EmailsPage() {
             // Pre-select all saved emails
             setSelectedIds(new Set(localEmails.map(e => e.id)))
           }
+        }
+
+        // Load templates (global + project-specific)
+        const { data: templateData, error: templatesError } = await supabase
+          .from('email_templates')
+          .select('*')
+          .or(`project_id.is.null,project_id.eq.${projectId}`)
+          .order('is_default', { ascending: false })
+          .order('name', { ascending: true })
+
+        if (!templatesError && templateData) {
+          setTemplates(templateData)
         }
 
       } catch (err) {
@@ -414,6 +436,177 @@ export default function EmailsPage() {
     }
   }
 
+  // Extract variables from email content (convert actual values to {{variable}} placeholders)
+  const extractVariablesFromEmail = (email: LocalEmail): { subject: string; body: string; variables: string[] } => {
+    let subject = email.subject
+    let body = email.body
+    const usedVariables: Set<string> = new Set()
+
+    // Replace actual values with placeholders
+    const company = companies.find(c => c.id === email.companyId)
+    const schemaConfig = project?.schema_config as Record<string, unknown>
+    const extractedContext = schemaConfig?.extractedContext as Record<string, unknown> | undefined
+
+    const replacements: Array<{ value: string; variable: string }> = [
+      { value: email.contactName, variable: 'contact_name' },
+      { value: email.companyName, variable: 'company_name' },
+      { value: project?.client_name || '', variable: 'client_name' },
+      { value: project?.product_description || '', variable: 'product_description' },
+      { value: (extractedContext?.valueProposition as string) || '', variable: 'value_proposition' },
+      { value: (extractedContext?.visitDates as string) || '', variable: 'visit_dates' },
+    ]
+
+    for (const { value, variable } of replacements) {
+      if (value && value.length > 2) {
+        const regex = new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+        if (regex.test(subject)) {
+          subject = subject.replace(regex, `{{${variable}}}`)
+          usedVariables.add(variable)
+        }
+        if (regex.test(body)) {
+          body = body.replace(regex, `{{${variable}}}`)
+          usedVariables.add(variable)
+        }
+      }
+    }
+
+    return { subject, body, variables: Array.from(usedVariables) }
+  }
+
+  // Save email as template
+  const handleSaveAsTemplate = async () => {
+    if (!saveTemplateEmail || !newTemplateName.trim()) return
+    setSavingTemplate(true)
+
+    try {
+      const supabase = getSupabase()
+      const { subject, body, variables } = extractVariablesFromEmail(saveTemplateEmail)
+
+      const { data: newTemplate, error: templateError } = await supabase
+        .from('email_templates')
+        .insert({
+          project_id: projectId,
+          name: newTemplateName.trim(),
+          category: newTemplateCategory,
+          description: newTemplateDescription.trim() || null,
+          subject,
+          body,
+          variables,
+          is_default: false
+        })
+        .select()
+        .single()
+
+      if (templateError) throw templateError
+
+      setTemplates(prev => [...prev, newTemplate])
+      setShowSaveTemplate(false)
+      setSaveTemplateEmail(null)
+      setNewTemplateName('')
+      setNewTemplateCategory('cold_outreach')
+      setNewTemplateDescription('')
+      addToast('Template saved successfully', 'success')
+
+    } catch (err) {
+      console.error('Error saving template:', err)
+      addToast('Failed to save template', 'error')
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
+  // Apply template with variable substitution
+  const applyTemplate = (template: DbEmailTemplate, contact: DbContact, company: DbCompany): { subject: string; body: string } => {
+    const schemaConfig = project?.schema_config as Record<string, unknown>
+    const extractedContext = schemaConfig?.extractedContext as Record<string, unknown> | undefined
+
+    const variables: Record<string, string> = {
+      contact_name: contact.name,
+      contact_title: contact.title || '',
+      contact_email: contact.email || '',
+      company_name: company.name,
+      client_name: project?.client_name || '',
+      product_description: project?.product_description || '',
+      value_proposition: (extractedContext?.valueProposition as string) || project?.product_description || '',
+      visit_dates: (extractedContext?.visitDates as string) || '',
+      previous_subject: '',
+    }
+
+    let subject = template.subject
+    let body = template.body
+
+    // Replace all {{variable}} placeholders
+    for (const [key, value] of Object.entries(variables)) {
+      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'gi')
+      subject = subject.replace(regex, value)
+      body = body.replace(regex, value)
+    }
+
+    return { subject, body }
+  }
+
+  // Generate emails from template
+  const handleGenerateFromTemplate = async (template: DbEmailTemplate) => {
+    if (!project || contacts.length === 0) return
+    setGenerating(true)
+    setError(null)
+    setShowTemplatePicker(false)
+
+    try {
+      // Get contacts that don't have emails yet
+      const existingContactIds = new Set(emails.map(e => e.contactId))
+      const contactsWithoutEmails = contacts.filter(c => !existingContactIds.has(c.id))
+
+      if (contactsWithoutEmails.length === 0) {
+        setError('All contacts already have emails generated')
+        setGenerating(false)
+        return
+      }
+
+      // Generate emails by applying template to each contact
+      const newLocalEmails: LocalEmail[] = contactsWithoutEmails.map(contact => {
+        const company = companies.find(c => c.id === contact.company_id)!
+        const { subject, body } = applyTemplate(template, contact, company)
+
+        return {
+          id: crypto.randomUUID(),
+          contactId: contact.id,
+          contactName: contact.name,
+          contactEmail: contact.email || '',
+          companyId: contact.company_id,
+          companyName: company?.name || '',
+          subject,
+          body,
+          status: 'draft' as const,
+          isSaved: false,
+          isNew: true
+        }
+      })
+
+      setEmails(prev => [...prev, ...newLocalEmails])
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        newLocalEmails.forEach(e => next.add(e.id))
+        return next
+      })
+
+      addToast(`Generated ${newLocalEmails.length} emails from template`, 'success')
+
+    } catch (err) {
+      console.error('Error generating from template:', err)
+      setError(err instanceof Error ? err.message : 'Failed to generate emails')
+      addToast('Failed to generate emails', 'error')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  // Open save template modal
+  const openSaveTemplateModal = (email: LocalEmail) => {
+    setSaveTemplateEmail(email)
+    setShowSaveTemplate(true)
+  }
+
   // Count stats
   const totalEmails = emails.length
   const selectedCount = selectedIds.size
@@ -479,10 +672,53 @@ export default function EmailsPage() {
           ) : (
             <>
               <Wand2 className="w-4 h-4" />
-              Generate Emails {contactsWithoutEmails > 0 && `(${contactsWithoutEmails} pending)`}
+              Generate with AI {contactsWithoutEmails > 0 && `(${contactsWithoutEmails} pending)`}
             </>
           )}
         </button>
+
+        {/* Template picker dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+            disabled={generating || contacts.length === 0 || contactsWithoutEmails === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FileText className="w-4 h-4" />
+            Use Template
+            <ChevronDown className="w-4 h-4" />
+          </button>
+          {showTemplatePicker && (
+            <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
+              {templates.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">No templates available</div>
+              ) : (
+                <>
+                  {templates.map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleGenerateFromTemplate(template)}
+                      className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{template.name}</span>
+                        {template.is_default && (
+                          <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">Default</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {template.category.replace('_', ' ')}
+                      </div>
+                      {template.description && (
+                        <div className="text-xs text-gray-400 mt-1">{template.description}</div>
+                      )}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         {totalEmails > 0 && (
           <>
@@ -617,12 +853,22 @@ export default function EmailsPage() {
                 <div className="text-sm text-gray-500">{email.contactEmail}</div>
               </div>
               {editingId !== email.id && (
-                <button
-                  onClick={() => startEdit(email)}
-                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openSaveTemplateModal(email)}
+                    className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded"
+                    title="Save as template"
+                  >
+                    <BookmarkPlus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => startEdit(email)}
+                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
+                    title="Edit email"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                </div>
               )}
             </div>
 
@@ -687,8 +933,112 @@ export default function EmailsPage() {
             disabled={generating}
             className="text-blue-600 hover:underline"
           >
-            Click &quot;Generate Emails&quot; to create outreach emails
+            Click &quot;Generate with AI&quot; to create outreach emails
           </button>
+        </div>
+      )}
+
+      {/* Save as Template Modal */}
+      {showSaveTemplate && saveTemplateEmail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Save as Template</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Template Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    placeholder="e.g., Partnership Intro"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={newTemplateCategory}
+                    onChange={(e) => setNewTemplateCategory(e.target.value as EmailTemplateCategory)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="cold_outreach">Cold Outreach</option>
+                    <option value="followup">Follow-up</option>
+                    <option value="introduction_request">Introduction Request</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newTemplateDescription}
+                    onChange={(e) => setNewTemplateDescription(e.target.value)}
+                    placeholder="Brief description of when to use this template"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm font-medium text-gray-700 mb-2">Preview (with variables)</div>
+                  <div className="text-xs text-gray-500 mb-2">
+                    Contact-specific values will be replaced with {'{{variables}}'} for reuse
+                  </div>
+                  <div className="text-sm">
+                    <div className="mb-1">
+                      <span className="text-gray-500">Subject: </span>
+                      <span className="font-mono text-xs bg-white px-1 rounded">
+                        {extractVariablesFromEmail(saveTemplateEmail).subject}
+                      </span>
+                    </div>
+                    <div className="text-gray-700 whitespace-pre-wrap font-mono text-xs bg-white p-2 rounded max-h-32 overflow-y-auto">
+                      {extractVariablesFromEmail(saveTemplateEmail).body}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowSaveTemplate(false)
+                    setSaveTemplateEmail(null)
+                    setNewTemplateName('')
+                    setNewTemplateCategory('cold_outreach')
+                    setNewTemplateDescription('')
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAsTemplate}
+                  disabled={savingTemplate || !newTemplateName.trim()}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {savingTemplate ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <BookmarkPlus className="w-4 h-4" />
+                      Save Template
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

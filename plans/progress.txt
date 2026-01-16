@@ -5,3 +5,6 @@ Files: src/app/page.tsx (edit/duplicate/delete buttons, cascade delete), src/app
 
 F13: Contact search filters - DONE
 Files: src/app/project/[id]/contacts/page.tsx (title presets dropdown, filter chips, localStorage persistence)
+
+F14: Email templates - DONE
+Files: supabase/migrations/003_email_templates.sql (new), src/types/index.ts, src/lib/supabase.ts, src/app/project/[id]/emails/page.tsx (template picker, save as template)
