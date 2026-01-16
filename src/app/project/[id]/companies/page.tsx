@@ -7,6 +7,10 @@ import { Plus, Sparkles, Upload, Trash2, RefreshCw, Check, X, Pencil } from 'luc
 import { getSupabase, Company as DbCompany, Project as DbProject } from '@/lib/supabase'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
 import { useToast, ErrorMessage } from '@/components/ui'
+import { useTableKeyboardNav } from '@/hooks/useTableKeyboardNav'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { ShortcutBadge } from '@/components/ShortcutHint'
+import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp'
 
 interface LocalCompany {
   id: string
@@ -63,6 +67,43 @@ export default function CompaniesPage() {
     name: '',
     website: '',
     notes: ''
+  })
+
+  // Keyboard navigation for table
+  const { focusedIndex, focusedItemId } = useTableKeyboardNav({
+    items: companies,
+    enabled: !showAddForm && !showImportModal && !editingCompany,
+    getItemId: (company) => company.id,
+    onToggle: (company) => toggleSelect(company.id),
+    onSelect: (company) => startEdit(company)
+  })
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        key: 'a',
+        description: 'Add company',
+        action: () => setShowAddForm(true),
+        enabled: !showAddForm && !showImportModal && !editingCompany
+      },
+      {
+        key: 'i',
+        description: 'Import companies',
+        action: () => setShowImportModal(true),
+        enabled: !showAddForm && !showImportModal && !editingCompany
+      },
+      {
+        key: 'Escape',
+        description: 'Close modal/form',
+        action: () => {
+          if (editingCompany) setEditingCompany(null)
+          else if (showAddForm) setShowAddForm(false)
+          else if (showImportModal) setShowImportModal(false)
+        },
+        enabled: showAddForm || showImportModal || !!editingCompany
+      }
+    ]
   })
 
   // Load project and companies
@@ -678,6 +719,7 @@ export default function CompaniesPage() {
         >
           <Plus className="w-4 h-4" />
           Add manually
+          <ShortcutBadge shortcut={{ key: 'a' }} />
         </button>
 
         <button
@@ -686,6 +728,7 @@ export default function CompaniesPage() {
         >
           <Upload className="w-4 h-4" />
           Import CSV / Paste
+          <ShortcutBadge shortcut={{ key: 'i' }} />
         </button>
 
         {companies.length > 0 && !enrichProgress.isRunning && (
@@ -975,7 +1018,7 @@ export default function CompaniesPage() {
               companies.map(company => (
                 <tr
                   key={company.id}
-                  className={`hover:bg-gray-50 ${company.isNew ? 'bg-blue-50/50' : ''}`}
+                  className={`hover:bg-gray-50 ${company.isNew ? 'bg-blue-50/50' : ''} ${focusedItemId === company.id ? 'ring-2 ring-blue-500 ring-inset bg-blue-50' : ''}`}
                 >
                   <td className="px-4 py-3">
                     <input
@@ -1064,8 +1107,19 @@ export default function CompaniesPage() {
 
       {/* Summary */}
       {companies.length > 0 && (
-        <div className="mt-4 text-sm text-gray-600">
+        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
           <span>{companies.length} companies</span>
+          <KeyboardShortcutsHelp
+            shortcuts={[
+              { keys: { key: 'a' }, description: 'Add company' },
+              { keys: { key: 'i' }, description: 'Import companies' },
+              { keys: { key: 'j' }, description: 'Move down' },
+              { keys: { key: 'k' }, description: 'Move up' },
+              { keys: { key: ' ' }, description: 'Toggle selection' },
+              { keys: { key: 'Enter' }, description: 'Edit company' },
+              { keys: { key: 'Escape' }, description: 'Close modal' },
+            ]}
+          />
         </div>
       )}
     </main>

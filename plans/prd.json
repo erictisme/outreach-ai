@@ -261,7 +261,7 @@
       "id": "F17",
       "name": "Quick actions and keyboard shortcuts",
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "description": "Add keyboard shortcuts for power users",
       "steps": [
         "Cmd+N to create new project",

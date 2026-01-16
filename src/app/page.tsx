@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation'
 import { Building2, Users, Mail, Clock, Trash2, Plus, Pencil, Copy } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { ErrorMessage } from '@/components/ui'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { ShortcutBadge } from '@/components/ShortcutHint'
+import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp'
 
 interface ProjectWithCounts extends Project {
   companyCount: number
@@ -33,6 +36,18 @@ export default function Home() {
   const [projects, setProjects] = useState<ProjectWithCounts[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        key: 'n',
+        metaKey: true,
+        description: 'Create new project',
+        action: () => router.push('/new')
+      }
+    ]
+  })
 
   useEffect(() => {
     async function loadProjects() {
@@ -233,10 +248,19 @@ export default function Home() {
   return (
     <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold">Outreach AI</h1>
-        <p className="text-gray-600 mt-2">
-          B2B outreach automation: Project → Companies → Contacts → Emails → Export
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Outreach AI</h1>
+            <p className="text-gray-600 mt-2">
+              B2B outreach automation: Project → Companies → Contacts → Emails → Export
+            </p>
+          </div>
+          <KeyboardShortcutsHelp
+            shortcuts={[
+              { keys: { key: 'n', metaKey: true }, description: 'New project' },
+            ]}
+          />
+        </div>
       </header>
 
       {error && (
@@ -256,6 +280,7 @@ export default function Home() {
           >
             <Plus className="w-4 h-4" />
             New Project
+            <ShortcutBadge shortcut={{ key: 'n', metaKey: true }} className="bg-blue-500 border-blue-400 text-blue-100" />
           </Link>
         </div>
 

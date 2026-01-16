@@ -5,3 +5,6 @@ Files: page.tsx (home), new/page.tsx, project/[id]/*.tsx pages, WizardNav.tsx, P
 
 F16: Company enrichment with AI - added Enrich All button, progress bar, edit modal for manual override
 Files: src/app/project/[id]/companies/page.tsx
+
+F17: Quick actions and keyboard shortcuts - Cmd+N new project, Cmd+S save, arrow/j/k table nav, space toggle, enter confirm, ? help modal
+Files: src/hooks/useKeyboardShortcuts.ts, src/hooks/useTableKeyboardNav.ts, src/components/ShortcutHint.tsx, src/components/KeyboardShortcutsHelp.tsx, page.tsx, ProjectForm.tsx, companies/page.tsx

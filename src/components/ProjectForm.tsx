@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Upload, FileText, X, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UploadedDoc, ProjectContext } from '@/types'
 import { SchemaEditor, SchemaColumn, DEFAULT_SCHEMA } from './SchemaEditor'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { ShortcutBadge } from './ShortcutHint'
 
 export interface ProjectFormData {
   clientName: string
@@ -43,6 +45,7 @@ export function ProjectForm({
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractError, setExtractError] = useState<string | null>(null)
   const [showSchemaEditor, setShowSchemaEditor] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -145,9 +148,27 @@ export function ProjectForm({
   }
 
   const canExtract = briefContent.trim() || documents.length > 0
+  const canSubmit = Boolean(clientName.trim()) && !isSubmitting
+
+  // Keyboard shortcut for save (Cmd+S)
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        key: 's',
+        metaKey: true,
+        description: 'Save form',
+        action: () => {
+          if (canSubmit && formRef.current) {
+            formRef.current.requestSubmit()
+          }
+        },
+        enabled: canSubmit
+      }
+    ]
+  })
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Info Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Project Details</h2>
@@ -374,21 +395,24 @@ export function ProjectForm({
       <div className="pt-4 border-t border-gray-200">
         <button
           type="submit"
-          disabled={!clientName.trim() || isSubmitting}
+          disabled={!canSubmit}
           className={cn(
-            "w-full py-3 rounded-lg font-medium transition-colors",
-            clientName.trim() && !isSubmitting
+            "w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2",
+            canSubmit
               ? "bg-blue-600 text-white hover:bg-blue-700"
               : "bg-gray-100 text-gray-400 cursor-not-allowed"
           )}
         >
           {isSubmitting ? (
-            <span className="flex items-center justify-center gap-2">
+            <>
               <Loader2 className="w-4 h-4 animate-spin" />
               Creating...
-            </span>
+            </>
           ) : (
-            submitLabel
+            <>
+              {submitLabel}
+              <ShortcutBadge shortcut={{ key: 's', metaKey: true }} className="bg-blue-500 border-blue-400 text-blue-100" />
+            </>
           )}
         </button>
       </div>
