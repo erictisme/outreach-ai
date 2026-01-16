@@ -1,25 +1,4 @@
-# Ralph run Fri Jan 16 08:37:48 +08 2026
+# Ralph run Fri Jan 16 09:08:23 +08 2026
 
-F1: Fresh project structure - DONE
-Files: src/app/layout.tsx, src/app/page.tsx, src/app/project/[id]/page.tsx, src/lib/apollo.ts, src/components/ui/.gitkeep
-
-F3: Step 1: Project creation - DONE
-Files: src/app/new/page.tsx, src/components/ProjectForm.tsx, src/lib/supabase.ts (lazy init)
-
-F4: Step 2: Companies list - DONE
-Files: src/app/project/[id]/companies/page.tsx (AI generate, manual add, CSV/Excel import, enrich, save to Supabase)
-
-F5: Step 3: Find contacts - DONE
-Files: src/app/project/[id]/contacts/page.tsx (Apollo search, select contacts, save to Supabase)
-
-F6: Step 4: Generate emails - DONE
-Files: src/app/project/[id]/emails/page.tsx (generate via Gemini, edit, bulk refine, save to Supabase)
-
-F7: Step 5: Export - DONE
-Files: src/app/project/[id]/export/page.tsx (preview table, drag-reorder columns, rename columns, export CSV)
-
-F8: Flexible schema system - DONE
-Files: src/components/SchemaEditor.tsx, src/components/ProjectForm.tsx (schema section), src/app/new/page.tsx, src/app/project/[id]/export/page.tsx
-
-F9: Dashboard and navigation - DONE
-Files: src/app/page.tsx (project list with counts), src/components/WizardNav.tsx (step nav), all step pages updated
+F10: User-provided API keys - complete
+Files: src/components/ApiKeyModal.tsx (new), src/app/project/[id]/contacts/page.tsx, src/app/api/find-contacts-apollo/route.ts, src/app/api/find-contacts-hunter/route.ts, src/app/api/find-contacts-waterfall/route.ts

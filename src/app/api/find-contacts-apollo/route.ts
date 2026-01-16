@@ -28,14 +28,16 @@ interface ApolloSearchResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const { companies, context } = await request.json() as {
+    const { companies, context, apiKey } = await request.json() as {
       companies: Company[]
       context: ProjectContext
+      apiKey?: string  // API key from client (user-provided)
     }
 
-    const apolloApiKey = process.env.APOLLO_API_KEY
+    // Prefer user-provided apiKey, fall back to env var
+    const apolloApiKey = apiKey || process.env.APOLLO_API_KEY
     if (!apolloApiKey) {
-      return NextResponse.json({ error: 'Apollo API not configured' }, { status: 500 })
+      return NextResponse.json({ error: 'Apollo API key required. Please add your API key in settings.' }, { status: 400 })
     }
 
     if (!companies || companies.length === 0) {

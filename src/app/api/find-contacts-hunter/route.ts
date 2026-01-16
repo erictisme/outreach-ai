@@ -41,14 +41,16 @@ interface HunterDomainSearchResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const { companies, context } = await request.json() as {
+    const { companies, context, apiKey } = await request.json() as {
       companies: Company[]
       context: ProjectContext
+      apiKey?: string  // API key from client (user-provided)
     }
 
-    const hunterApiKey = process.env.HUNTER_API_KEY
+    // Prefer user-provided apiKey, fall back to env var
+    const hunterApiKey = apiKey || process.env.HUNTER_API_KEY
     if (!hunterApiKey) {
-      return NextResponse.json({ error: 'Hunter API not configured' }, { status: 500 })
+      return NextResponse.json({ error: 'Hunter API key required. Please add your API key in settings.' }, { status: 400 })
     }
 
     if (!companies || companies.length === 0) {

@@ -25,14 +25,29 @@ const PROVIDER_ORDER: ProviderConfig[] = [
   { name: 'apify', endpoint: '/api/find-contacts-apify', envVar: 'APIFY_API_KEY' },
 ]
 
+// Helper to get API key for a provider from user-provided keys or env
+function getProviderApiKey(
+  provider: ProviderConfig,
+  apiKeys?: { apollo?: string; hunter?: string; apify?: string }
+): string | null {
+  // Check user-provided keys first
+  if (apiKeys) {
+    const userKey = apiKeys[provider.name as keyof typeof apiKeys]
+    if (userKey) return userKey
+  }
+  // Fall back to env var
+  return process.env[provider.envVar] || null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { companies, context, preferredProvider, skipProviders } = body as {
+    const { companies, context, preferredProvider, skipProviders, apiKeys } = body as {
       companies: Company[]
       context: ProjectContext
       preferredProvider?: ContactSource // Start from this provider
       skipProviders?: ContactSource[]   // Skip these providers
+      apiKeys?: { apollo?: string; hunter?: string; apify?: string }  // User-provided API keys
     }
 
     if (!companies || companies.length === 0) {
@@ -47,10 +62,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check which providers are configured (have API keys)
+    // Check which providers are configured (have API keys from user or env)
     const configuredProviders = PROVIDER_ORDER.filter(p => {
-      // Check if API key exists
-      const hasKey = !!process.env[p.envVar]
+      // Check if API key exists (user-provided or env)
+      const hasKey = !!getProviderApiKey(p, apiKeys)
       // Check if not in skip list
       const notSkipped = !skipProviders?.includes(p.name)
       return hasKey && notSkipped
@@ -58,9 +73,9 @@ export async function POST(request: NextRequest) {
 
     if (configuredProviders.length === 0) {
       return NextResponse.json({
-        error: 'No contact providers configured. Set APOLLO_API_KEY, HUNTER_API_KEY, or APIFY_API_KEY in .env.local',
+        error: 'No contact providers configured. Please add your API keys in settings.',
         configuredProviders: [],
-      }, { status: 500 })
+      }, { status: 400 })
     }
 
     // If preferred provider specified, reorder to start from there
@@ -88,10 +103,13 @@ export async function POST(request: NextRequest) {
       console.log(`[Waterfall] Trying provider ${i + 1}/${providers.length}: ${provider.name}`)
 
       try {
+        // Get the API key for this provider
+        const providerApiKey = getProviderApiKey(provider, apiKeys)
+
         const response = await fetch(`${baseUrl}${provider.endpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companies, context }),
+          body: JSON.stringify({ companies, context, apiKey: providerApiKey }),
         })
 
         // Handle rate limiting

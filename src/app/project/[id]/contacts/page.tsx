@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Check, X, Linkedin, Mail, RefreshCw } from 'lucide-react'
+import { Search, Check, X, Linkedin, Mail, RefreshCw, Settings } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject } from '@/lib/supabase'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
+import { ApiKeyModal, getApiKey, hasAnyContactProvider } from '@/components/ApiKeyModal'
 
 interface LocalContact {
   id: string
@@ -41,6 +42,13 @@ export default function ContactsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false)
+  const [hasApiKey, setHasApiKey] = useState(false)
+
+  // Check for API key on mount
+  useEffect(() => {
+    setHasApiKey(hasAnyContactProvider())
+  }, [])
 
   // Load project and companies with existing contacts
   useEffect(() => {
@@ -139,6 +147,14 @@ export default function ContactsPage() {
   // Search for contacts via Apollo
   const handleSearch = async () => {
     if (!project) return
+
+    // Check for API key before searching
+    const apolloKey = getApiKey('apollo')
+    if (!apolloKey) {
+      setShowApiKeyModal(true)
+      return
+    }
+
     setSearching(true)
     setError(null)
 
@@ -172,6 +188,7 @@ export default function ContactsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           companies: apiCompanies,
+          apiKey: apolloKey,  // Pass API key from client
           context: {
             clientName: project.client_name,
             product: project.product_description || '',
@@ -403,12 +420,36 @@ export default function ContactsPage() {
 
       <WizardNav projectId={projectId} completedSteps={completedSteps} />
 
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold">Find Contacts</h2>
-        <p className="text-gray-600 mt-1">
-          Search for decision makers at your target companies
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Find Contacts</h2>
+          <p className="text-gray-600 mt-1">
+            Search for decision makers at your target companies
+          </p>
+        </div>
+        <button
+          onClick={() => setShowApiKeyModal(true)}
+          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          title="API Key Settings"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
       </div>
+
+      {/* API Key warning */}
+      {!hasApiKey && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-amber-800">
+            <strong>API key required.</strong> You need to configure an Apollo API key to search for contacts.{' '}
+            <button
+              onClick={() => setShowApiKeyModal(true)}
+              className="text-amber-900 underline hover:no-underline"
+            >
+              Add API key
+            </button>
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -599,6 +640,13 @@ export default function ContactsPage() {
         ))}
       </div>
 
+      {/* API Key Modal */}
+      <ApiKeyModal
+        isOpen={showApiKeyModal}
+        requiredKey="apollo"
+        onClose={() => setShowApiKeyModal(false)}
+        onSave={() => setHasApiKey(hasAnyContactProvider())}
+      />
     </main>
   )
 }
