@@ -226,6 +226,51 @@
         "Default templates: Cold outreach, Follow-up, Introduction request"
       ],
       "acceptance": "Can save templates, use templates with variable substitution"
+    },
+    {
+      "id": "F15",
+      "name": "Mobile responsive design",
+      "priority": 15,
+      "passes": false,
+      "description": "Make the app work well on mobile devices",
+      "steps": [
+        "Add responsive breakpoints to all pages",
+        "Stack form fields vertically on mobile",
+        "Make tables horizontally scrollable on mobile",
+        "Adjust navigation for mobile (hamburger menu or bottom nav)",
+        "Test on iPhone/Android screen sizes"
+      ],
+      "acceptance": "App is usable on mobile devices, no horizontal overflow"
+    },
+    {
+      "id": "F16",
+      "name": "Company enrichment with AI",
+      "priority": 16,
+      "passes": false,
+      "description": "Use AI to research and enrich company data automatically",
+      "steps": [
+        "Add 'Enrich All' button on companies page",
+        "Use Gemini to research each company's description, industry, employee count",
+        "Add relevance scoring based on project criteria",
+        "Show enrichment progress with progress bar",
+        "Allow manual override of AI-generated data"
+      ],
+      "acceptance": "Can bulk-enrich companies with AI, shows progress"
+    },
+    {
+      "id": "F17",
+      "name": "Quick actions and keyboard shortcuts",
+      "priority": 17,
+      "passes": false,
+      "description": "Add keyboard shortcuts for power users",
+      "steps": [
+        "Cmd+N to create new project",
+        "Cmd+S to save current data",
+        "Arrow keys to navigate between items in tables",
+        "Enter to select/confirm",
+        "Show shortcut hints in UI"
+      ],
+      "acceptance": "Keyboard shortcuts work, hints visible on hover"
     }
   ]
 }
