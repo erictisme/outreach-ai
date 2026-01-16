@@ -1,0 +1,4 @@
+# Ralph run Fri Jan 16 08:37:48 +08 2026
+
+F1: Fresh project structure - DONE
+Files: src/app/layout.tsx, src/app/page.tsx, src/app/project/[id]/page.tsx, src/lib/apollo.ts, src/components/ui/.gitkeep

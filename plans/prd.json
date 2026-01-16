@@ -1,0 +1,153 @@
+{
+  "project": "outreach-ai-v2",
+  "description": "Simple 5-step wizard for B2B outreach: Project → Companies → Contacts → Emails → Export",
+  "tech_stack": {
+    "framework": "Next.js 14 App Router",
+    "database": "Supabase (Postgres)",
+    "styling": "Tailwind CSS",
+    "apis": ["Apollo (people search + AI emails)", "Gemini (doc extraction)"],
+    "auth": "None for MVP"
+  },
+  "features": [
+    {
+      "id": "F1",
+      "name": "Fresh project structure",
+      "priority": 1,
+      "passes": true,
+      "description": "Clean Next.js 14 app with proper folder structure",
+      "steps": [
+        "Create src/app with layout.tsx and page.tsx (landing/dashboard)",
+        "Create src/components folder with ui/ subfolder",
+        "Create src/lib folder for utilities (supabase.ts, apollo.ts, gemini.ts)",
+        "Create src/types/index.ts with all TypeScript interfaces",
+        "Set up Tailwind with clean globals.css",
+        "Create src/app/project/[id]/page.tsx for project wizard"
+      ],
+      "acceptance": "npm run build passes, clean folder structure exists"
+    },
+    {
+      "id": "F2",
+      "name": "Supabase setup folder",
+      "priority": 2,
+      "passes": true,
+      "description": "Create supabase/ folder with SQL migrations and setup instructions",
+      "steps": [
+        "Create supabase/README.md with setup instructions",
+        "Create supabase/migrations/001_initial.sql with tables: projects, companies, contacts, emails",
+        "Create supabase/migrations/002_schema_config.sql for flexible column storage",
+        "Include .env.example with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      ],
+      "acceptance": "supabase folder exists with clear instructions, SQL is valid"
+    },
+    {
+      "id": "F3",
+      "name": "Step 1: Project creation",
+      "priority": 3,
+      "passes": false,
+      "description": "UI to create a new project with client info + optional doc upload",
+      "steps": [
+        "Create src/app/new/page.tsx with project form",
+        "Fields: client_name, product_description, target_market, target_segment",
+        "Add file upload for pitch deck/brief (store in Supabase storage or just parse)",
+        "Use Gemini to extract key info from uploaded docs",
+        "Save project to Supabase, redirect to /project/[id]",
+        "Create src/components/ProjectForm.tsx as reusable component"
+      ],
+      "acceptance": "Can create project, data saves to Supabase, redirects to wizard"
+    },
+    {
+      "id": "F4",
+      "name": "Step 2: Companies list",
+      "priority": 4,
+      "passes": false,
+      "description": "AI-generate company list from brief + manual add + enrichment",
+      "steps": [
+        "Create src/app/project/[id]/companies/page.tsx",
+        "Button: 'Generate with AI' - uses Gemini to research companies matching criteria",
+        "Manual add form: company name, website, notes",
+        "AI enrichment: click to auto-fill description, relevance score",
+        "Import CSV: parse and add to list",
+        "Paste Excel: detect headers + example rows, map to schema",
+        "Save companies to Supabase linked to project_id"
+      ],
+      "acceptance": "Can generate companies via AI, add manually, import CSV, all save to DB"
+    },
+    {
+      "id": "F5",
+      "name": "Step 3: Find contacts",
+      "priority": 5,
+      "passes": false,
+      "description": "Use Apollo People Search to find contacts at each company",
+      "steps": [
+        "Create src/app/project/[id]/contacts/page.tsx",
+        "Create src/lib/apollo.ts with peopleSearch function",
+        "For each company, search Apollo for people by title keywords",
+        "Display results with name, title, email, LinkedIn",
+        "Let user select which contacts to keep",
+        "Save selected contacts to Supabase linked to company_id"
+      ],
+      "acceptance": "Apollo search works, contacts display, user can select and save"
+    },
+    {
+      "id": "F6",
+      "name": "Step 4: Generate emails",
+      "priority": 6,
+      "passes": false,
+      "description": "Use Apollo AI or Gemini to generate personalized emails",
+      "steps": [
+        "Create src/app/project/[id]/emails/page.tsx",
+        "For each selected contact, generate email using project context",
+        "Use Apollo AI endpoint if available, fallback to Gemini",
+        "Display generated emails with edit capability",
+        "Save emails to Supabase linked to contact_id"
+      ],
+      "acceptance": "Emails generate for each contact, editable, saved to DB"
+    },
+    {
+      "id": "F7",
+      "name": "Step 5: Export",
+      "priority": 7,
+      "passes": false,
+      "description": "Export all data to CSV with user's flexible schema",
+      "steps": [
+        "Create src/app/project/[id]/export/page.tsx",
+        "Show preview of all companies, contacts, emails in table",
+        "Let user reorder/rename columns before export",
+        "Generate CSV with selected columns",
+        "Download button for companies.csv, contacts.csv, emails.csv"
+      ],
+      "acceptance": "Can export to CSV, columns match user preferences"
+    },
+    {
+      "id": "F8",
+      "name": "Flexible schema system",
+      "priority": 8,
+      "passes": false,
+      "description": "User can define their own column schema per project",
+      "steps": [
+        "Create src/components/SchemaEditor.tsx",
+        "On project creation, user can paste Excel headers",
+        "Parse headers into column definitions",
+        "Store schema in project.schema_config (JSONB)",
+        "When importing/exporting, map to user's schema",
+        "AI uses schema context for better extraction"
+      ],
+      "acceptance": "User-defined schemas work, import/export respects them"
+    },
+    {
+      "id": "F9",
+      "name": "Dashboard and navigation",
+      "priority": 9,
+      "passes": false,
+      "description": "Landing page showing all projects, wizard step navigation",
+      "steps": [
+        "Update src/app/page.tsx to list all projects from Supabase",
+        "Add 'New Project' button linking to /new",
+        "Create src/components/WizardNav.tsx for step navigation",
+        "Show current step, completed steps, progress indicator",
+        "Add back/next navigation between steps"
+      ],
+      "acceptance": "Dashboard lists projects, wizard nav works, progress visible"
+    }
+  ]
+}
