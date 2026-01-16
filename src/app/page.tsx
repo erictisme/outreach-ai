@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Building2, Users, Mail, Clock, Trash2, Plus } from 'lucide-react'
+import { Building2, Users, Mail, Clock, Trash2, Plus, Pencil, Copy } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { ErrorMessage } from '@/components/ui'
 
@@ -117,12 +117,50 @@ export default function Home() {
     e.stopPropagation()
 
     const project = projects.find(p => p.id === projectId)
-    if (!confirm(`Delete "${project?.client_name}"? This cannot be undone.`)) {
+    if (!confirm(`Delete "${project?.client_name}"? This will also delete all companies, contacts, and emails. This cannot be undone.`)) {
       return
     }
 
     try {
       const supabase = getSupabase()
+
+      // Cascade delete: get company IDs first
+      const { data: companyIds } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('project_id', projectId)
+
+      if (companyIds && companyIds.length > 0) {
+        const ids = companyIds.map(c => c.id)
+
+        // Get contact IDs for these companies
+        const { data: contactIds } = await supabase
+          .from('contacts')
+          .select('id')
+          .in('company_id', ids)
+
+        if (contactIds && contactIds.length > 0) {
+          // Delete emails for these contacts
+          await supabase
+            .from('emails')
+            .delete()
+            .in('contact_id', contactIds.map(c => c.id))
+        }
+
+        // Delete contacts for these companies
+        await supabase
+          .from('contacts')
+          .delete()
+          .in('company_id', ids)
+
+        // Delete companies
+        await supabase
+          .from('companies')
+          .delete()
+          .eq('project_id', projectId)
+      }
+
+      // Finally delete the project
       const { error } = await supabase
         .from('projects')
         .delete()
@@ -134,6 +172,45 @@ export default function Home() {
     } catch (err) {
       console.error('Error deleting project:', err)
       setError('Failed to delete project')
+    }
+  }
+
+  const handleDuplicateProject = async (projectId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const project = projects.find(p => p.id === projectId)
+    if (!project) return
+
+    try {
+      const supabase = getSupabase()
+
+      // Create a duplicate project with "(Copy)" suffix
+      const { data: newProject, error } = await supabase
+        .from('projects')
+        .insert({
+          client_name: `${project.client_name} (Copy)`,
+          product_description: project.product_description,
+          target_market: project.target_market,
+          target_segment: project.target_segment,
+          brief_content: project.brief_content,
+          schema_config: project.schema_config
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Add the new project to the list
+      setProjects(prev => [{
+        ...newProject,
+        companyCount: 0,
+        contactCount: 0,
+        emailCount: 0
+      }, ...prev])
+    } catch (err) {
+      console.error('Error duplicating project:', err)
+      setError('Failed to duplicate project')
     }
   }
 
@@ -201,13 +278,33 @@ export default function Home() {
                       <p className="text-sm text-gray-500 truncate">{project.target_market}</p>
                     )}
                   </div>
-                  <button
-                    onClick={(e) => handleDeleteProject(project.id, e)}
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                    title="Delete project"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        router.push(`/project/${project.id}/edit`)
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg"
+                      title="Edit project"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDuplicateProject(project.id, e)}
+                      className="p-1.5 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded-lg"
+                      title="Duplicate project"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteProject(project.id, e)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                      title="Delete project"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex gap-4 mb-3 text-sm text-gray-600">

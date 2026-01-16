@@ -186,7 +186,7 @@
       "id": "F12",
       "name": "Project management (edit/delete)",
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "description": "Allow users to edit and delete existing projects",
       "steps": [
         "Add edit button on project card in dashboard",

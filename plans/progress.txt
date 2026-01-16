@@ -1,1 +1,4 @@
 # Ralph run Fri Jan 16 09:20:24 +08 2026
+
+F12: Project management (edit/delete) - DONE
+Files: src/app/page.tsx (edit/duplicate/delete buttons, cascade delete), src/app/project/[id]/edit/page.tsx (new)
