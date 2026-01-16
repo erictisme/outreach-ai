@@ -2,3 +2,6 @@
 
 F12: Project management (edit/delete) - DONE
 Files: src/app/page.tsx (edit/duplicate/delete buttons, cascade delete), src/app/project/[id]/edit/page.tsx (new)
+
+F13: Contact search filters - DONE
+Files: src/app/project/[id]/contacts/page.tsx (title presets dropdown, filter chips, localStorage persistence)

@@ -3,11 +3,46 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Check, X, Linkedin, Mail, RefreshCw, Settings } from 'lucide-react'
+import { Search, Check, X, Linkedin, Mail, RefreshCw, Settings, Filter, ChevronDown } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject } from '@/lib/supabase'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
 import { ApiKeyModal, getApiKey, hasAnyContactProvider } from '@/components/ApiKeyModal'
 import { useToast, ErrorMessage } from '@/components/ui'
+
+// Common title presets for filtering
+const TITLE_PRESETS = [
+  { label: 'C-Suite', titles: ['CEO', 'CFO', 'COO', 'CMO', 'CTO', 'Chief'] },
+  { label: 'Founders', titles: ['Founder', 'Co-Founder', 'Owner', 'Partner'] },
+  { label: 'Directors', titles: ['Director', 'VP', 'Vice President', 'Head of'] },
+  { label: 'Managers', titles: ['Manager', 'Lead', 'Team Lead', 'Supervisor'] },
+  { label: 'Buyers', titles: ['Buyer', 'Purchasing', 'Procurement', 'Sourcing'] },
+  { label: 'Sales', titles: ['Sales', 'Business Development', 'BD', 'Account'] },
+]
+
+// Storage key for filters per project
+const FILTERS_STORAGE_KEY = 'outreach-ai-contact-filters-'
+
+interface ContactFilters {
+  titles: string[]
+  customTitle: string
+}
+
+function getStoredFilters(projectId: string): ContactFilters | null {
+  try {
+    const stored = localStorage.getItem(FILTERS_STORAGE_KEY + projectId)
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+function storeFilters(projectId: string, filters: ContactFilters): void {
+  try {
+    localStorage.setItem(FILTERS_STORAGE_KEY + projectId, JSON.stringify(filters))
+  } catch {
+    console.error('Failed to store filters')
+  }
+}
 
 interface LocalContact {
   id: string
@@ -47,10 +82,29 @@ export default function ContactsPage() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [hasApiKey, setHasApiKey] = useState(false)
 
-  // Check for API key on mount
+  // Filter state
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false)
+  const [selectedTitles, setSelectedTitles] = useState<string[]>([])
+  const [customTitle, setCustomTitle] = useState('')
+
+  // Check for API key on mount and load stored filters
   useEffect(() => {
     setHasApiKey(hasAnyContactProvider())
-  }, [])
+
+    // Load stored filters for this project
+    const storedFilters = getStoredFilters(projectId)
+    if (storedFilters) {
+      setSelectedTitles(storedFilters.titles)
+      setCustomTitle(storedFilters.customTitle)
+    }
+  }, [projectId])
+
+  // Store filters when they change
+  useEffect(() => {
+    if (projectId) {
+      storeFilters(projectId, { titles: selectedTitles, customTitle })
+    }
+  }, [projectId, selectedTitles, customTitle])
 
   // Load project and companies with existing contacts
   useEffect(() => {
@@ -164,10 +218,21 @@ export default function ContactsPage() {
     setSearchProgress({ current: 0, total: companiesWithWebsites.length })
 
     try {
-      // Get target roles from project context
-      const schemaConfig = project.schema_config as Record<string, unknown>
-      const extractedContext = schemaConfig?.extractedContext as Record<string, unknown> | undefined
-      const targetRoles = (extractedContext?.targetRoles as string[]) || ['CEO', 'Managing Director', 'Sales Director', 'Business Development']
+      // Get target roles from filters, or fall back to project context
+      let targetRoles: string[] = []
+
+      // Use selected filter titles if any
+      if (selectedTitles.length > 0 || customTitle.trim()) {
+        targetRoles = [...selectedTitles]
+        if (customTitle.trim()) {
+          targetRoles.push(customTitle.trim())
+        }
+      } else {
+        // Fall back to project context
+        const schemaConfig = project.schema_config as Record<string, unknown>
+        const extractedContext = schemaConfig?.extractedContext as Record<string, unknown> | undefined
+        targetRoles = (extractedContext?.targetRoles as string[]) || ['CEO', 'Managing Director', 'Sales Director', 'Business Development']
+      }
 
       // Prepare companies for API call
       const apiCompanies = companiesWithWebsites.map(c => ({
@@ -529,6 +594,119 @@ export default function ContactsPage() {
               </>
             )}
           </button>
+        )}
+      </div>
+
+      {/* Title Filters */}
+      <div className="mb-6">
+        <div className="relative">
+          <button
+            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            <Filter className="w-4 h-4" />
+            Filter by Title
+            <ChevronDown className={`w-4 h-4 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
+            {(selectedTitles.length > 0 || customTitle.trim()) && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                {selectedTitles.length + (customTitle.trim() ? 1 : 0)}
+              </span>
+            )}
+          </button>
+
+          {showFilterDropdown && (
+            <div className="absolute z-10 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Title Presets</label>
+                <div className="flex flex-wrap gap-2">
+                  {TITLE_PRESETS.map(preset => {
+                    const isActive = preset.titles.some(t => selectedTitles.includes(t))
+                    return (
+                      <button
+                        key={preset.label}
+                        onClick={() => {
+                          if (isActive) {
+                            // Remove all titles from this preset
+                            setSelectedTitles(prev => prev.filter(t => !preset.titles.includes(t)))
+                          } else {
+                            // Add all titles from this preset (avoid duplicates)
+                            setSelectedTitles(prev => [...new Set([...prev, ...preset.titles])])
+                          }
+                        }}
+                        className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                          isActive
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Custom Title</label>
+                <input
+                  type="text"
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  placeholder="e.g., Operations Manager"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setSelectedTitles([])
+                    setCustomTitle('')
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Clear all
+                </button>
+                <button
+                  onClick={() => setShowFilterDropdown(false)}
+                  className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Active filter chips */}
+        {(selectedTitles.length > 0 || customTitle.trim()) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedTitles.map(title => (
+              <span
+                key={title}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded-full"
+              >
+                {title}
+                <button
+                  onClick={() => setSelectedTitles(prev => prev.filter(t => t !== title))}
+                  className="hover:bg-blue-100 rounded-full p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+            {customTitle.trim() && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-sm rounded-full">
+                {customTitle}
+                <button
+                  onClick={() => setCustomTitle('')}
+                  className="hover:bg-purple-100 rounded-full p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
         )}
       </div>
 

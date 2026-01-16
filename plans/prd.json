@@ -201,7 +201,7 @@
       "id": "F13",
       "name": "Contact search filters",
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "description": "Filter contacts by role/title when searching Apollo",
       "steps": [
         "Add title/role filter input on contacts page",
