@@ -59,7 +59,7 @@
       "id": "F4",
       "name": "Step 2: Companies list",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "description": "AI-generate company list from brief + manual add + enrichment",
       "steps": [
         "Create src/app/project/[id]/companies/page.tsx",

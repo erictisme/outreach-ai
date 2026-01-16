@@ -5,3 +5,6 @@ Files: src/app/layout.tsx, src/app/page.tsx, src/app/project/[id]/page.tsx, src/
 
 F3: Step 1: Project creation - DONE
 Files: src/app/new/page.tsx, src/components/ProjectForm.tsx, src/lib/supabase.ts (lazy init)
+
+F4: Step 2: Companies list - DONE
+Files: src/app/project/[id]/companies/page.tsx (AI generate, manual add, CSV/Excel import, enrich, save to Supabase)
