@@ -92,7 +92,7 @@
       "id": "F6",
       "name": "Step 4: Generate emails",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "description": "Use Apollo AI or Gemini to generate personalized emails",
       "steps": [
         "Create src/app/project/[id]/emails/page.tsx",
