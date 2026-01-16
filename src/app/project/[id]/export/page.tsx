@@ -3,48 +3,69 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Download, GripVertical, Check, X } from 'lucide-react'
+import { ArrowLeft, Download, GripVertical, Check, X, Settings } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, Email as DbEmail } from '@/lib/supabase'
+import { SchemaColumn, DEFAULT_SCHEMA } from '@/components/SchemaEditor'
 
 interface ExportColumn {
   id: string
   key: string
   label: string
   enabled: boolean
+  category?: string
 }
 
-interface ExportRow {
-  companyName: string
-  companyWebsite: string
-  companyDescription: string
-  companyRelevance: string
-  companyStatus: string
-  contactName: string
-  contactTitle: string
-  contactEmail: string
-  contactPhone: string
-  contactLinkedin: string
-  contactVerified: string
-  emailSubject: string
-  emailBody: string
-  emailStatus: string
+// Dynamic row type for flexible schemas
+type ExportRow = Record<string, string>
+
+// Convert project schema columns to export columns
+function schemaToExportColumns(schema: SchemaColumn[]): ExportColumn[] {
+  return schema.map((col, idx) => ({
+    id: col.id || String(idx + 1),
+    key: col.key,
+    label: col.label,
+    enabled: col.category !== 'email' || col.key === 'email_subject' || col.key === 'email_body',
+    category: col.category,
+  }))
 }
 
+// Map schema key to legacy key format (for backward compatibility)
+function mapSchemaKeyToLegacy(key: string): string {
+  const mapping: Record<string, string> = {
+    'company_name': 'companyName',
+    'company_website': 'companyWebsite',
+    'company_description': 'companyDescription',
+    'company_relevance': 'companyRelevance',
+    'company_status': 'companyStatus',
+    'contact_name': 'contactName',
+    'contact_title': 'contactTitle',
+    'contact_email': 'contactEmail',
+    'contact_phone': 'contactPhone',
+    'contact_linkedin': 'contactLinkedin',
+    'contact_verified': 'contactVerified',
+    'email_subject': 'emailSubject',
+    'email_body': 'emailBody',
+    'email_status': 'emailStatus',
+  }
+  return mapping[key] || key
+}
+
+// Default export columns (fallback)
 const DEFAULT_COLUMNS: ExportColumn[] = [
-  { id: '1', key: 'companyName', label: 'Company', enabled: true },
-  { id: '2', key: 'companyWebsite', label: 'Website', enabled: true },
-  { id: '3', key: 'companyDescription', label: 'Company Description', enabled: true },
-  { id: '4', key: 'companyRelevance', label: 'Relevance Notes', enabled: true },
-  { id: '5', key: 'companyStatus', label: 'Company Status', enabled: false },
-  { id: '6', key: 'contactName', label: 'Contact Name', enabled: true },
-  { id: '7', key: 'contactTitle', label: 'Title', enabled: true },
-  { id: '8', key: 'contactEmail', label: 'Email', enabled: true },
-  { id: '9', key: 'contactPhone', label: 'Phone', enabled: false },
-  { id: '10', key: 'contactLinkedin', label: 'LinkedIn', enabled: true },
-  { id: '11', key: 'contactVerified', label: 'Verified', enabled: false },
-  { id: '12', key: 'emailSubject', label: 'Email Subject', enabled: true },
-  { id: '13', key: 'emailBody', label: 'Email Body', enabled: true },
-  { id: '14', key: 'emailStatus', label: 'Email Status', enabled: false },
+  { id: '1', key: 'companyName', label: 'Company', enabled: true, category: 'company' },
+  { id: '2', key: 'companyWebsite', label: 'Website', enabled: true, category: 'company' },
+  { id: '3', key: 'companyDescription', label: 'Company Description', enabled: true, category: 'company' },
+  { id: '4', key: 'companyRelevance', label: 'Relevance Notes', enabled: true, category: 'company' },
+  { id: '5', key: 'companyStatus', label: 'Company Status', enabled: false, category: 'company' },
+  { id: '6', key: 'contactName', label: 'Contact Name', enabled: true, category: 'contact' },
+  { id: '7', key: 'contactTitle', label: 'Title', enabled: true, category: 'contact' },
+  { id: '8', key: 'contactEmail', label: 'Email', enabled: true, category: 'contact' },
+  { id: '9', key: 'contactPhone', label: 'Phone', enabled: false, category: 'contact' },
+  { id: '10', key: 'contactLinkedin', label: 'LinkedIn', enabled: true, category: 'contact' },
+  { id: '11', key: 'contactVerified', label: 'Verified', enabled: false, category: 'contact' },
+  { id: '12', key: 'emailSubject', label: 'Email Subject', enabled: true, category: 'email' },
+  { id: '13', key: 'emailBody', label: 'Email Body', enabled: true, category: 'email' },
+  { id: '14', key: 'emailStatus', label: 'Email Status', enabled: false, category: 'email' },
 ]
 
 export default function ExportPage() {
@@ -78,6 +99,21 @@ export default function ExportPage() {
 
         if (projError) throw projError
         setProject(proj)
+
+        // Load columns from project schema or use defaults
+        const schemaConfig = proj.schema_config as Record<string, unknown> | null
+        if (schemaConfig?.columns && Array.isArray(schemaConfig.columns)) {
+          const projectSchema = schemaConfig.columns as SchemaColumn[]
+          // Convert schema columns to export columns, mapping keys for compatibility
+          const exportCols = projectSchema.map((col, idx) => ({
+            id: col.id || String(idx + 1),
+            key: mapSchemaKeyToLegacy(col.key),
+            label: col.label,
+            enabled: col.category !== 'email' || col.key === 'email_subject' || col.key === 'email_body',
+            category: col.category,
+          }))
+          setColumns(exportCols)
+        }
 
         // Load companies
         const { data: comps, error: compsError } = await supabase
@@ -392,7 +428,7 @@ export default function ExportPage() {
 
       {/* Summary */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <div className="flex gap-8 text-sm">
+        <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
           <div>
             <span className="text-gray-500">Companies:</span>{' '}
             <span className="font-medium">{companies.length}</span>
@@ -409,6 +445,12 @@ export default function ExportPage() {
             <span className="text-gray-500">Export rows:</span>{' '}
             <span className="font-medium">{exportRows.length}</span>
           </div>
+          {project?.schema_config && Boolean((project.schema_config as Record<string, unknown>).columns) && (
+            <div className="flex items-center gap-1">
+              <Settings className="w-3 h-3 text-blue-500" />
+              <span className="text-blue-600">Custom schema</span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -122,7 +122,7 @@
       "id": "F8",
       "name": "Flexible schema system",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "description": "User can define their own column schema per project",
       "steps": [
         "Create src/components/SchemaEditor.tsx",
@@ -148,6 +148,23 @@
         "Add back/next navigation between steps"
       ],
       "acceptance": "Dashboard lists projects, wizard nav works, progress visible"
+    },
+    {
+      "id": "F10",
+      "name": "User-provided API keys",
+      "priority": 10,
+      "passes": false,
+      "description": "Users enter their own Apollo/Hunter API keys instead of server-stored keys",
+      "steps": [
+        "Create src/components/ApiKeyModal.tsx - modal to enter API keys",
+        "Store keys in localStorage (client-side only, never sent to server storage)",
+        "On contacts page, check if Apollo key exists in localStorage",
+        "If no key, show modal prompting user to enter their Apollo API key",
+        "Pass API key from client to API routes via request body (not env vars)",
+        "Update /api/find-contacts-apollo to accept apiKey in request body",
+        "Add settings page or gear icon to update/clear saved keys"
+      ],
+      "acceptance": "App prompts for API key if not set, keys stored in browser only, API calls work with user-provided keys"
     }
   ]
 }

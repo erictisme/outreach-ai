@@ -17,7 +17,7 @@ export default function NewProjectPage() {
     setError(null)
 
     try {
-      // Build schema_config from extracted context
+      // Build schema_config from extracted context and schema columns
       const schemaConfig: Record<string, unknown> = {}
       if (data.extractedContext) {
         schemaConfig.extractedContext = data.extractedContext
@@ -28,6 +28,10 @@ export default function NewProjectPage() {
           label: d.label
           // Don't store full content in schema_config to keep it lean
         }))
+      }
+      // Store column schema
+      if (data.schemaColumns && data.schemaColumns.length > 0) {
+        schemaConfig.columns = data.schemaColumns
       }
 
       // Insert project into Supabase

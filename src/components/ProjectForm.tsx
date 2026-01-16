@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { Upload, FileText, X, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UploadedDoc, ProjectContext } from '@/types'
+import { SchemaEditor, SchemaColumn, DEFAULT_SCHEMA } from './SchemaEditor'
 
 export interface ProjectFormData {
   clientName: string
@@ -13,6 +14,7 @@ export interface ProjectFormData {
   briefContent: string
   documents: UploadedDoc[]
   extractedContext: ProjectContext | null
+  schemaColumns: SchemaColumn[]
 }
 
 interface ProjectFormProps {
@@ -35,10 +37,12 @@ export function ProjectForm({
   const [briefContent, setBriefContent] = useState(initialData?.briefContent ?? '')
   const [documents, setDocuments] = useState<UploadedDoc[]>(initialData?.documents ?? [])
   const [extractedContext, setExtractedContext] = useState<ProjectContext | null>(initialData?.extractedContext ?? null)
+  const [schemaColumns, setSchemaColumns] = useState<SchemaColumn[]>(initialData?.schemaColumns ?? [])
 
   const [dragActive, setDragActive] = useState(false)
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractError, setExtractError] = useState<string | null>(null)
+  const [showSchemaEditor, setShowSchemaEditor] = useState(false)
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -126,6 +130,8 @@ export function ProjectForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Use default schema if none provided
+    const finalSchema = schemaColumns.length > 0 ? schemaColumns : DEFAULT_SCHEMA
     await onSubmit({
       clientName,
       productDescription,
@@ -133,7 +139,8 @@ export function ProjectForm({
       targetSegment,
       briefContent,
       documents,
-      extractedContext
+      extractedContext,
+      schemaColumns: finalSchema
     })
   }
 
@@ -322,6 +329,44 @@ export function ProjectForm({
               )}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Custom Schema Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Export Schema</h2>
+            <p className="text-sm text-gray-500">
+              Define columns for your export. Paste Excel headers or use the default.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSchemaEditor(!showSchemaEditor)}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            {showSchemaEditor ? 'Hide' : schemaColumns.length > 0 ? 'Edit' : 'Customize'}
+          </button>
+        </div>
+
+        {!showSchemaEditor && schemaColumns.length === 0 && (
+          <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+            Using default schema (Company, Website, Contact, Email, etc.)
+          </div>
+        )}
+
+        {!showSchemaEditor && schemaColumns.length > 0 && (
+          <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+            Custom schema: {schemaColumns.length} columns ({schemaColumns.slice(0, 4).map(c => c.label).join(', ')}{schemaColumns.length > 4 ? '...' : ''})
+          </div>
+        )}
+
+        {showSchemaEditor && (
+          <SchemaEditor
+            schema={schemaColumns}
+            onChange={setSchemaColumns}
+          />
         )}
       </div>
 
