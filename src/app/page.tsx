@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Building2, Users, Mail, Clock, Trash2, Plus } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
+import { ErrorMessage } from '@/components/ui'
 
 interface ProjectWithCounts extends Project {
   companyCount: number
@@ -162,9 +163,11 @@ export default function Home() {
       </header>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-        </div>
+        <ErrorMessage
+          message={error}
+          onDismiss={() => setError(null)}
+          className="mb-6"
+        />
       )}
 
       <section className="mb-8">

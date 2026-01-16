@@ -2,3 +2,6 @@
 
 F10: User-provided API keys - complete
 Files: src/components/ApiKeyModal.tsx (new), src/app/project/[id]/contacts/page.tsx, src/app/api/find-contacts-apollo/route.ts, src/app/api/find-contacts-hunter/route.ts, src/app/api/find-contacts-waterfall/route.ts
+
+F11: Loading states and error handling - complete
+Files: src/components/ui/Spinner.tsx, src/components/ui/ErrorMessage.tsx, src/components/ui/Toast.tsx, src/components/ui/index.ts (new), src/app/layout.tsx, src/app/page.tsx, src/app/project/[id]/companies/page.tsx, src/app/project/[id]/contacts/page.tsx, src/app/project/[id]/emails/page.tsx

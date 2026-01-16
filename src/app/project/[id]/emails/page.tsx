@@ -7,6 +7,7 @@ import { Wand2, Check, RefreshCw, Edit3, Save, X } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, Email as DbEmail } from '@/lib/supabase'
 import { ProjectContext, Company, Person, EmailDraft } from '@/types'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
+import { useToast, ErrorMessage } from '@/components/ui'
 
 interface LocalEmail {
   id: string
@@ -25,6 +26,7 @@ interface LocalEmail {
 export default function EmailsPage() {
   const params = useParams()
   const projectId = params.id as string
+  const { addToast } = useToast()
 
   const [project, setProject] = useState<DbProject | null>(null)
   const [emails, setEmails] = useState<LocalEmail[]>([])
@@ -236,11 +238,14 @@ export default function EmailsPage() {
           newLocalEmails.forEach(e => next.add(e.id))
           return next
         })
+
+        addToast(`Generated ${newLocalEmails.length} emails`, 'success')
       }
 
     } catch (err) {
       console.error('Error generating emails:', err)
       setError(err instanceof Error ? err.message : 'Failed to generate emails')
+      addToast('Failed to generate emails', 'error')
     } finally {
       setGenerating(false)
     }
@@ -334,9 +339,11 @@ export default function EmailsPage() {
       }
 
       setRefineInstruction('')
+      addToast(`Refined ${selectedEmails.length} emails`, 'success')
     } catch (err) {
       console.error('Error refining emails:', err)
       setError('Failed to refine some emails')
+      addToast('Failed to refine emails', 'error')
     } finally {
       setRefining(false)
     }
@@ -395,9 +402,13 @@ export default function EmailsPage() {
       // Mark all as saved
       setEmails(prev => prev.map(e => ({ ...e, isSaved: true, isNew: false })))
 
+      const totalSaved = emailsToSave.length + emailsToUpdate.length
+      addToast(`Saved ${totalSaved} emails`, 'success')
+
     } catch (err) {
       console.error('Error saving emails:', err)
       setError('Failed to save emails')
+      addToast('Failed to save emails', 'error')
     } finally {
       setSaving(false)
     }
@@ -446,9 +457,11 @@ export default function EmailsPage() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-        </div>
+        <ErrorMessage
+          message={error}
+          onDismiss={() => setError(null)}
+          className="mb-6"
+        />
       )}
 
       {/* Action buttons */}

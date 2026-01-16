@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Plus, Sparkles, Upload, Trash2, RefreshCw, Check } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Project as DbProject } from '@/lib/supabase'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
+import { useToast, ErrorMessage } from '@/components/ui'
 
 interface LocalCompany {
   id: string
@@ -22,6 +23,7 @@ interface LocalCompany {
 export default function CompaniesPage() {
   const params = useParams()
   const projectId = params.id as string
+  const { addToast } = useToast()
 
   const [project, setProject] = useState<DbProject | null>(null)
   const [companies, setCompanies] = useState<LocalCompany[]>([])
@@ -165,10 +167,12 @@ export default function CompaniesPage() {
         }))
 
         setCompanies(prev => [...localCompanies, ...prev])
+        addToast(`Generated ${localCompanies.length} companies`, 'success')
       }
     } catch (err) {
       console.error('Error generating companies:', err)
       setError('Failed to generate companies. Please try again.')
+      addToast('Failed to generate companies', 'error')
     } finally {
       setGenerating(false)
     }
@@ -210,9 +214,11 @@ export default function CompaniesPage() {
 
       setNewCompany({ name: '', website: '', notes: '' })
       setShowAddForm(false)
+      addToast('Company added', 'success')
     } catch (err) {
       console.error('Error adding company:', err)
       setError('Failed to add company')
+      addToast('Failed to add company', 'error')
     }
   }
 
@@ -271,12 +277,14 @@ export default function CompaniesPage() {
         setCompanies(prev => [...localCompanies, ...prev])
         setImportText('')
         setShowImportModal(false)
+        addToast(`Imported ${localCompanies.length} companies`, 'success')
       } else {
         setError('No companies found in the pasted data')
       }
     } catch (err) {
       console.error('Error importing companies:', err)
       setError('Failed to import companies')
+      addToast('Failed to import companies', 'error')
     }
   }
 
@@ -343,10 +351,12 @@ export default function CompaniesPage() {
             type: enriched.type || c.type
           } : c
         ))
+        addToast('Company enriched', 'success')
       }
     } catch (err) {
       console.error('Error enriching company:', err)
       setError('Failed to enrich company')
+      addToast('Failed to enrich company', 'error')
     } finally {
       setEnriching(null)
     }
@@ -366,11 +376,14 @@ export default function CompaniesPage() {
 
       if (deleteError) throw deleteError
 
+      const deletedCount = selectedIds.size
       setCompanies(prev => prev.filter(c => !selectedIds.has(c.id)))
       setSelectedIds(new Set())
+      addToast(`Deleted ${deletedCount} companies`, 'success')
     } catch (err) {
       console.error('Error deleting companies:', err)
       setError('Failed to delete companies')
+      addToast('Failed to delete companies', 'error')
     }
   }
 
@@ -431,9 +444,11 @@ export default function CompaniesPage() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-        </div>
+        <ErrorMessage
+          message={error}
+          onDismiss={() => setError(null)}
+          className="mb-6"
+        />
       )}
 
       {/* Action buttons */}

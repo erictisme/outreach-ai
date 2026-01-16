@@ -7,6 +7,7 @@ import { Search, Check, X, Linkedin, Mail, RefreshCw, Settings } from 'lucide-re
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject } from '@/lib/supabase'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
 import { ApiKeyModal, getApiKey, hasAnyContactProvider } from '@/components/ApiKeyModal'
+import { useToast, ErrorMessage } from '@/components/ui'
 
 interface LocalContact {
   id: string
@@ -33,6 +34,7 @@ interface CompanyWithContacts {
 export default function ContactsPage() {
   const params = useParams()
   const projectId = params.id as string
+  const { addToast } = useToast()
 
   const [project, setProject] = useState<DbProject | null>(null)
   const [companies, setCompanies] = useState<CompanyWithContacts[]>([])
@@ -244,9 +246,17 @@ export default function ContactsPage() {
 
       setSearchProgress({ current: companiesWithWebsites.length, total: companiesWithWebsites.length })
 
+      const newContactsCount = data.persons?.length || 0
+      if (newContactsCount > 0) {
+        addToast(`Found ${newContactsCount} new contacts`, 'success')
+      } else {
+        addToast('No new contacts found', 'info')
+      }
+
     } catch (err) {
       console.error('Error searching contacts:', err)
       setError(err instanceof Error ? err.message : 'Failed to search contacts')
+      addToast('Failed to search contacts', 'error')
     } finally {
       setSearching(false)
     }
@@ -375,11 +385,14 @@ export default function ContactsPage() {
         // Add newly inserted IDs
         inserted?.forEach(c => newSelectedIds.add(c.id))
         setSelectedIds(newSelectedIds)
+
+        addToast(`Saved ${contactsToSave.length} contacts`, 'success')
       }
 
     } catch (err) {
       console.error('Error saving contacts:', err)
       setError('Failed to save contacts')
+      addToast('Failed to save contacts', 'error')
     } finally {
       setSaving(false)
     }
@@ -452,9 +465,11 @@ export default function ContactsPage() {
       )}
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-        </div>
+        <ErrorMessage
+          message={error}
+          onDismiss={() => setError(null)}
+          className="mb-6"
+        />
       )}
 
       {/* Action buttons */}
