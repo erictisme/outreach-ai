@@ -14,3 +14,6 @@ Files: src/app/api/enrich-company-web/route.ts (new), src/components/ApiKeyModal
 
 F5 Two-phase Contact Discovery: DONE - Phase 1 free research (Gemini AI), Phase 2 paid email enrichment (Apollo), contact card selection, cost estimate, confirmation modal
 Files: src/app/api/find-contacts-free/route.ts (new), src/app/api/enrich-contacts-email/route.ts (new), src/app/project/[id]/workflow/page.tsx
+
+F6 Enriched Data Table with Status Tracking: DONE - new /data page with full contact+company table, status dropdown with auto-save, date sent picker, 3-day follow-up alerts, sortable columns, search/filter, copy TSV/emails/row
+Files: src/app/project/[id]/data/page.tsx (new), src/components/WizardNav.tsx (updated), src/app/project/[id]/page.tsx (updated)

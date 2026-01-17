@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, Users, Mail, Download, Check, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Building2, Users, Mail, Download, Check, ChevronLeft, ChevronRight, Table } from 'lucide-react'
 
-export type WizardStep = 'companies' | 'contacts' | 'emails' | 'export'
+export type WizardStep = 'companies' | 'contacts' | 'emails' | 'data' | 'export'
 
 interface StepConfig {
   key: WizardStep
@@ -17,6 +17,7 @@ const STEPS: StepConfig[] = [
   { key: 'companies', label: 'Companies', description: 'Build your target list', icon: Building2 },
   { key: 'contacts', label: 'Contacts', description: 'Find decision makers', icon: Users },
   { key: 'emails', label: 'Emails', description: 'Generate outreach', icon: Mail },
+  { key: 'data', label: 'Data', description: 'Track & manage', icon: Table },
   { key: 'export', label: 'Export', description: 'Download your data', icon: Download },
 ]
 
@@ -128,12 +129,13 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
 }
 
 // Helper hook to determine completed steps based on data counts
-export function useCompletedSteps(counts: { companies: number; contacts: number; emails: number }): WizardStep[] {
+export function useCompletedSteps(counts: { companies: number; contacts: number; emails: number; hasData?: boolean }): WizardStep[] {
   const completed: WizardStep[] = []
 
   if (counts.companies > 0) completed.push('companies')
   if (counts.contacts > 0) completed.push('contacts')
   if (counts.emails > 0) completed.push('emails')
+  if (counts.contacts > 0 || counts.hasData) completed.push('data')
 
   return completed
 }

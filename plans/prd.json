@@ -107,7 +107,7 @@
       "id": "F6",
       "name": "Enriched Data Table with Status Tracking",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "description": "Key page showing all enriched contacts with status, date sent, and follow-up alerts",
       "steps": [
         "Create comprehensive data table with all contact + company info",
