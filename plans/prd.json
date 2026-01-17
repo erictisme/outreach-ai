@@ -284,7 +284,7 @@
       "id": "F18c",
       "name": "Table-to-Supabase persistence",
       "priority": 18,
-      "passes": false,
+      "passes": true,
       "description": "Changes in table persist to database",
       "steps": [
         "When status dropdown changes: update contact in Supabase",

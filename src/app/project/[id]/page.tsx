@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
@@ -10,6 +10,7 @@ import { WizardPanel, WizardStep } from '@/components/WizardPanel'
 import { ConversationModal } from '@/components/ConversationModal'
 import { DataTable, DataTableRow } from '@/components/DataTable'
 import { Status } from '@/components/StatusDropdown'
+import { useToast } from '@/components/ui/Toast'
 import { EmailDraft, Conversation, Company, ResearchedContact, Person } from '@/types'
 
 export default function ProjectPage() {
@@ -29,6 +30,16 @@ export default function ProjectPage() {
     contactId: string | null
     email: EmailDraft | null
   }>({ isOpen: false, contactId: null, email: null })
+
+  // Saving state for table edits
+  const [isSaving, setIsSaving] = useState(false)
+  const [pendingRetry, setPendingRetry] = useState<(() => void) | null>(null)
+  const { addToast } = useToast()
+
+  // Debounce refs for status and date changes
+  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const dateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const DEBOUNCE_DELAY = 300
 
   useEffect(() => {
     async function loadProject() {
@@ -150,8 +161,8 @@ export default function ProjectPage() {
     return rows
   }, [schemaConfig])
 
-  // Handle status change in data table
-  const handleStatusChange = async (index: number, status: Status) => {
+  // Handle status change in data table (with debounce)
+  const handleStatusChange = useCallback((index: number, status: Status) => {
     if (!project || !schemaConfig) return
 
     const row = tableRows[index]
@@ -167,34 +178,50 @@ export default function ProjectPage() {
       [actualContactId]: status,
     }
 
-    const supabase = getSupabase()
     const updatedSchemaConfig = {
       ...schemaConfig,
       tableStatuses: updatedStatuses,
     }
 
-    const { error: updateError } = await supabase
-      .from('projects')
-      .update({
-        schema_config: updatedSchemaConfig,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', project.id)
-
-    if (updateError) {
-      console.error('Failed to update status:', updateError)
-      return
-    }
-
+    // Update local state immediately for responsiveness
     setProject({
       ...project,
       schema_config: updatedSchemaConfig,
       updated_at: new Date().toISOString(),
     })
-  }
 
-  // Handle date change in data table
-  const handleDateChange = async (index: number, date: string | null) => {
+    // Clear existing timeout
+    if (statusTimeoutRef.current) {
+      clearTimeout(statusTimeoutRef.current)
+    }
+
+    // Debounced save to Supabase
+    statusTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true)
+      setPendingRetry(null)
+
+      const supabase = getSupabase()
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({
+          schema_config: updatedSchemaConfig,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id)
+
+      setIsSaving(false)
+
+      if (updateError) {
+        console.error('Failed to update status:', updateError)
+        addToast('Failed to save status change', 'error')
+        // Set up retry function
+        setPendingRetry(() => () => handleStatusChange(index, status))
+      }
+    }, DEBOUNCE_DELAY)
+  }, [project, schemaConfig, tableRows, addToast])
+
+  // Handle date change in data table (with debounce)
+  const handleDateChange = useCallback((index: number, date: string | null) => {
     if (!project || !schemaConfig) return
 
     const row = tableRows[index]
@@ -214,31 +241,47 @@ export default function ProjectPage() {
       delete updatedDates[actualContactId]
     }
 
-    const supabase = getSupabase()
     const updatedSchemaConfig = {
       ...schemaConfig,
       tableDatesSent: updatedDates,
     }
 
-    const { error: updateError } = await supabase
-      .from('projects')
-      .update({
-        schema_config: updatedSchemaConfig,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', project.id)
-
-    if (updateError) {
-      console.error('Failed to update date:', updateError)
-      return
-    }
-
+    // Update local state immediately for responsiveness
     setProject({
       ...project,
       schema_config: updatedSchemaConfig,
       updated_at: new Date().toISOString(),
     })
-  }
+
+    // Clear existing timeout
+    if (dateTimeoutRef.current) {
+      clearTimeout(dateTimeoutRef.current)
+    }
+
+    // Debounced save to Supabase
+    dateTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true)
+      setPendingRetry(null)
+
+      const supabase = getSupabase()
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({
+          schema_config: updatedSchemaConfig,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id)
+
+      setIsSaving(false)
+
+      if (updateError) {
+        console.error('Failed to update date:', updateError)
+        addToast('Failed to save date change', 'error')
+        // Set up retry function
+        setPendingRetry(() => () => handleDateChange(index, date))
+      }
+    }, DEBOUNCE_DELAY)
+  }, [project, schemaConfig, tableRows, addToast])
 
   // Handle opening conversation modal
   const handleOpenConversation = (contactId: string, email: EmailDraft) => {
@@ -436,6 +479,8 @@ export default function ProjectPage() {
               data={tableRows}
               onStatusChange={handleStatusChange}
               onDateChange={handleDateChange}
+              isSaving={isSaving}
+              onRetry={pendingRetry || undefined}
             />
           </div>
         </div>

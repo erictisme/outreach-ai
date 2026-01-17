@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { Company, Person, EmailDraft } from '@/types'
 import { StatusDropdown, Status } from './StatusDropdown'
 import { useToast } from './ui/Toast'
-import { Copy, Mail, Download } from 'lucide-react'
+import { Copy, Mail, Download, Loader2, RefreshCw } from 'lucide-react'
 
 // Combined row type for unified display
 export interface DataTableRow {
@@ -19,9 +19,11 @@ interface DataTableProps {
   data: DataTableRow[]
   onStatusChange?: (index: number, status: Status) => void
   onDateChange?: (index: number, date: string | null) => void
+  isSaving?: boolean
+  onRetry?: () => void
 }
 
-export function DataTable({ data, onStatusChange, onDateChange }: DataTableProps) {
+export function DataTable({ data, onStatusChange, onDateChange, isSaving, onRetry }: DataTableProps) {
   const { addToast } = useToast()
 
   const handleCopyTSV = async () => {
@@ -112,28 +114,49 @@ export function DataTable({ data, onStatusChange, onDateChange }: DataTableProps
 
   return (
     <div className="overflow-x-auto">
-      <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
-        <button
-          onClick={handleCopyTSV}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-        >
-          <Copy className="w-4 h-4" />
-          Copy as TSV
-        </button>
-        <button
-          onClick={handleCopyEmails}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-        >
-          <Mail className="w-4 h-4" />
-          Copy Emails Only
-        </button>
-        <button
-          onClick={handleExportCSV}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Export CSV
-        </button>
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopyTSV}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            <Copy className="w-4 h-4" />
+            Copy as TSV
+          </button>
+          <button
+            onClick={handleCopyEmails}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            <Mail className="w-4 h-4" />
+            Copy Emails Only
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        </div>
+
+        {/* Saving indicator and retry button */}
+        <div className="flex items-center gap-2">
+          {isSaving && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Saving...
+            </span>
+          )}
+          {onRetry && !isSaving && (
+            <button
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Retry
+            </button>
+          )}
+        </div>
       </div>
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
