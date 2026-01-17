@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { ChevronDown, Check } from 'lucide-react'
 import { Project } from '@/lib/supabase'
 import { SetupStep } from '@/components/wizard/SetupStep'
+import { ContextStep } from '@/components/wizard/ContextStep'
 
 export type WizardStep = 'setup' | 'context' | 'companies' | 'contacts' | 'emails'
 
@@ -145,9 +146,11 @@ function StepContent({ step, project, onProjectUpdate, onStepComplete }: StepCon
       )
     case 'context':
       return (
-        <div className="text-sm text-gray-500">
-          Review and edit extracted context.
-        </div>
+        <ContextStep
+          project={project}
+          onUpdate={onProjectUpdate}
+          onComplete={onStepComplete}
+        />
       )
     case 'companies':
       return (

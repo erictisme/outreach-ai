@@ -20,3 +20,6 @@ Files: src/components/WizardPanel.tsx (5-step accordion with expand/collapse), s
 
 F7+F7b: Setup form (basic fields + file upload + extraction) - DONE
 Files: src/components/wizard/SetupStep.tsx (new), src/components/WizardPanel.tsx (updated), src/app/project/[id]/page.tsx (updated)
+
+F8: Context review form - DONE
+Files: src/components/wizard/ContextStep.tsx (new), src/components/WizardPanel.tsx (updated imports + integration)
