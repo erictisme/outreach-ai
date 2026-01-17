@@ -2,3 +2,6 @@
 
 F1 Project Setup Page: DONE - already implemented in workflow page (objective dropdown, company name, context input, file upload, email template)
 Files: src/app/project/[id]/workflow/page.tsx, src/components/ContextInput.tsx (already had all features)
+
+F2 Context Extraction & Editable Fields: DONE - added extract step with editable fields (client, product, market, seniority dropdown, target roles chips, value prop), Save Context to Supabase, company source choice
+Files: src/app/project/[id]/workflow/page.tsx

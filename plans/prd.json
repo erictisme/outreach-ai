@@ -35,7 +35,7 @@
       "id": "F2",
       "name": "Context Extraction & Editable Fields",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "description": "LLM extracts structured data from project context, displays as editable fields, saves to project context",
       "steps": [
         "After Step 1 submission, call /api/extract with all context + uploaded files",
