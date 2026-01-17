@@ -71,7 +71,7 @@
       "id": "F4",
       "name": "Company Enrichment with Web Search",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "description": "Enrich selected companies with web search to reduce hallucination",
       "steps": [
         "Create /api/enrich-company-web endpoint using Perplexity API",

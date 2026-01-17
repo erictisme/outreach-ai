@@ -8,6 +8,7 @@ const API_KEY_STORAGE = {
   apollo: 'outreach-ai-apollo-key',
   hunter: 'outreach-ai-hunter-key',
   apify: 'outreach-ai-apify-key',
+  perplexity: 'outreach-ai-perplexity-key',
 } as const
 
 export type ApiKeyType = keyof typeof API_KEY_STORAGE
@@ -23,6 +24,7 @@ interface ApiKeyState {
   apollo: string
   hunter: string
   apify: string
+  perplexity: string
 }
 
 // Utility functions for API key management
@@ -50,6 +52,7 @@ export function getAllApiKeys(): ApiKeyState {
     apollo: getApiKey('apollo') || '',
     hunter: getApiKey('hunter') || '',
     apify: getApiKey('apify') || '',
+    perplexity: getApiKey('perplexity') || '',
   }
 }
 
@@ -73,14 +76,20 @@ const API_KEY_INFO: Record<ApiKeyType, { name: string; url: string; description:
     url: 'https://console.apify.com/account/integrations',
     description: 'Web scraping for contact data',
   },
+  perplexity: {
+    name: 'Perplexity AI',
+    url: 'https://www.perplexity.ai/settings/api',
+    description: 'Web search to enrich company data (reduce hallucinations)',
+  },
 }
 
 export function ApiKeyModal({ isOpen, requiredKey, onClose, onSave }: ApiKeyModalProps) {
-  const [keys, setKeys] = useState<ApiKeyState>({ apollo: '', hunter: '', apify: '' })
+  const [keys, setKeys] = useState<ApiKeyState>({ apollo: '', hunter: '', apify: '', perplexity: '' })
   const [showKeys, setShowKeys] = useState<Record<ApiKeyType, boolean>>({
     apollo: false,
     hunter: false,
     apify: false,
+    perplexity: false,
   })
   const [savedMessage, setSavedMessage] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -102,6 +111,7 @@ export function ApiKeyModal({ isOpen, requiredKey, onClose, onSave }: ApiKeyModa
     setApiKey('apollo', keys.apollo)
     setApiKey('hunter', keys.hunter)
     setApiKey('apify', keys.apify)
+    setApiKey('perplexity', keys.perplexity)
 
     setSavedMessage(true)
     setTimeout(() => {

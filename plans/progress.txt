@@ -8,3 +8,6 @@ Files: src/app/project/[id]/workflow/page.tsx
 
 F3 Segment-based Company Discovery: DONE - added CompanyCards view for card selection, manual add with LLM enrichment, CSV import, view toggle (cards/table)
 Files: src/components/CompanyCards.tsx (new), src/app/api/parse-company/route.ts (new), src/app/project/[id]/workflow/page.tsx
+
+F4 Company Enrichment with Web Search: DONE - Perplexity API endpoint for web search, enrichment button with progress bar, source tracking
+Files: src/app/api/enrich-company-web/route.ts (new), src/components/ApiKeyModal.tsx, src/app/project/[id]/workflow/page.tsx

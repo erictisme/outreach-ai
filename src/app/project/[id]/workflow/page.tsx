@@ -24,6 +24,7 @@ import { EmailEditor } from '@/components/EmailEditor'
 import { ConversationList } from '@/components/ConversationList'
 import { ConversationThread } from '@/components/ConversationThread'
 import { ApiKeyModal, getApiKey, hasAnyContactProvider, ApiKeyType } from '@/components/ApiKeyModal'
+import { Globe, Search } from 'lucide-react'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { useToast } from '@/components/ui/Toast'
@@ -106,6 +107,11 @@ export default function WorkflowPage() {
   const [addingManualCompany, setAddingManualCompany] = useState(false)
   const [pastedCompanies, setPastedCompanies] = useState('')
   const [parsingPastedCompanies, setParsingPastedCompanies] = useState(false)
+
+  // Web enrichment state
+  const [enrichingWithWeb, setEnrichingWithWeb] = useState(false)
+  const [enrichmentProgress, setEnrichmentProgress] = useState(0)
+  const [enrichmentTotal, setEnrichmentTotal] = useState(0)
 
   // Load project from Supabase + workflow state from localStorage
   useEffect(() => {
@@ -584,6 +590,85 @@ export default function WorkflowPage() {
     companies.splice(index, 1)
     const selectedIds = project.selectedCompanyIds.filter(i => i !== index).map(i => i > index ? i - 1 : i)
     saveProject({ companies, selectedCompanyIds: selectedIds })
+  }
+
+  // --- Web Enrichment ---
+  const handleEnrichWithWeb = async () => {
+    if (!project) return
+
+    // Check for Perplexity API key
+    const perplexityKey = getApiKey('perplexity')
+    if (!perplexityKey) {
+      setRequiredApiKey('perplexity')
+      setApiKeyModalOpen(true)
+      return
+    }
+
+    // Get selected companies
+    const selectedCompanies = project.selectedCompanyIds.map(i => project.companies[i]).filter(Boolean)
+    if (selectedCompanies.length === 0) {
+      setError('Please select at least one company to enrich')
+      return
+    }
+
+    setEnrichingWithWeb(true)
+    setEnrichmentProgress(0)
+    setEnrichmentTotal(selectedCompanies.length)
+    setError(null)
+
+    try {
+      // Process in batches of 3 to show progress and avoid rate limits
+      const batchSize = 3
+      const enrichedCompanies = [...project.companies]
+      let processed = 0
+
+      for (let i = 0; i < selectedCompanies.length; i += batchSize) {
+        const batch = selectedCompanies.slice(i, i + batchSize)
+
+        const res = await fetch('/api/enrich-company-web', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companies: batch,
+            context: project.context,
+            apiKey: perplexityKey,
+          }),
+        })
+
+        if (!res.ok) {
+          const errData = await res.json()
+          throw new Error(errData.error || 'Failed to enrich companies')
+        }
+
+        const data = await res.json()
+
+        // Update the enriched companies in place
+        for (const enrichedCompany of data.companies) {
+          const originalIdx = enrichedCompanies.findIndex(c => c.id === enrichedCompany.id)
+          if (originalIdx !== -1) {
+            enrichedCompanies[originalIdx] = enrichedCompany
+          }
+        }
+
+        processed += batch.length
+        setEnrichmentProgress(processed)
+
+        // Small delay between batches to avoid rate limiting
+        if (i + batchSize < selectedCompanies.length) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      }
+
+      saveProject({ companies: enrichedCompanies })
+      addToast(`Enriched ${processed} companies with web search`, 'success')
+    } catch (err) {
+      console.error('Web enrichment error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to enrich companies with web search')
+    } finally {
+      setEnrichingWithWeb(false)
+      setEnrichmentProgress(0)
+      setEnrichmentTotal(0)
+    }
   }
 
   // --- Contacts Step ---
@@ -1550,6 +1635,72 @@ export default function WorkflowPage() {
                   onSelectionChange={handleCompanySelectionChange}
                   onDelete={handleDeleteCompany}
                 />
+              )}
+
+              {/* Web Enrichment Section */}
+              {project.companies.length > 0 && (
+                <div className="mt-6 pt-6 border-t">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-green-600" />
+                        Enrich with Web Search
+                      </h4>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Search the web to verify and enrich company data (reduces AI hallucinations)
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleEnrichWithWeb}
+                      disabled={enrichingWithWeb || project.selectedCompanyIds.length === 0}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {enrichingWithWeb ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Enriching...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4" />
+                          Enrich {project.selectedCompanyIds.length} Companies
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Progress Bar */}
+                  {enrichingWithWeb && enrichmentTotal > 0 && (
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                        <span>Searching web for company data...</span>
+                        <span>{enrichmentProgress} / {enrichmentTotal}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(enrichmentProgress / enrichmentTotal) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Source Legend */}
+                  <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500" />
+                      web_search
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-purple-500" />
+                      ai_generated
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-gray-400" />
+                      manual
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
 
