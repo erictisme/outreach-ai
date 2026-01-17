@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowLeft, Plus } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
 import { WizardPanel, WizardStep } from '@/components/WizardPanel'
@@ -474,7 +474,22 @@ export default function ProjectPage() {
 
         {/* Right area - Data Table */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="h-full bg-white rounded-lg border border-gray-200 overflow-hidden">
+          {/* Add More Companies button */}
+          <div className="mb-4">
+            <button
+              onClick={() => {
+                setExpandedStep('companies')
+                if (isPanelCollapsed) {
+                  setIsPanelCollapsed(false)
+                }
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add More Companies
+            </button>
+          </div>
+          <div className="h-[calc(100%-60px)] bg-white rounded-lg border border-gray-200 overflow-hidden">
             <DataTable
               data={tableRows}
               onStatusChange={handleStatusChange}

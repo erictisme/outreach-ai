@@ -300,7 +300,7 @@
       "id": "F19",
       "name": "Add more companies button",
       "priority": 19,
-      "passes": false,
+      "passes": true,
       "description": "Incremental company addition",
       "steps": [
         "Add 'Add More Companies' button above DataTable",

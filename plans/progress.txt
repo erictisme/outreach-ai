@@ -36,3 +36,6 @@ Files: src/components/wizard/{CompaniesStep,ContactsStep,EmailsStep}.tsx (toast 
 
 F18c: Table-to-Supabase persistence - DONE
 Files: src/app/project/[id]/page.tsx (debounced handlers with useCallback, 300ms debounce, toast errors, retry state), src/components/DataTable.tsx (saving indicator, retry button)
+
+F19: Add more companies button - DONE
+Files: src/app/project/[id]/page.tsx (Add More Companies button above DataTable, expands wizard to Companies step), src/components/wizard/CompaniesStep.tsx (duplicate detection by name/domain, toast with count)

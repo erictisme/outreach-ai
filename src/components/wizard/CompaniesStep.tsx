@@ -193,15 +193,39 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
       const data = await response.json()
       const enrichedCompanies: Company[] = data.companies || []
 
-      // Merge with existing companies
+      // Merge with existing companies (with duplicate detection)
       const existingCompanies: Company[] = schemaConfig.companies || []
-      const allCompanies = [...existingCompanies, ...enrichedCompanies]
+
+      // Create sets for quick duplicate lookup
+      const existingNames = new Set(existingCompanies.map((c) => c.name.toLowerCase().trim()))
+      const existingDomains = new Set(
+        existingCompanies
+          .map((c) => c.domain?.toLowerCase().trim())
+          .filter((d): d is string => !!d)
+      )
+
+      // Filter out duplicates
+      const newCompanies = enrichedCompanies.filter((c) => {
+        const nameLower = c.name.toLowerCase().trim()
+        const domainLower = c.domain?.toLowerCase().trim()
+
+        // Check if name already exists
+        if (existingNames.has(nameLower)) return false
+
+        // Check if domain already exists (if company has a domain)
+        if (domainLower && existingDomains.has(domainLower)) return false
+
+        return true
+      })
+
+      const duplicateCount = enrichedCompanies.length - newCompanies.length
+      const allCompanies = [...existingCompanies, ...newCompanies]
 
       // Save to Supabase
       const supabase = getSupabase()
 
-      // Save companies to companies table
-      for (const company of enrichedCompanies) {
+      // Save only new companies to companies table
+      for (const company of newCompanies) {
         await supabase.from('companies').upsert({
           id: company.id,
           project_id: project.id,
@@ -246,8 +270,15 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
       }
       onUpdate(updatedProject)
 
-      // Show success toast
-      addToast(`Added ${enrichedCompanies.length} companies to the table`, 'success')
+      // Show success toast with duplicate info
+      if (duplicateCount > 0) {
+        addToast(
+          `Added ${newCompanies.length} companies (${duplicateCount} duplicate${duplicateCount === 1 ? '' : 's'} skipped)`,
+          'success'
+        )
+      } else {
+        addToast(`Added ${newCompanies.length} companies to the table`, 'success')
+      }
 
       // Clear generated companies (they're now in the table)
       setGeneratedCompanies([])
@@ -422,15 +453,39 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
         setEnrichProgress({ current: Math.min(i + batchSize, companiesToEnrich.length), total: companiesToEnrich.length })
       }
 
-      // Merge with existing companies
+      // Merge with existing companies (with duplicate detection)
       const existingCompanies: Company[] = schemaConfig.companies || []
-      const allCompanies = [...existingCompanies, ...enrichedResults]
+
+      // Create sets for quick duplicate lookup
+      const existingNames = new Set(existingCompanies.map((c) => c.name.toLowerCase().trim()))
+      const existingDomains = new Set(
+        existingCompanies
+          .map((c) => c.domain?.toLowerCase().trim())
+          .filter((d): d is string => !!d)
+      )
+
+      // Filter out duplicates
+      const newCompanies = enrichedResults.filter((c) => {
+        const nameLower = c.name.toLowerCase().trim()
+        const domainLower = c.domain?.toLowerCase().trim()
+
+        // Check if name already exists
+        if (existingNames.has(nameLower)) return false
+
+        // Check if domain already exists (if company has a domain)
+        if (domainLower && existingDomains.has(domainLower)) return false
+
+        return true
+      })
+
+      const duplicateCount = enrichedResults.length - newCompanies.length
+      const allCompanies = [...existingCompanies, ...newCompanies]
 
       // Save to Supabase
       const supabase = getSupabase()
 
-      // Save companies to companies table
-      for (const company of enrichedResults) {
+      // Save only new companies to companies table
+      for (const company of newCompanies) {
         await supabase.from('companies').upsert({
           id: company.id,
           project_id: project.id,
@@ -475,8 +530,15 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
       }
       onUpdate(updatedProject)
 
-      // Show success toast
-      addToast(`Imported ${enrichedResults.length} companies to the table`, 'success')
+      // Show success toast with duplicate info
+      if (duplicateCount > 0) {
+        addToast(
+          `Imported ${newCompanies.length} companies (${duplicateCount} duplicate${duplicateCount === 1 ? '' : 's'} skipped)`,
+          'success'
+        )
+      } else {
+        addToast(`Imported ${newCompanies.length} companies to the table`, 'success')
+      }
 
       // Clear import state
       setParsedCompanies([])
