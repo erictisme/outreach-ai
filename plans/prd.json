@@ -58,7 +58,7 @@
       "id": "F10",
       "name": "Step 3: Companies - generate flow",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "description": "Implement company generation from segments",
       "steps": [
         "On 'Generate Companies' click, show loading spinner",
