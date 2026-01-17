@@ -1,276 +1,210 @@
 {
-  "project": "outreach-ai-v2",
-  "description": "Simple 5-step wizard for B2B outreach: Project → Companies → Contacts → Emails → Export",
+  "project": "outreach-ai-v3",
+  "description": "B2B outreach tool: Project Setup → Context Extraction → Company Discovery → Contact Discovery (free→paid) → Enriched Data Table → Email Generation with Conversations",
   "tech_stack": {
     "framework": "Next.js 14 App Router",
     "database": "Supabase (Postgres)",
     "styling": "Tailwind CSS",
-    "apis": ["Apollo (people search + AI emails)", "Gemini (doc extraction)"],
-    "auth": "None for MVP"
+    "apis": ["Apollo (contacts + emails)", "Gemini (extraction + emails)", "Perplexity (web search enrichment)"],
+    "auth": "None for MVP, multi-user later"
+  },
+  "existing_code": {
+    "api_routes": ["/api/extract", "/api/generate-list", "/api/find-contacts-apollo", "/api/write-emails", "/api/refine-email", "/api/enrich-companies", "/api/draft-response"],
+    "components": ["ResultsTable", "EmailEditor", "ConversationThread", "ContextInput", "SchemaEditor", "ApiKeyModal", "Toast"],
+    "storage": "Supabase (projects, companies, contacts, emails tables) + localStorage for workflow state"
   },
   "features": [
     {
       "id": "F1",
-      "name": "Fresh project structure",
+      "name": "Project Setup Page",
       "priority": 1,
       "passes": true,
-      "description": "Clean Next.js 14 app with proper folder structure",
+      "description": "First step: collect project objective, context, file uploads, and optional email templates",
       "steps": [
-        "Create src/app with layout.tsx and page.tsx (landing/dashboard)",
-        "Create src/components folder with ui/ subfolder",
-        "Create src/lib folder for utilities (supabase.ts, apollo.ts, gemini.ts)",
-        "Create src/types/index.ts with all TypeScript interfaces",
-        "Set up Tailwind with clean globals.css",
-        "Create src/app/project/[id]/page.tsx for project wizard"
+        "Update src/app/project/[id]/workflow/page.tsx Step 1 (Context)",
+        "Add objective dropdown: Find suppliers, Find distributors, Find companies to work with, Find sales prospects, Custom",
+        "Add company/client name input field",
+        "Add rich text context field for user to describe what they're trying to achieve",
+        "Add file upload for collateral (PDFs, pitch decks, case studies) - use Supabase storage",
+        "Add optional email template input field",
+        "Store all inputs and trigger extraction on 'Next'"
       ],
-      "acceptance": "npm run build passes, clean folder structure exists"
+      "acceptance": "User can enter objective, company name, context, upload files, and optionally add email templates"
     },
     {
       "id": "F2",
-      "name": "Supabase setup folder",
+      "name": "Context Extraction & Editable Fields",
       "priority": 2,
-      "passes": true,
-      "description": "Create supabase/ folder with SQL migrations and setup instructions",
+      "passes": false,
+      "description": "LLM extracts structured data from project context, displays as editable fields, saves to project context",
       "steps": [
-        "Create supabase/README.md with setup instructions",
-        "Create supabase/migrations/001_initial.sql with tables: projects, companies, contacts, emails",
-        "Create supabase/migrations/002_schema_config.sql for flexible column storage",
-        "Include .env.example with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY"
+        "After Step 1 submission, call /api/extract with all context + uploaded files",
+        "Display extracted data as editable fields: Client name, Target seniority, Target segments (3-4), Key roles, Key objective",
+        "Add target seniority dropdown: C-suite, Director, Manager, etc.",
+        "Add key roles multi-select or chips: CEO, Innovation Manager, Procurement, Buyer, etc.",
+        "Add 'Save Context' button that persists to Supabase project.context field",
+        "Show 'Do you have companies already?' choice: 'No, generate with AI' vs 'Yes, I have companies'",
+        "If user has companies, show paste/import options and skip segment-based generation"
       ],
-      "acceptance": "supabase folder exists with clear instructions, SQL is valid"
+      "acceptance": "Extracted context is editable, saves to project, shows company source choice"
     },
     {
       "id": "F3",
-      "name": "Step 1: Project creation",
+      "name": "Segment-based Company Discovery",
       "priority": 3,
-      "passes": true,
-      "description": "UI to create a new project with client info + optional doc upload",
+      "passes": false,
+      "description": "Show target segments with count inputs, generate or import companies",
       "steps": [
-        "Create src/app/new/page.tsx with project form",
-        "Fields: client_name, product_description, target_market, target_segment",
-        "Add file upload for pitch deck/brief (store in Supabase storage or just parse)",
-        "Use Gemini to extract key info from uploaded docs",
-        "Save project to Supabase, redirect to /project/[id]",
-        "Create src/components/ProjectForm.tsx as reusable component"
+        "Display 3-4 target segments as cards (from extracted context)",
+        "Each segment card has editable count input: 'How many companies to find?' with +/- buttons",
+        "Add 'Generate Companies' button that calls /api/generate-list with segment counts",
+        "Add 'I have companies' flow with paste textarea and CSV import",
+        "For manual entry/paste, use LLM to parse and fill columns (name, type, website, description)",
+        "Show generated companies as clickable cards for selection (not small checkboxes)",
+        "Clicking card toggles selection state with visual feedback (border color, checkmark)",
+        "Add 'Add Company Manually' input that uses LLM to fill columns",
+        "Selected companies proceed to enrichment"
       ],
-      "acceptance": "Can create project, data saves to Supabase, redirects to wizard"
+      "acceptance": "Segment cards with counts work, companies generated or imported, card selection works"
     },
     {
       "id": "F4",
-      "name": "Step 2: Companies list",
+      "name": "Company Enrichment with Web Search",
       "priority": 4,
-      "passes": true,
-      "description": "AI-generate company list from brief + manual add + enrichment",
+      "passes": false,
+      "description": "Enrich selected companies with web search to reduce hallucination",
       "steps": [
-        "Create src/app/project/[id]/companies/page.tsx",
-        "Button: 'Generate with AI' - uses Gemini to research companies matching criteria",
-        "Manual add form: company name, website, notes",
-        "AI enrichment: click to auto-fill description, relevance score",
-        "Import CSV: parse and add to list",
-        "Paste Excel: detect headers + example rows, map to schema",
-        "Save companies to Supabase linked to project_id"
+        "Create /api/enrich-company-web endpoint using Perplexity API",
+        "After company selection, show 'Enrich with Web Search' button",
+        "For each selected company, search web for: website, description, industry, employee count",
+        "Display enrichment progress bar",
+        "Show enriched data in editable table",
+        "User can manually edit any field",
+        "Mark enrichment source: 'web_search' or 'ai_generated' or 'manual'"
       ],
-      "acceptance": "Can generate companies via AI, add manually, import CSV, all save to DB"
+      "acceptance": "Web search enrichment works via Perplexity, reduces hallucination, source tracked"
     },
     {
       "id": "F5",
-      "name": "Step 3: Find contacts",
+      "name": "Two-phase Contact Discovery",
       "priority": 5,
-      "passes": true,
-      "description": "Use Apollo People Search to find contacts at each company",
+      "passes": false,
+      "description": "Free contact discovery (name, role, LinkedIn) → Paid email enrichment with cost estimate",
       "steps": [
-        "Create src/app/project/[id]/contacts/page.tsx",
-        "Create src/lib/apollo.ts with peopleSearch function",
-        "For each company, search Apollo for people by title keywords",
-        "Display results with name, title, email, LinkedIn",
-        "Let user select which contacts to keep",
-        "Save selected contacts to Supabase linked to company_id"
+        "Create /api/find-contacts-free endpoint (LinkedIn scraping or free Apollo tier)",
+        "Phase 1: Show contacts without emails - Name, Role, LinkedIn, Company",
+        "Display contacts as selectable cards or table rows with checkboxes",
+        "User ticks contacts to select for email enrichment",
+        "Show running count of selected contacts",
+        "Calculate and display cost estimate before 'Find Emails' button",
+        "Option to use own Apollo API key (extend ApiKeyModal)",
+        "Phase 2: On 'Find Emails' click, call Apollo enrichment for selected contacts only",
+        "Show cost confirmation modal before proceeding"
       ],
-      "acceptance": "Apollo search works, contacts display, user can select and save"
+      "acceptance": "Free contacts shown first, user selects, sees cost estimate, paid enrichment for selected only"
     },
     {
       "id": "F6",
-      "name": "Step 4: Generate emails",
+      "name": "Enriched Data Table with Status Tracking",
       "priority": 6,
-      "passes": true,
-      "description": "Use Apollo AI or Gemini to generate personalized emails",
+      "passes": false,
+      "description": "Key page showing all enriched contacts with status, date sent, and follow-up alerts",
       "steps": [
-        "Create src/app/project/[id]/emails/page.tsx",
-        "For each selected contact, generate email using project context",
-        "Use Apollo AI endpoint if available, fallback to Gemini",
-        "Display generated emails with edit capability",
-        "Save emails to Supabase linked to contact_id"
+        "Create comprehensive data table with all contact + company info",
+        "Add Status column with dropdown: Not Contacted, Email Sent, Accepted, Rejected, Meeting Secured, Done/Closed",
+        "Add Date Sent column with date picker",
+        "Add visual indicator (color change) for contacts needing follow-up (3+ days past Email Sent, no status update)",
+        "Add copy buttons: Copy all as TSV, Copy emails only, Copy individual row",
+        "Make table sortable by any column",
+        "Add filter/search functionality",
+        "Auto-save status changes to Supabase",
+        "This is THE KEY PAGE - data cannot be lost"
       ],
-      "acceptance": "Emails generate for each contact, editable, saved to DB"
+      "acceptance": "Table shows all data, status tracking works, 3-day follow-up alerts show, copy buttons work"
     },
     {
       "id": "F7",
-      "name": "Step 5: Export",
+      "name": "Email Generation with Master Prompt",
       "priority": 7,
-      "passes": true,
-      "description": "Export all data to CSV with user's flexible schema",
+      "passes": false,
+      "description": "Generate emails with master prompt affecting all, plus individual prompt per contact",
       "steps": [
-        "Create src/app/project/[id]/export/page.tsx",
-        "Show preview of all companies, contacts, emails in table",
-        "Let user reorder/rename columns before export",
-        "Generate CSV with selected columns",
-        "Download button for companies.csv, contacts.csv, emails.csv"
+        "At top: Master Prompt textarea that affects ALL emails below",
+        "Add warning modal when master prompt is about to run (affects all emails)",
+        "For each contact, show: Name, Company, Email Subject [Copy], Email Body [Copy]",
+        "Add individual prompt textarea per contact for customization",
+        "Generate button regenerates that contact's email with individual prompt",
+        "Include 'Regenerate All' button that uses master prompt",
+        "Emails should be plain text, easy to copy-paste into email client"
       ],
-      "acceptance": "Can export to CSV, columns match user preferences"
+      "acceptance": "Master prompt works with warning, individual prompts work, copy buttons work"
     },
     {
       "id": "F8",
-      "name": "Flexible schema system",
+      "name": "Conversation Mode with Follow-ups",
       "priority": 8,
-      "passes": true,
-      "description": "User can define their own column schema per project",
+      "passes": false,
+      "description": "Enter replies from contacts, generate follow-up emails, track conversation thread",
       "steps": [
-        "Create src/components/SchemaEditor.tsx",
-        "On project creation, user can paste Excel headers",
-        "Parse headers into column definitions",
-        "Store schema in project.schema_config (JSONB)",
-        "When importing/exporting, map to user's schema",
-        "AI uses schema context for better extraction"
+        "Add 'Enter Conversation' button per contact",
+        "Opens conversation view showing: Initial email sent, space to paste received reply",
+        "User pastes reply from contact",
+        "LLM generates suggested response (plain text, easy to copy)",
+        "If no reply received, show 'Generate Follow-up' button",
+        "Generate appropriate follow-up email based on time elapsed",
+        "Show full conversation thread history",
+        "Update contact status based on conversation (e.g., replied → Meeting Secured)"
       ],
-      "acceptance": "User-defined schemas work, import/export respects them"
+      "acceptance": "Can enter replies, generates follow-ups, tracks conversation history"
     },
     {
       "id": "F9",
-      "name": "Dashboard and navigation",
+      "name": "Incremental Company Addition",
       "priority": 9,
-      "passes": true,
-      "description": "Landing page showing all projects, wizard step navigation",
+      "passes": false,
+      "description": "Add new companies anytime, goes through same enrichment flow, appends to main table",
       "steps": [
-        "Update src/app/page.tsx to list all projects from Supabase",
-        "Add 'New Project' button linking to /new",
-        "Create src/components/WizardNav.tsx for step navigation",
-        "Show current step, completed steps, progress indicator",
-        "Add back/next navigation between steps"
+        "Add 'Add More Companies' button on main data table",
+        "Opens mini-flow: paste/import companies OR generate from segments",
+        "New companies go through same enrichment + contact discovery flow",
+        "Append enriched contacts to main table (not replace)",
+        "Maintain existing status/conversation data for previous contacts",
+        "Show 'newly added' indicator for recent additions"
       ],
-      "acceptance": "Dashboard lists projects, wizard nav works, progress visible"
+      "acceptance": "Can add companies anytime, they append to existing data, flow is consistent"
     },
     {
       "id": "F10",
-      "name": "User-provided API keys",
+      "name": "API Key Management UI",
       "priority": 10,
-      "passes": true,
-      "description": "Users enter their own Apollo/Hunter API keys instead of server-stored keys",
+      "passes": false,
+      "description": "Manage Apollo and Perplexity API keys with clear UI",
       "steps": [
-        "Create src/components/ApiKeyModal.tsx - modal to enter API keys",
-        "Store keys in localStorage (client-side only, never sent to server storage)",
-        "On contacts page, check if Apollo key exists in localStorage",
-        "If no key, show modal prompting user to enter their Apollo API key",
-        "Pass API key from client to API routes via request body (not env vars)",
-        "Update /api/find-contacts-apollo to accept apiKey in request body",
-        "Add settings page or gear icon to update/clear saved keys"
+        "Extend existing ApiKeyModal to support multiple services",
+        "Add Perplexity API key input for web search enrichment",
+        "Show key status indicators (set/not set) in header or settings",
+        "Add settings page accessible from anywhere",
+        "Clear instructions on where to get each API key",
+        "Validate API keys on entry if possible"
       ],
-      "acceptance": "App prompts for API key if not set, keys stored in browser only, API calls work with user-provided keys"
-    },
-    {
-      "id": "F11",
-      "name": "Loading states and error handling",
-      "priority": 11,
-      "passes": true,
-      "description": "Add proper loading spinners and error messages throughout the app",
-      "steps": [
-        "Create src/components/ui/Spinner.tsx - reusable loading spinner",
-        "Create src/components/ui/ErrorMessage.tsx - reusable error display",
-        "Add loading states to all async operations (API calls, saves)",
-        "Show skeleton loaders while fetching data",
-        "Display user-friendly error messages when API calls fail",
-        "Add toast notifications for success/error feedback"
-      ],
-      "acceptance": "All async operations show loading state, errors display clearly"
-    },
-    {
-      "id": "F12",
-      "name": "Project management (edit/delete)",
-      "priority": 12,
-      "passes": true,
-      "description": "Allow users to edit and delete existing projects",
-      "steps": [
-        "Add edit button on project card in dashboard",
-        "Create src/app/project/[id]/edit/page.tsx for editing project details",
-        "Add delete button with confirmation modal",
-        "Cascade delete companies, contacts, emails when project deleted",
-        "Add 'Duplicate project' feature to copy a project as template"
-      ],
-      "acceptance": "Can edit project details, delete projects with confirmation"
-    },
-    {
-      "id": "F13",
-      "name": "Contact search filters",
-      "priority": 13,
-      "passes": true,
-      "description": "Filter contacts by role/title when searching Apollo",
-      "steps": [
-        "Add title/role filter input on contacts page",
-        "Common presets: CEO, Founder, Director, Manager, Buyer, Procurement",
-        "Pass title filter to Apollo API search",
-        "Show filter chips for active filters",
-        "Remember last used filters per project"
-      ],
-      "acceptance": "Can filter Apollo search by title, presets work"
-    },
-    {
-      "id": "F14",
-      "name": "Email templates",
-      "priority": 14,
-      "passes": true,
-      "description": "Save and reuse email templates across projects",
-      "steps": [
-        "Create email_templates table in Supabase",
-        "Add 'Save as template' button on email editor",
-        "Create template picker when generating emails",
-        "Include variables like {{contact_name}}, {{company_name}}",
-        "Default templates: Cold outreach, Follow-up, Introduction request"
-      ],
-      "acceptance": "Can save templates, use templates with variable substitution"
-    },
-    {
-      "id": "F15",
-      "name": "Mobile responsive design",
-      "priority": 15,
-      "passes": true,
-      "description": "Make the app work well on mobile devices",
-      "steps": [
-        "Add responsive breakpoints to all pages",
-        "Stack form fields vertically on mobile",
-        "Make tables horizontally scrollable on mobile",
-        "Adjust navigation for mobile (hamburger menu or bottom nav)",
-        "Test on iPhone/Android screen sizes"
-      ],
-      "acceptance": "App is usable on mobile devices, no horizontal overflow"
-    },
-    {
-      "id": "F16",
-      "name": "Company enrichment with AI",
-      "priority": 16,
-      "passes": true,
-      "description": "Use AI to research and enrich company data automatically",
-      "steps": [
-        "Add 'Enrich All' button on companies page",
-        "Use Gemini to research each company's description, industry, employee count",
-        "Add relevance scoring based on project criteria",
-        "Show enrichment progress with progress bar",
-        "Allow manual override of AI-generated data"
-      ],
-      "acceptance": "Can bulk-enrich companies with AI, shows progress"
-    },
-    {
-      "id": "F17",
-      "name": "Quick actions and keyboard shortcuts",
-      "priority": 17,
-      "passes": true,
-      "description": "Add keyboard shortcuts for power users",
-      "steps": [
-        "Cmd+N to create new project",
-        "Cmd+S to save current data",
-        "Arrow keys to navigate between items in tables",
-        "Enter to select/confirm",
-        "Show shortcut hints in UI"
-      ],
-      "acceptance": "Keyboard shortcuts work, hints visible on hover"
+      "acceptance": "Can manage Apollo + Perplexity keys, status visible, instructions clear"
     }
-  ]
+  ],
+  "phases": {
+    "phase1": {
+      "name": "Core Workflow",
+      "features": ["F1", "F2", "F3", "F4", "F5", "F6"],
+      "description": "Essential flow from project setup to enriched data table"
+    },
+    "phase2": {
+      "name": "Email & Conversation",
+      "features": ["F7", "F8"],
+      "description": "Email generation with master prompts and conversation tracking"
+    },
+    "phase3": {
+      "name": "Polish",
+      "features": ["F9", "F10"],
+      "description": "Incremental additions and API key management"
+    }
+  }
 }
