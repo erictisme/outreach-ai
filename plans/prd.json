@@ -73,7 +73,7 @@
       "id": "F4",
       "name": "Date sent column with follow-up alert",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "description": "Add date sent picker and 3-day follow-up visual indicator",
       "steps": [
         "Add date picker input in Date Sent column (type='date')",

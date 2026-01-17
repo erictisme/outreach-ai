@@ -8,3 +8,6 @@ Files: src/components/DataTable.tsx (unified table with Company, Contact, Title,
 
 F3: Status dropdown inline edit - DONE
 Files: src/components/StatusDropdown.tsx (reusable component), src/components/DataTable.tsx (refactored to use StatusDropdown)
+
+F4: Date sent column with follow-up alert - DONE
+Files: src/components/DataTable.tsx (date picker, 3-day follow-up amber highlight + badge already implemented in F2)
