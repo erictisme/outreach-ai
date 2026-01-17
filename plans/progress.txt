@@ -5,3 +5,6 @@ Files: src/app/project/[id]/page.tsx (two-column layout, collapsible wizard pane
 
 F2: Data table component - DONE
 Files: src/components/DataTable.tsx (unified table with Company, Contact, Title, Email, Status dropdown, Date Sent picker, follow-up indicator, empty state)
+
+F3: Status dropdown inline edit - DONE
+Files: src/components/StatusDropdown.tsx (reusable component), src/components/DataTable.tsx (refactored to use StatusDropdown)

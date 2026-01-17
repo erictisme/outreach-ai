@@ -57,7 +57,7 @@
       "id": "F3",
       "name": "Status dropdown inline edit",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "description": "Add inline status editing to table rows",
       "steps": [
         "Create src/components/StatusDropdown.tsx",

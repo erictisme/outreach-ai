@@ -2,40 +2,22 @@
 
 import { cn } from '@/lib/utils'
 import { Company, Person, EmailDraft } from '@/types'
+import { StatusDropdown, Status } from './StatusDropdown'
 
 // Combined row type for unified display
 export interface DataTableRow {
   company: Company
   contact: Person | null
   email: EmailDraft | null
-  status: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_secured' | 'rejected' | 'closed'
+  status: Status
   dateSent: string | null // ISO date string
 }
 
 interface DataTableProps {
   data: DataTableRow[]
-  onStatusChange?: (index: number, status: DataTableRow['status']) => void
+  onStatusChange?: (index: number, status: Status) => void
   onDateChange?: (index: number, date: string | null) => void
 }
-
-// Status configuration
-const STATUS_CONFIG: Record<DataTableRow['status'], { label: string; color: string }> = {
-  not_contacted: { label: 'Not Contacted', color: 'text-gray-600 bg-gray-100' },
-  email_sent: { label: 'Email Sent', color: 'text-blue-600 bg-blue-100' },
-  replied: { label: 'Replied', color: 'text-green-600 bg-green-100' },
-  meeting_secured: { label: 'Meeting Secured', color: 'text-purple-600 bg-purple-100' },
-  rejected: { label: 'Rejected', color: 'text-red-600 bg-red-100' },
-  closed: { label: 'Closed', color: 'text-gray-800 bg-gray-200' },
-}
-
-const STATUS_OPTIONS: DataTableRow['status'][] = [
-  'not_contacted',
-  'email_sent',
-  'replied',
-  'meeting_secured',
-  'rejected',
-  'closed',
-]
 
 export function DataTable({ data, onStatusChange, onDateChange }: DataTableProps) {
   if (data.length === 0) {
@@ -118,20 +100,10 @@ export function DataTable({ data, onStatusChange, onDateChange }: DataTableProps
 
                 {/* Status */}
                 <td className="px-4 py-3">
-                  <select
+                  <StatusDropdown
                     value={row.status}
-                    onChange={(e) => onStatusChange?.(index, e.target.value as DataTableRow['status'])}
-                    className={cn(
-                      'px-2 py-1 rounded text-xs font-medium border-0 cursor-pointer focus:ring-2 focus:ring-blue-400',
-                      STATUS_CONFIG[row.status].color
-                    )}
-                  >
-                    {STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>
-                        {STATUS_CONFIG[status].label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(status) => onStatusChange?.(index, status)}
+                  />
                 </td>
 
                 {/* Date Sent */}
