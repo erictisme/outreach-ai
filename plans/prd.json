@@ -397,7 +397,7 @@
       "id": "F24",
       "name": "Loading and error states",
       "priority": 24,
-      "passes": false,
+      "passes": true,
       "description": "Polish loading and error handling",
       "steps": [
         "Skeleton loaders for table while loading",

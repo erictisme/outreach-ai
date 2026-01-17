@@ -46,16 +46,42 @@ export function Skeleton({ className }: SkeletonProps) {
   )
 }
 
-export function TableSkeleton({ rows = 5 }: { rows?: number }) {
+interface TableSkeletonProps {
+  rows?: number
+  columns?: number
+  showHeader?: boolean
+  showCheckbox?: boolean
+}
+
+export function TableSkeleton({ rows = 5, columns = 7, showHeader = true, showCheckbox = true }: TableSkeletonProps) {
   return (
-    <div className="space-y-3">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex gap-4">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-10 w-24" />
+    <div className="w-full">
+      {/* Header skeleton */}
+      {showHeader && (
+        <div className="flex gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
+          {showCheckbox && <Skeleton className="h-5 w-5 rounded" />}
+          {Array.from({ length: columns }).map((_, i) => (
+            <Skeleton key={`header-${i}`} className="h-5 flex-1" />
+          ))}
         </div>
-      ))}
+      )}
+      {/* Row skeletons */}
+      <div className="divide-y divide-gray-200">
+        {Array.from({ length: rows }).map((_, rowIndex) => (
+          <div key={rowIndex} className="flex items-center gap-2 px-4 py-3">
+            {showCheckbox && <Skeleton className="h-5 w-5 rounded" />}
+            {Array.from({ length: columns }).map((_, colIndex) => (
+              <Skeleton
+                key={`row-${rowIndex}-col-${colIndex}`}
+                className={cn(
+                  'h-5',
+                  colIndex === 0 ? 'w-40' : colIndex === columns - 1 ? 'w-20' : 'flex-1'
+                )}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

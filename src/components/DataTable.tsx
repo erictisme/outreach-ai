@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { Company, Person, EmailDraft } from '@/types'
 import { StatusDropdown, Status } from './StatusDropdown'
 import { useToast } from './ui/Toast'
+import { TableSkeleton } from './ui/Spinner'
 import { Copy, Mail, Download, Loader2, RefreshCw, Trash2, X, ChevronUp, ChevronDown, Search, Filter } from 'lucide-react'
 
 // Sort configuration
@@ -42,6 +43,7 @@ interface DataTableProps {
   onBulkDelete?: (indices: number[]) => void
   onBulkStatusChange?: (indices: number[], status: Status) => void
   isSaving?: boolean
+  isLoading?: boolean
   onRetry?: () => void
   focusedRowIndex?: number
   onFocusedRowChange?: (index: number) => void
@@ -94,7 +96,7 @@ function SortableHeader({
   )
 }
 
-export function DataTable({ data, projectId, onStatusChange, onDateChange, onBulkDelete, onBulkStatusChange, isSaving, onRetry, focusedRowIndex = -1, onFocusedRowChange }: DataTableProps) {
+export function DataTable({ data, projectId, onStatusChange, onDateChange, onBulkDelete, onBulkStatusChange, isSaving, isLoading, onRetry, focusedRowIndex = -1, onFocusedRowChange }: DataTableProps) {
   const { addToast } = useToast()
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const tableContainerRef = useRef<HTMLDivElement>(null)
@@ -401,6 +403,15 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
     URL.revokeObjectURL(url)
 
     addToast('CSV file downloaded', 'success')
+  }
+
+  // Show skeleton while loading
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <TableSkeleton rows={8} columns={7} showHeader={true} showCheckbox={true} />
+      </div>
+    )
   }
 
   if (data.length === 0) {

@@ -3,9 +3,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Plus, Settings } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Plus, Settings, RefreshCw } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
+import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { WizardPanel, WizardStep } from '@/components/WizardPanel'
 import { ConversationModal } from '@/components/ConversationModal'
 import { DataTable, DataTableRow } from '@/components/DataTable'
@@ -154,36 +156,47 @@ export default function ProjectPage() {
     { keys: { key: '?', shiftKey: true }, description: 'Show shortcuts help' },
   ]
 
-  useEffect(() => {
-    async function loadProject() {
-      try {
-        const supabase = getSupabase()
-        const { data, error: fetchError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', projectId)
-          .single()
+  // Load project function - extracted for retry capability
+  const loadProject = useCallback(async () => {
+    setLoading(true)
+    setError(null)
 
-        if (fetchError) {
-          if (fetchError.code === 'PGRST116') {
-            setError('Project not found')
-          } else {
-            throw fetchError
-          }
-          return
+    try {
+      const supabase = getSupabase()
+      const { data, error: fetchError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single()
+
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          setError('Project not found')
+        } else {
+          throw fetchError
         }
-
-        setProject(data)
-      } catch (err) {
-        console.error('Error loading project:', err)
-        setError('Failed to load project')
-      } finally {
-        setLoading(false)
+        return
       }
-    }
 
+      setProject(data)
+    } catch (err) {
+      console.error('Error loading project:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load project'
+      // Check for network/connection errors
+      if (errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('Failed to fetch')) {
+        setError('Unable to connect to database. Please check your internet connection and try again.')
+      } else {
+        setError(errorMessage)
+      }
+      addToast('Failed to load project', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [projectId, addToast])
+
+  useEffect(() => {
     loadProject()
-  }, [projectId])
+  }, [loadProject])
 
   // Get schema config data
   const schemaConfig = project?.schema_config as {
@@ -518,9 +531,14 @@ export default function ProjectPage() {
   }
 
   if (error || !project) {
+    const isNotFound = error === 'Project not found'
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <div className="text-red-600 text-lg">{error || 'Project not found'}</div>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+        <ErrorMessage
+          message={error || 'Project not found'}
+          variant={isNotFound ? 'warning' : 'error'}
+          retry={!isNotFound ? loadProject : undefined}
+        />
         <Link
           href="/"
           className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 hover:underline"
@@ -533,6 +551,7 @@ export default function ProjectPage() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="border-b border-gray-200 bg-white px-4 py-3">
@@ -680,5 +699,6 @@ export default function ProjectPage() {
         )
       })()}
     </div>
+    </ErrorBoundary>
   )
 }

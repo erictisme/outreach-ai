@@ -21,3 +21,6 @@ Files: src/app/project/[id]/page.tsx (mobile wizard toggle header, stacked layou
 
 F23: Keyboard shortcuts - DONE
 Files: src/app/project/[id]/page.tsx (useKeyboardShortcuts hook, Cmd+S, Cmd+1-5, Escape, arrow keys, j/k vim nav, KeyboardShortcutsHelp in header), src/components/DataTable.tsx (focusedRowIndex prop, row focus highlight, scroll into view)
+
+F24: Loading and error states - DONE
+Files: src/components/ui/ErrorBoundary.tsx (new), src/components/ui/Spinner.tsx (enhanced TableSkeleton), src/components/DataTable.tsx (isLoading prop with skeleton), src/app/project/[id]/page.tsx (ErrorBoundary wrap, retry button, graceful error handling)
