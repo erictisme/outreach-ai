@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { ProjectContext, Segment, Company } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { loggedFetch } from '@/lib/promptLogger'
 
 interface SegmentWithCount extends Segment {
   count: number
@@ -122,7 +123,7 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
       // Get existing company names to exclude
       const existingNames = (schemaConfig.companies || []).map((c) => c.name)
 
-      const response = await fetch('/api/generate-list', {
+      const response = await loggedFetch('/api/generate-list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,7 +178,7 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
 
     try {
       // Call enrich API
-      const response = await fetch('/api/enrich-companies', {
+      const response = await loggedFetch('/api/enrich-companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -434,7 +435,7 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
       for (let i = 0; i < companiesToEnrich.length; i += batchSize) {
         const batch = companiesToEnrich.slice(i, i + batchSize)
 
-        const response = await fetch('/api/enrich-companies', {
+        const response = await loggedFetch('/api/enrich-companies', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

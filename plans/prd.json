@@ -413,7 +413,7 @@
       "id": "F25",
       "name": "Prompt inspection panel",
       "priority": 25,
-      "passes": false,
+      "passes": true,
       "description": "Make all LLM prompts inspectable for debugging",
       "steps": [
         "Create src/components/PromptInspector.tsx",

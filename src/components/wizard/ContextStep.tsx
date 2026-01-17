@@ -10,6 +10,7 @@ import {
   SeniorityLevel,
   SENIORITY_OPTIONS,
 } from '@/types'
+import { loggedFetch } from '@/lib/promptLogger'
 
 interface ContextStepProps {
   project: Project
@@ -148,7 +149,7 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
     setError(null)
 
     try {
-      const extractResponse = await fetch('/api/extract', {
+      const extractResponse = await loggedFetch('/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

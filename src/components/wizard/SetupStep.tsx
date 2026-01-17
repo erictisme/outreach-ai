@@ -5,6 +5,7 @@ import { Upload, X, FileText, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { OBJECTIVE_OPTIONS, ProjectObjective } from '@/types'
+import { loggedFetch } from '@/lib/promptLogger'
 
 interface SetupStepProps {
   project: Project
@@ -114,7 +115,7 @@ export function SetupStep({ project, onUpdate, onComplete }: SetupStepProps) {
       // Now trigger extraction
       setExtracting(true)
 
-      const extractResponse = await fetch('/api/extract', {
+      const extractResponse = await loggedFetch('/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

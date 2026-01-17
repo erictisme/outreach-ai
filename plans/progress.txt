@@ -24,3 +24,6 @@ Files: src/app/project/[id]/page.tsx (useKeyboardShortcuts hook, Cmd+S, Cmd+1-5,
 
 F24: Loading and error states - DONE
 Files: src/components/ui/ErrorBoundary.tsx (new), src/components/ui/Spinner.tsx (enhanced TableSkeleton), src/components/DataTable.tsx (isLoading prop with skeleton), src/app/project/[id]/page.tsx (ErrorBoundary wrap, retry button, graceful error handling)
+
+F25: Prompt inspection panel - DONE
+Files: src/components/PromptInspector.tsx (new collapsible panel), src/lib/promptLogger.ts (new logging utility with sessionStorage), src/app/project/[id]/page.tsx (toggle button, inspector state), wizard steps updated to use loggedFetch

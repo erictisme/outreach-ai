@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Plus, Settings, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Plus, Settings, Terminal } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
@@ -15,6 +15,7 @@ import { Status } from '@/components/StatusDropdown'
 import { useToast } from '@/components/ui/Toast'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp'
+import { PromptInspector } from '@/components/PromptInspector'
 import { EmailDraft, Conversation, Company, ResearchedContact, Person } from '@/types'
 
 // Step mapping for keyboard navigation
@@ -44,6 +45,9 @@ export default function ProjectPage() {
     contactId: string | null
     email: EmailDraft | null
   }>({ isOpen: false, contactId: null, email: null })
+
+  // Prompt inspector state
+  const [isPromptInspectorOpen, setIsPromptInspectorOpen] = useState(false)
 
   // Saving state for table edits
   const [isSaving, setIsSaving] = useState(false)
@@ -570,6 +574,17 @@ export default function ProjectPage() {
           </div>
           <div className="flex items-center gap-2">
             <KeyboardShortcutsHelp shortcuts={shortcutsList} />
+            <button
+              onClick={() => setIsPromptInspectorOpen(!isPromptInspectorOpen)}
+              className={`p-2 rounded-lg transition-colors ${
+                isPromptInspectorOpen
+                  ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+              }`}
+              title="Toggle Prompt Inspector"
+            >
+              <Terminal className="w-5 h-5" />
+            </button>
             <Link
               href={`/project/${projectId}/settings`}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -698,6 +713,12 @@ export default function ProjectPage() {
           />
         )
       })()}
+
+      {/* Prompt Inspector */}
+      <PromptInspector
+        isOpen={isPromptInspectorOpen}
+        onToggle={() => setIsPromptInspectorOpen(!isPromptInspectorOpen)}
+      />
     </div>
     </ErrorBoundary>
   )

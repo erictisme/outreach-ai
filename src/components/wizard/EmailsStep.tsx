@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Company, ResearchedContact, ProjectContext, Person, EmailDraft } from '@/types'
 import { useToast } from '@/components/ui/Toast'
+import { loggedFetch } from '@/lib/promptLogger'
 
 interface EmailsStepProps {
   project: Project
@@ -126,7 +127,7 @@ export function EmailsStep({ project, onUpdate, onOpenConversation }: EmailsStep
         emailVerified: contact.verified || false,
       }))
 
-      const response = await fetch('/api/write-emails', {
+      const response = await loggedFetch('/api/write-emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -233,7 +234,7 @@ export function EmailsStep({ project, onUpdate, onOpenConversation }: EmailsStep
         emailVerified: email.to.emailVerified || false,
       }
 
-      const response = await fetch('/api/write-emails', {
+      const response = await loggedFetch('/api/write-emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

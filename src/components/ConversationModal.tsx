@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Send, Copy, Check, Plus, Sparkles, Loader2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EmailDraft, Message, Conversation, Person, Company, ResponseType, ProjectContext } from '@/types'
+import { loggedFetch } from '@/lib/promptLogger'
 
 interface ConversationModalProps {
   isOpen: boolean
@@ -177,7 +178,7 @@ export function ConversationModal({
     setGeneratedResponse(null)
 
     try {
-      const response = await fetch('/api/draft-response', {
+      const response = await loggedFetch('/api/draft-response', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -238,7 +239,7 @@ export function ConversationModal({
     setGeneratedFollowUp(null)
 
     try {
-      const response = await fetch('/api/draft-response', {
+      const response = await loggedFetch('/api/draft-response', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

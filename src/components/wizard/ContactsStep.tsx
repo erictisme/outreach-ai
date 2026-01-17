@@ -7,6 +7,7 @@ import { getSupabase, Project } from '@/lib/supabase'
 import { Company, ResearchedContact, ProjectContext, Person } from '@/types'
 import { ApiKeyModal, getApiKey } from '@/components/ApiKeyModal'
 import { useToast } from '@/components/ui/Toast'
+import { loggedFetch } from '@/lib/promptLogger'
 
 interface ContactsStepProps {
   project: Project
@@ -151,7 +152,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     setResearchProgress({ current: 0, total: selectedCompanies.length })
 
     try {
-      const response = await fetch('/api/find-contacts-free', {
+      const response = await loggedFetch('/api/find-contacts-free', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -207,7 +208,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     setResearchProgress({ current: 0, total: selectedCompanies.length })
 
     try {
-      const response = await fetch('/api/find-contacts-apollo', {
+      const response = await loggedFetch('/api/find-contacts-apollo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -297,7 +298,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
         }
       }
 
-      const response = await fetch('/api/enrich-contacts-email', {
+      const response = await loggedFetch('/api/enrich-contacts-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
