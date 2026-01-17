@@ -1,31 +1,4 @@
-# Ralph run Sat Jan 17 17:40:15 +08 2026
+# Ralph run Sat Jan 17 23:51:59 +08 2026
 
-F1 Project Setup Page: DONE - already implemented in workflow page (objective dropdown, company name, context input, file upload, email template)
-Files: src/app/project/[id]/workflow/page.tsx, src/components/ContextInput.tsx (already had all features)
-
-F2 Context Extraction & Editable Fields: DONE - added extract step with editable fields (client, product, market, seniority dropdown, target roles chips, value prop), Save Context to Supabase, company source choice
-Files: src/app/project/[id]/workflow/page.tsx
-
-F3 Segment-based Company Discovery: DONE - added CompanyCards view for card selection, manual add with LLM enrichment, CSV import, view toggle (cards/table)
-Files: src/components/CompanyCards.tsx (new), src/app/api/parse-company/route.ts (new), src/app/project/[id]/workflow/page.tsx
-
-F4 Company Enrichment with Web Search: DONE - Perplexity API endpoint for web search, enrichment button with progress bar, source tracking
-Files: src/app/api/enrich-company-web/route.ts (new), src/components/ApiKeyModal.tsx, src/app/project/[id]/workflow/page.tsx
-
-F5 Two-phase Contact Discovery: DONE - Phase 1 free research (Gemini AI), Phase 2 paid email enrichment (Apollo), contact card selection, cost estimate, confirmation modal
-Files: src/app/api/find-contacts-free/route.ts (new), src/app/api/enrich-contacts-email/route.ts (new), src/app/project/[id]/workflow/page.tsx
-
-F6 Enriched Data Table with Status Tracking: DONE - new /data page with full contact+company table, status dropdown with auto-save, date sent picker, 3-day follow-up alerts, sortable columns, search/filter, copy TSV/emails/row
-Files: src/app/project/[id]/data/page.tsx (new), src/components/WizardNav.tsx (updated), src/app/project/[id]/page.tsx (updated)
-
-F7 Email Generation with Master Prompt: DONE - master prompt textarea at top, warning modal for regenerate all, individual prompt per contact (expandable), copy buttons for subject/body, Regenerate All + individual regenerate
-Files: src/app/project/[id]/emails/page.tsx (updated), src/app/api/write-emails/route.ts (updated)
-
-F8 Conversation Mode with Follow-ups: DONE - new /conversations page with thread view, conversation stored in contact.custom_fields, start conversation from contacts with emails, add reply + generate AI response (schedule/confirm/reschedule/followup/thankyou/clarify), mark as sent, status updates (awaiting_reply/reply_received/meeting_set/declined/closed), conversation link in data table
-Files: src/app/project/[id]/conversations/page.tsx (new), src/app/project/[id]/data/page.tsx (updated), src/components/WizardNav.tsx (updated), src/app/project/[id]/page.tsx (updated)
-
-F9 Incremental Company Addition: DONE - Add More Companies button on data table, modal with paste/CSV import, enrichment flow (Gemini AI), contact discovery (Apollo), appends to Supabase, newly added indicator (green badge + row highlighting)
-Files: src/app/project/[id]/data/page.tsx (updated)
-
-F10 API Key Management UI: DONE - dedicated settings page with Apollo/Perplexity (required) + Hunter/Apify (optional), key status indicators in header and WizardNav, clear instructions with links, save per-key
-Files: src/app/project/[id]/settings/page.tsx (new), src/components/WizardNav.tsx (updated), src/components/ProjectHeader.tsx (updated), src/app/project/[id]/workflow/page.tsx (updated)
+F1: Project page shell - DONE
+Files: src/app/project/[id]/page.tsx (two-column layout, collapsible wizard panel, loading/error states)

@@ -1,70 +1,130 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
+import { getSupabase, Project } from '@/lib/supabase'
+import { Spinner } from '@/components/ui/Spinner'
 
-type WizardStep = 'companies' | 'contacts' | 'emails' | 'data' | 'conversations' | 'export'
+export default function ProjectPage() {
+  const params = useParams()
+  const projectId = params.id as string
 
-const STEPS: { key: WizardStep; label: string; description: string }[] = [
-  { key: 'companies', label: 'Companies', description: 'Build your target list' },
-  { key: 'contacts', label: 'Contacts', description: 'Find decision makers' },
-  { key: 'emails', label: 'Emails', description: 'Generate personalized outreach' },
-  { key: 'data', label: 'Data', description: 'Track outreach & follow-ups' },
-  { key: 'conversations', label: 'Conversations', description: 'Follow-ups & replies' },
-  { key: 'export', label: 'Export', description: 'Download your data' },
-]
+  const [project, setProject] = useState<Project | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false)
 
-interface ProjectPageProps {
-  params: Promise<{ id: string }>
-}
+  useEffect(() => {
+    async function loadProject() {
+      try {
+        const supabase = getSupabase()
+        const { data, error: fetchError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single()
 
-export default async function ProjectPage({ params }: ProjectPageProps) {
-  const { id } = await params
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') {
+            setError('Project not found')
+          } else {
+            throw fetchError
+          }
+          return
+        }
+
+        setProject(data)
+      } catch (err) {
+        console.error('Error loading project:', err)
+        setError('Failed to load project')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProject()
+  }, [projectId])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" label="Loading project..." />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <div className="text-red-600 text-lg">{error}</div>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Projects
+        </Link>
+      </div>
+    )
+  }
 
   return (
-    <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
-      <header className="mb-6 sm:mb-8">
-        <Link href="/" className="text-blue-600 hover:underline text-sm mb-2 inline-block">
-          ← Back to projects
-        </Link>
-        <h1 className="text-xl sm:text-2xl font-bold">Project: {id}</h1>
-        <p className="text-gray-600 mt-1 text-sm sm:text-base">Follow the steps to complete your outreach campaign.</p>
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b border-gray-200 bg-white px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm">Projects</span>
+            </Link>
+            <h1 className="text-xl font-semibold text-gray-900">
+              {project?.client_name}
+            </h1>
+          </div>
+        </div>
       </header>
 
-      {/* Single-Page Workflow Button */}
-      <div className="mb-6 sm:mb-8">
-        <Link
-          href={`/project/${id}/workflow`}
-          className="flex items-center justify-center gap-3 w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
+      {/* Main content area - two column layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left panel - Wizard */}
+        <div
+          className={`${
+            isPanelCollapsed ? 'w-0' : 'w-80'
+          } border-r border-gray-200 bg-gray-50 flex-shrink-0 transition-all duration-300 overflow-hidden`}
         >
-          <Zap className="w-5 h-5" />
-          <span className="font-semibold text-lg">Open Single-Page Workflow</span>
-        </Link>
-        <p className="text-center text-sm text-gray-500 mt-2">
-          Streamlined view with all steps on one page
-        </p>
-      </div>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-200"></div>
+          <div className="w-80 h-full p-4">
+            <div className="h-full bg-white rounded-lg border border-gray-200 p-4">
+              <div className="text-gray-500 text-sm">Wizard Panel</div>
+            </div>
+          </div>
         </div>
-        <div className="relative flex justify-center">
-          <span className="bg-slate-50 px-3 text-sm text-gray-500">Or use step-by-step view</span>
+
+        {/* Collapse/expand button */}
+        <button
+          onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
+          className="flex-shrink-0 w-6 bg-gray-100 hover:bg-gray-200 flex items-center justify-center border-r border-gray-200 transition-colors"
+          aria-label={isPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
+        >
+          {isPanelCollapsed ? (
+            <ChevronRight className="w-4 h-4 text-gray-500" />
+          ) : (
+            <ChevronLeft className="w-4 h-4 text-gray-500" />
+          )}
+        </button>
+
+        {/* Right area - Data Table */}
+        <div className="flex-1 overflow-auto p-4">
+          <div className="h-full bg-white rounded-lg border border-gray-200 p-4">
+            <div className="text-gray-500 text-sm">Data Table</div>
+          </div>
         </div>
       </div>
-
-      <nav className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-6">
-        {STEPS.map((step, index) => (
-          <Link
-            key={step.key}
-            href={`/project/${id}/${step.key}`}
-            className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-          >
-            <div className="text-xs sm:text-sm text-gray-500 mb-1">Step {index + 1}</div>
-            <div className="font-semibold text-sm sm:text-base">{step.label}</div>
-            <div className="text-xs sm:text-sm text-gray-600 mt-1 hidden sm:block">{step.description}</div>
-          </Link>
-        ))}
-      </nav>
-    </main>
+    </div>
   )
 }
