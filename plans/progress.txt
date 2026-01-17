@@ -38,3 +38,6 @@ Files: src/components/wizard/ContactsStep.tsx (new), src/components/WizardPanel.
 
 F13: Contacts step - free AI research - DONE
 Files: src/components/wizard/ContactsStep.tsx (research button, API call, contact cards with seniority/relevance, LinkedIn links, Supabase save)
+
+F13b: Contacts step - Apollo paid search - DONE
+Files: src/components/wizard/ContactsStep.tsx (Apollo button, API key check via ApiKeyModal, cost estimate confirmation modal, email display)

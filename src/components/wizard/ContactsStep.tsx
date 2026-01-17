@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Users, Loader2, Search, Linkedin } from 'lucide-react'
+import { Check, Loader2, Search, Linkedin, AlertTriangle, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
-import { Company, ResearchedContact, ProjectContext } from '@/types'
+import { Company, ResearchedContact, ProjectContext, Person } from '@/types'
+import { ApiKeyModal, getApiKey } from '@/components/ApiKeyModal'
 
 interface ContactsStepProps {
   project: Project
@@ -35,6 +36,12 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
   // Found contacts state
   const [foundContacts, setFoundContacts] = useState<ResearchedContact[]>([])
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set())
+
+  // Apollo search state
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false)
+  const [showApolloConfirm, setShowApolloConfirm] = useState(false)
+  const [isApolloSearching, setIsApolloSearching] = useState(false)
+  const [apolloError, setApolloError] = useState<string | null>(null)
 
   // No companies yet
   if (companies.length === 0) {
@@ -127,6 +134,80 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     }
   }
 
+  // Apollo paid search - check API key first
+  const handleApolloSearchClick = () => {
+    const apolloKey = getApiKey('apollo')
+    if (!apolloKey) {
+      setShowApiKeyModal(true)
+    } else {
+      setShowApolloConfirm(true)
+    }
+  }
+
+  // Apollo paid search execution
+  const handleApolloSearch = async () => {
+    setShowApolloConfirm(false)
+    const apolloKey = getApiKey('apollo')
+    if (!apolloKey) {
+      setApolloError('Apollo API key not found')
+      return
+    }
+
+    const selectedCompanies = companies.filter((c) => selectedCompanyIds.has(c.id))
+    if (selectedCompanies.length === 0) return
+
+    setIsApolloSearching(true)
+    setApolloError(null)
+    setResearchProgress({ current: 0, total: selectedCompanies.length })
+
+    try {
+      const response = await fetch('/api/find-contacts-apollo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companies: selectedCompanies,
+          context: schemaConfig.extractedContext || {},
+          apiKey: apolloKey,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to search Apollo')
+      }
+
+      const data = await response.json()
+      const apolloPersons: Person[] = data.persons || []
+
+      // Convert Person results to ResearchedContact format
+      const contacts: ResearchedContact[] = apolloPersons.map((p) => ({
+        id: p.id,
+        company: p.company,
+        companyId: p.companyId,
+        name: p.name,
+        title: p.title,
+        linkedinUrl: p.linkedin || '',
+        email: p.email || undefined,
+        seniority: p.seniority || 'Unknown',
+        relevanceScore: p.emailCertainty ? Math.round(p.emailCertainty / 10) : 7,
+        reasoning: `Found via Apollo API - ${p.emailSource || 'contact search'}`,
+        source: 'web_research' as const,
+        verified: p.emailVerified || false,
+      }))
+
+      // Set found contacts and select all by default
+      setFoundContacts(contacts)
+      setSelectedContactIds(new Set(contacts.map((c) => c.id)))
+      setResearchProgress({ current: selectedCompanies.length, total: selectedCompanies.length })
+    } catch (err) {
+      console.error('Apollo search error:', err)
+      setApolloError(err instanceof Error ? err.message : 'Failed to search Apollo')
+    } finally {
+      setIsApolloSearching(false)
+      setResearchProgress(null)
+    }
+  }
+
   // Save selected contacts to Supabase
   const handleSaveContacts = async () => {
     const contactsToSave = foundContacts.filter((c) => selectedContactIds.has(c.id))
@@ -150,15 +231,21 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
 
         const dbCompanyId = companyResult.data?.id || contact.companyId
 
+        // Detect source based on contact ID prefix or reasoning
+        const isApolloContact = contact.id.startsWith('person-apollo-') || contact.reasoning?.includes('Apollo')
+        const source = isApolloContact ? 'apollo' : 'ai_research'
+        // Type assertion for email field on ResearchedContact
+        const contactEmail = (contact as ResearchedContact & { email?: string }).email
+
         await supabase.from('contacts').upsert({
           id: contact.id,
           company_id: dbCompanyId,
           name: contact.name,
           title: contact.title,
-          email: null, // No email in free tier
+          email: contactEmail || null,
           linkedin_url: contact.linkedinUrl || null,
-          source: 'ai_research',
-          verified: false,
+          source,
+          verified: contact.verified || false,
           custom_fields: {
             seniority: contact.seniority,
             relevanceScore: contact.relevanceScore,
@@ -301,6 +388,13 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
                           <p className="text-xs text-gray-600 mt-0.5">
                             {contact.title}
                           </p>
+                          {/* Email display if available */}
+                          {(contact as ResearchedContact & { email?: string }).email && (
+                            <p className="text-xs text-green-600 mt-0.5 flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              {(contact as ResearchedContact & { email?: string }).email}
+                            </p>
+                          )}
                           <div className="flex items-center gap-2 mt-1">
                             <span className={cn(
                               'text-xs px-1.5 py-0.5 rounded',
@@ -494,29 +588,120 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
         </div>
       )}
 
-      {/* Research button */}
-      <button
-        onClick={handleResearchContacts}
-        disabled={selectedCompanyCount === 0 || isResearching}
-        className={cn(
-          'w-full py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
-          selectedCompanyCount === 0 || isResearching
-            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
-        )}
-      >
-        {isResearching ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Researching...
-          </>
-        ) : (
-          <>
-            <Search className="w-4 h-4" />
-            Research Contacts (Free) - {selectedCompanyCount} companies
-          </>
-        )}
-      </button>
+      {/* Error messages */}
+      {apolloError && (
+        <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+          {apolloError}
+        </div>
+      )}
+
+      {/* Search buttons */}
+      <div className="space-y-2">
+        {/* Free research button */}
+        <button
+          onClick={handleResearchContacts}
+          disabled={selectedCompanyCount === 0 || isResearching || isApolloSearching}
+          className={cn(
+            'w-full py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
+            selectedCompanyCount === 0 || isResearching || isApolloSearching
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          )}
+        >
+          {isResearching ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Researching...
+            </>
+          ) : (
+            <>
+              <Search className="w-4 h-4" />
+              Research Contacts (Free) - {selectedCompanyCount} companies
+            </>
+          )}
+        </button>
+
+        {/* Apollo paid search button */}
+        <button
+          onClick={handleApolloSearchClick}
+          disabled={selectedCompanyCount === 0 || isResearching || isApolloSearching}
+          className={cn(
+            'w-full py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 border',
+            selectedCompanyCount === 0 || isResearching || isApolloSearching
+              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+              : 'bg-white text-orange-600 border-orange-300 hover:bg-orange-50'
+          )}
+        >
+          {isApolloSearching ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Searching Apollo...
+            </>
+          ) : (
+            <>
+              <Mail className="w-4 h-4" />
+              Find with Apollo (Paid) - {selectedCompanyCount} companies
+            </>
+          )}
+        </button>
+        <p className="text-xs text-gray-400 text-center">
+          Apollo search includes email addresses when available
+        </p>
+      </div>
+
+      {/* Apollo confirmation modal */}
+      {showApolloConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowApolloConfirm(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Confirm Apollo Search</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  This will search for contacts at {selectedCompanyCount} companies using Apollo.
+                </p>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-amber-800">
+                <strong>Estimated cost:</strong> ~{selectedCompanyCount * 5} Apollo credits
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                Apollo charges ~1 credit per contact returned (up to 5 contacts per company)
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowApolloConfirm(false)}
+                className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApolloSearch}
+                className="flex-1 py-2 px-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+              >
+                Proceed with Search
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* API Key Modal */}
+      <ApiKeyModal
+        isOpen={showApiKeyModal}
+        requiredKey="apollo"
+        onClose={() => setShowApiKeyModal(false)}
+        onSave={() => {
+          setShowApiKeyModal(false)
+          // After saving key, show confirmation modal
+          setShowApolloConfirm(true)
+        }}
+      />
     </div>
   )
 }

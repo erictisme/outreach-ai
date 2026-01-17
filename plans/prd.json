@@ -128,7 +128,7 @@
       "id": "F13b",
       "name": "Step 4: Contacts - Apollo paid search",
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "description": "Paid Apollo search for contacts with emails",
       "steps": [
         "Add 'Find with Apollo (Paid)' button as alternative to free research",
