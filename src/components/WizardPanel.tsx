@@ -6,6 +6,7 @@ import { Project } from '@/lib/supabase'
 import { SetupStep } from '@/components/wizard/SetupStep'
 import { ContextStep } from '@/components/wizard/ContextStep'
 import { CompaniesStep } from '@/components/wizard/CompaniesStep'
+import { ContactsStep } from '@/components/wizard/ContactsStep'
 
 export type WizardStep = 'setup' | 'context' | 'companies' | 'contacts' | 'emails'
 
@@ -163,9 +164,11 @@ function StepContent({ step, project, onProjectUpdate, onStepComplete }: StepCon
       )
     case 'contacts':
       return (
-        <div className="text-sm text-gray-500">
-          Find contacts at your target companies.
-        </div>
+        <ContactsStep
+          project={project}
+          onUpdate={onProjectUpdate}
+          onComplete={onStepComplete}
+        />
       )
     case 'emails':
       return (

@@ -94,7 +94,7 @@
       "id": "F12",
       "name": "Step 4: Contacts - company selection",
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "description": "Select companies from table for contact search",
       "steps": [
         "Create src/components/wizard/ContactsStep.tsx",

@@ -32,3 +32,6 @@ Files: src/components/wizard/CompaniesStep.tsx (generate API call, selectable ca
 
 F11: Companies step - import flow - DONE
 Files: src/components/wizard/CompaniesStep.tsx (paste textarea, CSV upload with column mapping, enrichment progress bar, Supabase save)
+
+F12: Contacts step - company selection - DONE
+Files: src/components/wizard/ContactsStep.tsx (new), src/components/WizardPanel.tsx (import + integration)
