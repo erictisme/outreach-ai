@@ -77,7 +77,7 @@ export default function ProjectPage() {
   }
 
   // Handle saving conversation
-  const handleSaveConversation = async (conversation: Conversation) => {
+  const handleSaveConversation = async (conversation: Conversation, followUpCount?: number) => {
     if (!project) return
 
     const existingConversations = schemaConfig?.conversations || []
@@ -95,11 +95,29 @@ export default function ProjectPage() {
       updatedConversations = [...existingConversations, conversation]
     }
 
+    // Update contact with follow-up count if provided
+    let updatedContacts = schemaConfig?.contacts || []
+    if (followUpCount !== undefined && followUpCount > 0) {
+      updatedContacts = updatedContacts.map((contact) => {
+        if (contact.id === conversation.personId) {
+          return {
+            ...contact,
+            custom_fields: {
+              ...(contact as ResearchedContact & { custom_fields?: Record<string, unknown> }).custom_fields,
+              followup_count: followUpCount,
+            },
+          }
+        }
+        return contact
+      })
+    }
+
     // Save to Supabase
     const supabase = getSupabase()
     const updatedSchemaConfig = {
       ...schemaConfig,
       conversations: updatedConversations,
+      contacts: updatedContacts,
     }
 
     const { error: updateError } = await supabase

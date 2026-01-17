@@ -234,7 +234,7 @@
       "id": "F17c",
       "name": "Conversation modal - follow-up generation",
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "description": "Generate follow-up when no reply received",
       "steps": [
         "Add 'No Reply Yet' button when awaiting response",

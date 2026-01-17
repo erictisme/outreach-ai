@@ -13,7 +13,7 @@ interface ConversationModalProps {
   existingConversation?: Conversation
   projectContext?: ProjectContext
   onClose: () => void
-  onSave: (conversation: Conversation) => void
+  onSave: (conversation: Conversation, followUpCount?: number) => void
 }
 
 const RESPONSE_TYPE_OPTIONS: { value: ResponseType; label: string }[] = [
@@ -23,6 +23,12 @@ const RESPONSE_TYPE_OPTIONS: { value: ResponseType; label: string }[] = [
   { value: 'thankyou', label: 'Thank You' },
   { value: 'clarify', label: 'Clarify' },
   { value: 'custom', label: 'General' },
+]
+
+// Follow-up types for when waiting for reply
+const FOLLOWUP_TYPE_OPTIONS: { value: ResponseType; label: string }[] = [
+  { value: 'followup', label: 'Gentle Follow-up' },
+  { value: 'custom', label: 'Custom Follow-up' },
 ]
 
 export function ConversationModal({
@@ -69,6 +75,17 @@ export function ConversationModal({
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedResponse, setGeneratedResponse] = useState<{ subject: string; body: string } | null>(null)
   const [showResponseTypeDropdown, setShowResponseTypeDropdown] = useState(false)
+
+  // Follow-up state
+  const [followUpType, setFollowUpType] = useState<ResponseType>('followup')
+  const [isGeneratingFollowUp, setIsGeneratingFollowUp] = useState(false)
+  const [generatedFollowUp, setGeneratedFollowUp] = useState<{ subject: string; body: string } | null>(null)
+  const [showFollowUpTypeDropdown, setShowFollowUpTypeDropdown] = useState(false)
+  const [followUpCount, setFollowUpCount] = useState<number>(() => {
+    if (!existingConversation) return 0
+    const count = contact['followup_count']
+    return typeof count === 'number' ? count : 0
+  })
 
   // Reset conversation when modal opens with new contact
   useEffect(() => {
@@ -123,7 +140,7 @@ export function ConversationModal({
       ...conversation,
       updatedAt: Date.now(),
     }
-    onSave(updatedConversation)
+    onSave(updatedConversation, followUpCount)
     onClose()
   }
 
@@ -210,9 +227,78 @@ export function ConversationModal({
     setGeneratedResponse(null)
   }
 
+  // Generate follow-up email when no reply received
+  const handleGenerateFollowUp = async () => {
+    if (!projectContext) {
+      console.error('Project context required for follow-up generation')
+      return
+    }
+
+    setIsGeneratingFollowUp(true)
+    setGeneratedFollowUp(null)
+
+    try {
+      const response = await fetch('/api/draft-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: projectContext,
+          person: contact,
+          company,
+          messages: conversation.messages,
+          responseType: followUpType,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate follow-up')
+      }
+
+      const data = await response.json()
+      setGeneratedFollowUp({
+        subject: data.subject || '',
+        body: data.body || '',
+      })
+    } catch (error) {
+      console.error('Error generating follow-up:', error)
+    } finally {
+      setIsGeneratingFollowUp(false)
+    }
+  }
+
+  // Add follow-up to thread and increment counter
+  const handleSendFollowUp = () => {
+    if (!generatedFollowUp) return
+
+    const newMessage: Message = {
+      id: `msg-${Date.now()}`,
+      sender: 'you',
+      subject: generatedFollowUp.subject,
+      content: generatedFollowUp.body,
+      timestamp: Date.now(),
+    }
+
+    const newFollowUpCount = followUpCount + 1
+
+    setConversation((prev) => ({
+      ...prev,
+      status: 'awaiting_reply',
+      messages: [...prev.messages, newMessage],
+      updatedAt: Date.now(),
+    }))
+
+    setFollowUpCount(newFollowUpCount)
+    setGeneratedFollowUp(null)
+
+    // Update the contact's custom_fields with the new follow-up count
+    // This will be persisted when onSave is called
+  }
+
   // Check if last message is from them (we need to respond)
   const lastMessage = conversation.messages[conversation.messages.length - 1]
   const awaitingOurResponse = lastMessage?.sender === 'them'
+  // Check if we're awaiting their reply (last message from us)
+  const awaitingTheirReply = lastMessage?.sender === 'you'
 
   if (!isOpen) return null
 
@@ -282,6 +368,112 @@ export function ConversationModal({
               </button>
             </div>
           </div>
+
+          {/* No Reply Yet / Follow-up Section - show when awaiting their reply */}
+          {awaitingTheirReply && (
+            <div className="bg-amber-50 rounded-lg p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-amber-800">No reply yet?</span>
+                  {followUpCount > 0 && (
+                    <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">
+                      {followUpCount} follow-up{followUpCount > 1 ? 's' : ''} sent
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowFollowUpTypeDropdown(!showFollowUpTypeDropdown)}
+                      className="px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-sm flex items-center gap-2 hover:bg-amber-50"
+                    >
+                      {FOLLOWUP_TYPE_OPTIONS.find((o) => o.value === followUpType)?.label}
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    {showFollowUpTypeDropdown && (
+                      <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[160px]">
+                        {FOLLOWUP_TYPE_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setFollowUpType(option.value)
+                              setShowFollowUpTypeDropdown(false)
+                            }}
+                            className={cn(
+                              'w-full px-3 py-2 text-left text-sm hover:bg-gray-50',
+                              followUpType === option.value && 'bg-amber-50 text-amber-700'
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleGenerateFollowUp}
+                    disabled={isGeneratingFollowUp || !projectContext}
+                    className="px-4 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                  >
+                    {isGeneratingFollowUp ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        Generate Follow-up
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Generated Follow-up */}
+              {generatedFollowUp && (
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-500">Subject: {generatedFollowUp.subject}</div>
+                  <textarea
+                    value={generatedFollowUp.body}
+                    onChange={(e) =>
+                      setGeneratedFollowUp((prev) =>
+                        prev ? { ...prev, body: e.target.value } : null
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+                    rows={5}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleCopy(generatedFollowUp.body, 'generated-followup')}
+                      className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-1"
+                    >
+                      {copiedField === 'generated-followup' ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-600" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleSendFollowUp}
+                      className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm flex items-center gap-1"
+                    >
+                      <Send className="w-4 h-4" />
+                      Add to Thread
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Generate Response Section - show after they add a reply */}
           {awaitingOurResponse && (

@@ -24,3 +24,6 @@ Files: src/components/ConversationModal.tsx (new modal with contact header, thre
 
 F17b: Conversation modal - reply handling - DONE
 Files: src/components/ConversationModal.tsx (reply textarea, Add Reply button, response type dropdown, Generate Response API call, editable response textarea, copy/add to thread buttons), src/app/project/[id]/page.tsx (projectContext prop)
+
+F17c: Conversation modal - follow-up generation - DONE
+Files: src/components/ConversationModal.tsx (follow-up section with dropdown, generate button, editable textarea, add to thread, follow-up count badge), src/app/project/[id]/page.tsx (followUpCount persist to contact)
