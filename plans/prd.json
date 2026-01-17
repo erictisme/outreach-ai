@@ -350,7 +350,7 @@
       "id": "F21b",
       "name": "Table sorting and filtering",
       "priority": 21,
-      "passes": false,
+      "passes": true,
       "description": "Add sort and filter to DataTable",
       "steps": [
         "Click column header to sort (asc/desc toggle)",

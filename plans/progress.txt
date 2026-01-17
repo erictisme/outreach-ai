@@ -45,3 +45,6 @@ Files: src/app/project/[id]/settings/page.tsx (new settings page with API key in
 
 F21: Table row selection - DONE
 Files: src/components/DataTable.tsx (checkbox column, select all, selected state, blue highlight, selection count, bulk actions: Delete/Change Status/Export Selected, clear selection)
+
+F21b: Table sorting and filtering - DONE
+Files: src/components/DataTable.tsx (sortable headers with arrows, filter dropdown, search input, clear filters, localStorage persistence), src/app/project/[id]/page.tsx (projectId prop)

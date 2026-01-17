@@ -1,11 +1,29 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { Company, Person, EmailDraft } from '@/types'
 import { StatusDropdown, Status } from './StatusDropdown'
 import { useToast } from './ui/Toast'
-import { Copy, Mail, Download, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
+import { Copy, Mail, Download, Loader2, RefreshCw, Trash2, X, ChevronUp, ChevronDown, Search, Filter } from 'lucide-react'
+
+// Sort configuration
+type SortField = 'company' | 'contact' | 'title' | 'email' | 'status' | 'dateSent'
+type SortDirection = 'asc' | 'desc'
+
+interface SortConfig {
+  field: SortField | null
+  direction: SortDirection
+}
+
+// Filter options
+type FilterOption = 'all' | 'needs_contact' | 'needs_email' | 'needs_followup'
+
+interface TablePreferences {
+  sort: SortConfig
+  filter: FilterOption
+  search: string
+}
 
 // Combined row type for unified display
 export interface DataTableRow {
@@ -18,6 +36,7 @@ export interface DataTableRow {
 
 interface DataTableProps {
   data: DataTableRow[]
+  projectId: string
   onStatusChange?: (index: number, status: Status) => void
   onDateChange?: (index: number, date: string | null) => void
   onBulkDelete?: (indices: number[]) => void
@@ -26,32 +45,213 @@ interface DataTableProps {
   onRetry?: () => void
 }
 
-export function DataTable({ data, onStatusChange, onDateChange, onBulkDelete, onBulkStatusChange, isSaving, onRetry }: DataTableProps) {
+const STORAGE_KEY_PREFIX = 'outreach-table-prefs-'
+
+const defaultPreferences: TablePreferences = {
+  sort: { field: null, direction: 'asc' },
+  filter: 'all',
+  search: ''
+}
+
+// Sortable header component
+function SortableHeader({
+  field,
+  label,
+  sort,
+  onSort
+}: {
+  field: SortField
+  label: string
+  sort: SortConfig
+  onSort: (field: SortField) => void
+}) {
+  const isActive = sort.field === field
+  return (
+    <th
+      className="px-4 py-3 text-left font-medium text-gray-600 cursor-pointer hover:bg-gray-100 select-none transition-colors"
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <span className="flex flex-col">
+          <ChevronUp
+            className={cn(
+              'w-3 h-3 -mb-1',
+              isActive && sort.direction === 'asc' ? 'text-blue-600' : 'text-gray-300'
+            )}
+          />
+          <ChevronDown
+            className={cn(
+              'w-3 h-3 -mt-1',
+              isActive && sort.direction === 'desc' ? 'text-blue-600' : 'text-gray-300'
+            )}
+          />
+        </span>
+      </div>
+    </th>
+  )
+}
+
+export function DataTable({ data, projectId, onStatusChange, onDateChange, onBulkDelete, onBulkStatusChange, isSaving, onRetry }: DataTableProps) {
   const { addToast } = useToast()
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
 
-  // Generate stable row IDs for selection
-  const rowIds = useMemo(() => {
-    return data.map((row, index) => `${row.company.id}-${row.contact?.id || index}`)
-  }, [data])
+  // Load preferences from localStorage
+  const [preferences, setPreferences] = useState<TablePreferences>(defaultPreferences)
 
-  const isAllSelected = data.length > 0 && selectedRows.size === data.length
-  const isPartiallySelected = selectedRows.size > 0 && selectedRows.size < data.length
+  useEffect(() => {
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${projectId}`)
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as TablePreferences
+        setPreferences(parsed)
+      } catch {
+        // Invalid stored data, use defaults
+      }
+    }
+  }, [projectId])
+
+  // Save preferences to localStorage
+  const savePreferences = useCallback((newPrefs: TablePreferences) => {
+    setPreferences(newPrefs)
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${projectId}`, JSON.stringify(newPrefs))
+  }, [projectId])
+
+  const handleSort = (field: SortField) => {
+    const newDirection: SortDirection =
+      preferences.sort.field === field && preferences.sort.direction === 'asc' ? 'desc' : 'asc'
+    savePreferences({
+      ...preferences,
+      sort: { field, direction: newDirection }
+    })
+  }
+
+  const handleFilterChange = (filter: FilterOption) => {
+    savePreferences({ ...preferences, filter })
+  }
+
+  const handleSearchChange = (search: string) => {
+    savePreferences({ ...preferences, search })
+  }
+
+  const handleClearFilters = () => {
+    savePreferences(defaultPreferences)
+  }
+
+  const hasActiveFilters = preferences.filter !== 'all' || preferences.search !== '' || preferences.sort.field !== null
+
+  // Filter and sort data
+  const processedData = useMemo(() => {
+    // Create array with original indices
+    let result = data.map((row, originalIndex) => ({ row, originalIndex }))
+
+    // Apply search filter
+    if (preferences.search) {
+      const searchLower = preferences.search.toLowerCase()
+      result = result.filter(({ row }) =>
+        row.company.name.toLowerCase().includes(searchLower) ||
+        (row.contact?.name?.toLowerCase().includes(searchLower) ?? false)
+      )
+    }
+
+    // Apply status filter
+    if (preferences.filter !== 'all') {
+      result = result.filter(({ row }) => {
+        const daysSinceSent = row.dateSent
+          ? Math.floor((Date.now() - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
+          : null
+
+        switch (preferences.filter) {
+          case 'needs_contact':
+            return !row.contact || !row.contact.name
+          case 'needs_email':
+            return row.contact && row.contact.name && !row.contact.email
+          case 'needs_followup':
+            return row.status === 'email_sent' && daysSinceSent !== null && daysSinceSent >= 3
+          default:
+            return true
+        }
+      })
+    }
+
+    // Apply sorting
+    if (preferences.sort.field) {
+      const { field, direction } = preferences.sort
+      result.sort((a, b) => {
+        let aVal: string = ''
+        let bVal: string = ''
+
+        switch (field) {
+          case 'company':
+            aVal = a.row.company.name.toLowerCase()
+            bVal = b.row.company.name.toLowerCase()
+            break
+          case 'contact':
+            aVal = (a.row.contact?.name || '').toLowerCase()
+            bVal = (b.row.contact?.name || '').toLowerCase()
+            break
+          case 'title':
+            aVal = (a.row.contact?.title || '').toLowerCase()
+            bVal = (b.row.contact?.title || '').toLowerCase()
+            break
+          case 'email':
+            aVal = (a.row.contact?.email || '').toLowerCase()
+            bVal = (b.row.contact?.email || '').toLowerCase()
+            break
+          case 'status':
+            aVal = a.row.status
+            bVal = b.row.status
+            break
+          case 'dateSent':
+            aVal = a.row.dateSent || ''
+            bVal = b.row.dateSent || ''
+            break
+        }
+
+        if (aVal < bVal) return direction === 'asc' ? -1 : 1
+        if (aVal > bVal) return direction === 'asc' ? 1 : -1
+        return 0
+      })
+    }
+
+    return result
+  }, [data, preferences.search, preferences.filter, preferences.sort])
+
+  // Generate stable row IDs for selection (using processed data)
+  const rowIds = useMemo(() => {
+    return processedData.map(({ row, originalIndex }) => `${row.company.id}-${row.contact?.id || originalIndex}`)
+  }, [processedData])
+
+  // Selection uses original indices to maintain consistency with callbacks
+  const visibleOriginalIndices = useMemo(() =>
+    processedData.map(({ originalIndex }) => originalIndex),
+    [processedData]
+  )
+
+  const selectedVisibleCount = visibleOriginalIndices.filter(i => selectedRows.has(i)).length
+  const isAllSelected = processedData.length > 0 && selectedVisibleCount === processedData.length
+  const isPartiallySelected = selectedVisibleCount > 0 && selectedVisibleCount < processedData.length
 
   const handleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedRows(new Set())
+      // Deselect all visible rows
+      const newSelected = new Set(selectedRows)
+      visibleOriginalIndices.forEach(i => newSelected.delete(i))
+      setSelectedRows(newSelected)
     } else {
-      setSelectedRows(new Set(data.map((_, i) => i)))
+      // Select all visible rows
+      const newSelected = new Set(selectedRows)
+      visibleOriginalIndices.forEach(i => newSelected.add(i))
+      setSelectedRows(newSelected)
     }
   }
 
-  const handleSelectRow = (index: number) => {
+  const handleSelectRow = (originalIndex: number) => {
     const newSelected = new Set(selectedRows)
-    if (newSelected.has(index)) {
-      newSelected.delete(index)
+    if (newSelected.has(originalIndex)) {
+      newSelected.delete(originalIndex)
     } else {
-      newSelected.add(index)
+      newSelected.add(originalIndex)
     }
     setSelectedRows(newSelected)
   }
@@ -293,6 +493,56 @@ export function DataTable({ data, onStatusChange, onDateChange, onBulkDelete, on
           )}
         </div>
       </div>
+
+      {/* Filter and search row */}
+      <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200">
+        {/* Search input */}
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search company or contact..."
+            value={preferences.search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+
+        {/* Filter dropdown */}
+        <div className="flex items-center gap-1.5">
+          <Filter className="w-4 h-4 text-gray-400" />
+          <select
+            value={preferences.filter}
+            onChange={(e) => handleFilterChange(e.target.value as FilterOption)}
+            className="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer"
+          >
+            <option value="all">All</option>
+            <option value="needs_contact">Needs Contact</option>
+            <option value="needs_email">Needs Email</option>
+            <option value="needs_followup">Needs Follow-up</option>
+          </select>
+        </div>
+
+        {/* Clear filters button */}
+        {hasActiveFilters && (
+          <button
+            onClick={handleClearFilters}
+            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+          >
+            <X className="w-3 h-3" />
+            Clear filters
+          </button>
+        )}
+
+        {/* Result count */}
+        <span className="text-xs text-gray-500 ml-auto">
+          {processedData.length === data.length
+            ? `${data.length} row${data.length === 1 ? '' : 's'}`
+            : `${processedData.length} of ${data.length} row${data.length === 1 ? '' : 's'}`
+          }
+        </span>
+      </div>
+
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
@@ -308,27 +558,27 @@ export function DataTable({ data, onStatusChange, onDateChange, onBulkDelete, on
                 aria-label="Select all rows"
               />
             </th>
-            <th className="px-4 py-3 text-left font-medium text-gray-600">Company</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-600">Contact</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-600">Title</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-600">Date Sent</th>
+            <SortableHeader field="company" label="Company" sort={preferences.sort} onSort={handleSort} />
+            <SortableHeader field="contact" label="Contact" sort={preferences.sort} onSort={handleSort} />
+            <SortableHeader field="title" label="Title" sort={preferences.sort} onSort={handleSort} />
+            <SortableHeader field="email" label="Email" sort={preferences.sort} onSort={handleSort} />
+            <SortableHeader field="status" label="Status" sort={preferences.sort} onSort={handleSort} />
+            <SortableHeader field="dateSent" label="Date Sent" sort={preferences.sort} onSort={handleSort} />
             <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {data.map((row, index) => {
+          {processedData.map(({ row, originalIndex }, displayIndex) => {
             // Calculate if follow-up is needed
             const daysSinceSent = row.dateSent
               ? Math.floor((Date.now() - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
               : null
             const needsFollowUp = row.status === 'email_sent' && daysSinceSent !== null && daysSinceSent >= 3
-            const isSelected = selectedRows.has(index)
+            const isSelected = selectedRows.has(originalIndex)
 
             return (
               <tr
-                key={rowIds[index]}
+                key={rowIds[displayIndex]}
                 className={cn(
                   'hover:bg-gray-50 transition-colors',
                   needsFollowUp && 'bg-amber-50 hover:bg-amber-100',
@@ -340,9 +590,9 @@ export function DataTable({ data, onStatusChange, onDateChange, onBulkDelete, on
                   <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => handleSelectRow(index)}
+                    onChange={() => handleSelectRow(originalIndex)}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                    aria-label={`Select row ${index + 1}`}
+                    aria-label={`Select row ${displayIndex + 1}`}
                   />
                 </td>
 
@@ -389,7 +639,7 @@ export function DataTable({ data, onStatusChange, onDateChange, onBulkDelete, on
                 <td className="px-4 py-3">
                   <StatusDropdown
                     value={row.status}
-                    onChange={(status) => onStatusChange?.(index, status)}
+                    onChange={(status) => onStatusChange?.(originalIndex, status)}
                   />
                 </td>
 
@@ -399,7 +649,7 @@ export function DataTable({ data, onStatusChange, onDateChange, onBulkDelete, on
                     <input
                       type="date"
                       value={row.dateSent || ''}
-                      onChange={(e) => onDateChange?.(index, e.target.value || null)}
+                      onChange={(e) => onDateChange?.(originalIndex, e.target.value || null)}
                       className="px-2 py-1 text-sm border border-gray-200 rounded focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                     />
                     {needsFollowUp && (

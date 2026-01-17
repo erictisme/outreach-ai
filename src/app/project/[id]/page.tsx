@@ -499,6 +499,7 @@ export default function ProjectPage() {
           <div className="h-[calc(100%-60px)] bg-white rounded-lg border border-gray-200 overflow-hidden">
             <DataTable
               data={tableRows}
+              projectId={projectId}
               onStatusChange={handleStatusChange}
               onDateChange={handleDateChange}
               isSaving={isSaving}
