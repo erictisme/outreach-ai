@@ -89,7 +89,7 @@
       "id": "F5",
       "name": "Copy buttons for table",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "description": "Add copy functionality for TSV and emails",
       "steps": [
         "Add button bar above table: [Copy as TSV] [Copy Emails Only] [Export CSV]",

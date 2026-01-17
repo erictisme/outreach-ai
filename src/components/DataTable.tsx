@@ -3,6 +3,8 @@
 import { cn } from '@/lib/utils'
 import { Company, Person, EmailDraft } from '@/types'
 import { StatusDropdown, Status } from './StatusDropdown'
+import { useToast } from './ui/Toast'
+import { Copy, Mail, Download } from 'lucide-react'
 
 // Combined row type for unified display
 export interface DataTableRow {
@@ -20,6 +22,85 @@ interface DataTableProps {
 }
 
 export function DataTable({ data, onStatusChange, onDateChange }: DataTableProps) {
+  const { addToast } = useToast()
+
+  const handleCopyTSV = async () => {
+    const headers = ['Company', 'Website', 'Contact', 'Title', 'Email', 'Status', 'Date Sent']
+    const rows = data.map(row => [
+      row.company.name,
+      row.company.website || '',
+      row.contact?.name || '',
+      row.contact?.title || '',
+      row.contact?.email || '',
+      row.status,
+      row.dateSent || ''
+    ])
+    const tsv = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n')
+
+    try {
+      await navigator.clipboard.writeText(tsv)
+      addToast('Copied as TSV to clipboard', 'success')
+    } catch {
+      addToast('Failed to copy to clipboard', 'error')
+    }
+  }
+
+  const handleCopyEmails = async () => {
+    const emails = data
+      .map(row => row.contact?.email)
+      .filter((email): email is string => !!email)
+
+    if (emails.length === 0) {
+      addToast('No email addresses to copy', 'warning')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(emails.join('\n'))
+      addToast(`Copied ${emails.length} email${emails.length === 1 ? '' : 's'} to clipboard`, 'success')
+    } catch {
+      addToast('Failed to copy to clipboard', 'error')
+    }
+  }
+
+  const handleExportCSV = () => {
+    const headers = ['Company', 'Website', 'Contact', 'Title', 'Email', 'Status', 'Date Sent']
+    const rows = data.map(row => [
+      row.company.name,
+      row.company.website || '',
+      row.contact?.name || '',
+      row.contact?.title || '',
+      row.contact?.email || '',
+      row.status,
+      row.dateSent || ''
+    ])
+
+    // Escape CSV values properly
+    const escapeCSV = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`
+      }
+      return value
+    }
+
+    const csv = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(r => r.map(escapeCSV).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `outreach-data-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    addToast('CSV file downloaded', 'success')
+  }
+
   if (data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-500">
@@ -31,6 +112,29 @@ export function DataTable({ data, onStatusChange, onDateChange }: DataTableProps
 
   return (
     <div className="overflow-x-auto">
+      <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <button
+          onClick={handleCopyTSV}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+        >
+          <Copy className="w-4 h-4" />
+          Copy as TSV
+        </button>
+        <button
+          onClick={handleCopyEmails}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+        >
+          <Mail className="w-4 h-4" />
+          Copy Emails Only
+        </button>
+        <button
+          onClick={handleExportCSV}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Export CSV
+        </button>
+      </div>
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>

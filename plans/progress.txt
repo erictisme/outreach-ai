@@ -11,3 +11,6 @@ Files: src/components/StatusDropdown.tsx (reusable component), src/components/Da
 
 F4: Date sent column with follow-up alert - DONE
 Files: src/components/DataTable.tsx (date picker, 3-day follow-up amber highlight + badge already implemented in F2)
+
+F5: Copy buttons for table - DONE
+Files: src/components/DataTable.tsx (added button bar with Copy as TSV, Copy Emails Only, Export CSV; toast notifications on success)
