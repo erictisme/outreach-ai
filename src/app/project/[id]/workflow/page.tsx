@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   FileText, Sparkles, Building2, Users, Mail, MessageSquare,
-  ChevronRight, ChevronLeft, Loader2, Plus, Upload, Check, Edit2, Save, X
+  ChevronRight, ChevronLeft, Loader2, Plus, Upload, Check, Edit2, Save, X, Grid, List
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -19,6 +19,7 @@ import { getSupabase } from '@/lib/supabase'
 import { ContextInput } from '@/components/ContextInput'
 import { SchemaEditor } from '@/components/SchemaEditor'
 import { ResultsTable } from '@/components/ResultsTable'
+import { CompanyCards } from '@/components/CompanyCards'
 import { EmailEditor } from '@/components/EmailEditor'
 import { ConversationList } from '@/components/ConversationList'
 import { ConversationThread } from '@/components/ConversationThread'
@@ -98,6 +99,13 @@ export default function WorkflowPage() {
 
   // Conversation view state
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+
+  // Company list view state
+  const [companyViewMode, setCompanyViewMode] = useState<'cards' | 'table'>('cards')
+  const [manualCompanyInput, setManualCompanyInput] = useState('')
+  const [addingManualCompany, setAddingManualCompany] = useState(false)
+  const [pastedCompanies, setPastedCompanies] = useState('')
+  const [parsingPastedCompanies, setParsingPastedCompanies] = useState(false)
 
   // Load project from Supabase + workflow state from localStorage
   useEffect(() => {
@@ -378,6 +386,196 @@ export default function WorkflowPage() {
 
   const handleCompanySelectionChange = (ids: Set<number>) => {
     saveProject({ selectedCompanyIds: Array.from(ids) })
+  }
+
+  // Add single company with LLM enrichment
+  const handleAddManualCompany = async () => {
+    if (!manualCompanyInput.trim() || !project) return
+
+    setAddingManualCompany(true)
+    try {
+      const res = await fetch('/api/parse-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: manualCompanyInput.trim(),
+          context: project.context,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Failed to parse company')
+
+      const data = await res.json()
+      const newCompany = data.company
+
+      const all = [...project.companies, newCompany]
+      saveProject({
+        companies: all,
+        selectedCompanyIds: [...project.selectedCompanyIds, all.length - 1],
+      })
+      setManualCompanyInput('')
+      addToast(`Added ${newCompany.name}`, 'success')
+    } catch (err) {
+      console.error('Add manual company error:', err)
+      // Fallback: add basic company without enrichment
+      const newCompany = {
+        id: `company-manual-${Date.now()}`,
+        name: manualCompanyInput.trim(),
+        type: '',
+        website: '',
+        domain: '',
+        description: '',
+        relevance: 'Medium',
+        status: 'not_contacted' as const,
+        verificationStatus: 'unverified' as const,
+        verificationSource: 'manual' as const,
+        verifiedAt: null,
+        websiteAccessible: false,
+      }
+      const all = [...project.companies, newCompany]
+      saveProject({
+        companies: all,
+        selectedCompanyIds: [...project.selectedCompanyIds, all.length - 1],
+      })
+      setManualCompanyInput('')
+      addToast(`Added ${manualCompanyInput.trim()} (without enrichment)`, 'success')
+    } finally {
+      setAddingManualCompany(false)
+    }
+  }
+
+  // Parse and add multiple pasted companies with LLM enrichment
+  const handleParsePastedCompanies = async () => {
+    if (!pastedCompanies.trim() || !project) return
+
+    const names = pastedCompanies.split('\n').map(n => n.trim()).filter(Boolean)
+    if (names.length === 0) return
+
+    setParsingPastedCompanies(true)
+    try {
+      // For efficiency, use the enrich-companies API instead of parsing one by one
+      const basicCompanies = names.map((name, i) => ({
+        id: `company-paste-${Date.now()}-${i}`,
+        name,
+        type: '',
+        website: '',
+        domain: '',
+        description: '',
+        relevance: 'Medium',
+        status: 'not_contacted' as const,
+        verificationStatus: 'unverified' as const,
+        verificationSource: 'manual' as const,
+        verifiedAt: null,
+        websiteAccessible: false,
+      }))
+
+      // Try to enrich with LLM
+      const res = await fetch('/api/enrich-companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companies: basicCompanies,
+          context: project.context,
+        }),
+      })
+
+      let enrichedCompanies = basicCompanies
+      if (res.ok) {
+        const data = await res.json()
+        enrichedCompanies = data.companies
+      }
+
+      const all = [...project.companies, ...enrichedCompanies]
+      const newSelectedIds = enrichedCompanies.map((_, i) => project.companies.length + i)
+      saveProject({
+        companies: all,
+        selectedCompanyIds: [...project.selectedCompanyIds, ...newSelectedIds],
+      })
+      setPastedCompanies('')
+      addToast(`Added ${enrichedCompanies.length} companies`, 'success')
+    } catch (err) {
+      console.error('Parse pasted companies error:', err)
+      setError('Failed to parse companies')
+    } finally {
+      setParsingPastedCompanies(false)
+    }
+  }
+
+  // Handle CSV file import
+  const handleCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !project) return
+
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+
+      if (lines.length < 2) {
+        setError('CSV file must have at least a header row and one data row')
+        return
+      }
+
+      // Parse CSV header
+      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
+      const nameIndex = headers.findIndex(h => h === 'name' || h === 'company' || h === 'company name')
+      const websiteIndex = headers.findIndex(h => h === 'website' || h === 'url' || h === 'domain')
+      const typeIndex = headers.findIndex(h => h === 'type' || h === 'category' || h === 'segment')
+      const descIndex = headers.findIndex(h => h === 'description' || h === 'desc' || h === 'about')
+
+      if (nameIndex === -1) {
+        setError('CSV must have a "name" or "company" column')
+        return
+      }
+
+      // Parse data rows
+      const companies = lines.slice(1).map((line, i) => {
+        // Simple CSV parsing (handles quoted values)
+        const values: string[] = []
+        let current = ''
+        let inQuotes = false
+        for (const char of line) {
+          if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim())
+            current = ''
+          } else {
+            current += char
+          }
+        }
+        values.push(current.trim())
+
+        const website = websiteIndex !== -1 ? values[websiteIndex] || '' : ''
+        return {
+          id: `company-csv-${Date.now()}-${i}`,
+          name: values[nameIndex] || '',
+          type: typeIndex !== -1 ? values[typeIndex] || '' : '',
+          website,
+          domain: website ? extractDomain(website) : '',
+          description: descIndex !== -1 ? values[descIndex] || '' : '',
+          relevance: 'Medium',
+          status: 'not_contacted' as const,
+          verificationStatus: 'unverified' as const,
+          verificationSource: 'import' as const,
+          verifiedAt: null,
+          websiteAccessible: false,
+        }
+      }).filter(c => c.name)
+
+      const all = [...project.companies, ...companies]
+      const newSelectedIds = companies.map((_, i) => project.companies.length + i)
+      saveProject({
+        companies: all,
+        selectedCompanyIds: [...project.selectedCompanyIds, ...newSelectedIds],
+      })
+      addToast(`Imported ${companies.length} companies from CSV`, 'success')
+
+      // Reset file input
+      e.target.value = ''
+    } catch (err) {
+      console.error('CSV import error:', err)
+      setError('Failed to parse CSV file')
+    }
   }
 
   const handleDeleteCompany = (index: number) => {
@@ -1183,90 +1381,89 @@ export default function WorkflowPage() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Company List</h2>
               <p className="text-gray-600">
-                Add companies manually, paste from clipboard, or generate with AI.
+                Add companies manually, paste from clipboard, import CSV, or generate with AI.
               </p>
             </div>
 
             {/* Import Options */}
             <div className="bg-white rounded-xl border p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Add Companies</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Paste companies */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Paste Company Names</label>
-                  <textarea
-                    placeholder="Company A&#10;Company B&#10;Company C"
-                    className="w-full h-24 p-3 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-gray-900"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.metaKey) {
-                        const text = (e.target as HTMLTextAreaElement).value
-                        const names = text.split('\n').map(n => n.trim()).filter(Boolean)
-                        if (names.length > 0) {
-                          const newCompanies = names.map((name, i) => ({
-                            id: `company-paste-${Date.now()}-${i}`,
-                            name,
-                            type: '',
-                            website: '',
-                            domain: '',
-                            description: '',
-                            relevance: 'Medium',
-                            status: 'not_contacted' as const,
-                            verificationStatus: 'unverified' as const,
-                            verificationSource: 'manual' as const,
-                            verifiedAt: null,
-                            websiteAccessible: false,
-                          }))
-                          const all = [...project.companies, ...newCompanies]
-                          saveProject({
-                            companies: all,
-                            selectedCompanyIds: all.map((_, i) => i),
-                          })
-                          ;(e.target as HTMLTextAreaElement).value = ''
-                          addToast(`Added ${names.length} companies`, 'success')
-                        }
-                      }
-                    }}
-                  />
-                  <p className="text-xs text-gray-500">One per line. Press ⌘+Enter to add.</p>
-                </div>
-
-                {/* Single add */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Single add with LLM enrichment */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Add Single Company</label>
-                  <input
-                    type="text"
-                    placeholder="Company name"
-                    className="w-full p-3 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-gray-900"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const name = (e.target as HTMLInputElement).value.trim()
-                        if (name) {
-                          const newCompany = {
-                            id: `company-manual-${Date.now()}`,
-                            name,
-                            type: '',
-                            website: '',
-                            domain: '',
-                            description: '',
-                            relevance: 'Medium',
-                            status: 'not_contacted' as const,
-                            verificationStatus: 'unverified' as const,
-                            verificationSource: 'manual' as const,
-                            verifiedAt: null,
-                            websiteAccessible: false,
-                          }
-                          const all = [...project.companies, newCompany]
-                          saveProject({
-                            companies: all,
-                            selectedCompanyIds: all.map((_, i) => i),
-                          })
-                          ;(e.target as HTMLInputElement).value = ''
-                          addToast(`Added ${name}`, 'success')
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Company name"
+                      value={manualCompanyInput}
+                      onChange={(e) => setManualCompanyInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !addingManualCompany) {
+                          handleAddManualCompany()
                         }
-                      }
-                    }}
+                      }}
+                      disabled={addingManualCompany}
+                      className="flex-1 p-3 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-gray-900 disabled:opacity-50"
+                    />
+                    <button
+                      onClick={handleAddManualCompany}
+                      disabled={addingManualCompany || !manualCompanyInput.trim()}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {addingManualCompany ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500">AI will enrich with type & description</p>
+                </div>
+
+                {/* Paste companies */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Paste Multiple Companies</label>
+                  <textarea
+                    placeholder="Company A&#10;Company B&#10;Company C"
+                    value={pastedCompanies}
+                    onChange={(e) => setPastedCompanies(e.target.value)}
+                    disabled={parsingPastedCompanies}
+                    className="w-full h-20 p-3 text-sm border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-gray-900 disabled:opacity-50"
                   />
-                  <p className="text-xs text-gray-500">Press Enter to add.</p>
+                  <button
+                    onClick={handleParsePastedCompanies}
+                    disabled={parsingPastedCompanies || !pastedCompanies.trim()}
+                    className="w-full p-2 inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {parsingPastedCompanies ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Enriching...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        Add & Enrich
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* CSV Import */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Import from CSV</label>
+                  <label className="block w-full p-3 border-2 border-dashed border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors text-center">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCSVImport}
+                      className="hidden"
+                    />
+                    <Upload className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                    <span className="text-sm text-gray-600">Choose CSV file</span>
+                  </label>
+                  <p className="text-xs text-gray-500">Must have "name" column</p>
                 </div>
 
                 {/* AI Generate */}
@@ -1290,7 +1487,9 @@ export default function WorkflowPage() {
                     )}
                   </button>
                   <p className="text-xs text-gray-500">
-                    {project.context ? 'Uses project context' : 'Add context first'}
+                    {project.context
+                      ? `From ${project.selectedSegmentIds.length} segment(s)`
+                      : 'Add context first'}
                   </p>
                 </div>
               </div>
@@ -1302,17 +1501,56 @@ export default function WorkflowPage() {
                 <h3 className="font-semibold text-gray-900">
                   Companies ({project.companies.length})
                 </h3>
-                <span className="text-sm text-gray-500">
-                  Click row to select/deselect
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">
+                    {project.selectedCompanyIds.length} selected
+                  </span>
+                  {/* View toggle */}
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setCompanyViewMode('cards')}
+                      className={cn(
+                        'p-1.5 rounded transition-colors',
+                        companyViewMode === 'cards'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      )}
+                      title="Card view"
+                    >
+                      <Grid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCompanyViewMode('table')}
+                      className={cn(
+                        'p-1.5 rounded transition-colors',
+                        companyViewMode === 'table'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      )}
+                      title="Table view"
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <ResultsTable
-                type="companies"
-                data={project.companies}
-                selectedIds={new Set(project.selectedCompanyIds)}
-                onSelectionChange={handleCompanySelectionChange}
-                onDelete={handleDeleteCompany}
-              />
+
+              {companyViewMode === 'cards' ? (
+                <CompanyCards
+                  companies={project.companies}
+                  selectedIds={new Set(project.selectedCompanyIds)}
+                  onSelectionChange={handleCompanySelectionChange}
+                  onDelete={handleDeleteCompany}
+                />
+              ) : (
+                <ResultsTable
+                  type="companies"
+                  data={project.companies}
+                  selectedIds={new Set(project.selectedCompanyIds)}
+                  onSelectionChange={handleCompanySelectionChange}
+                  onDelete={handleDeleteCompany}
+                />
+              )}
             </div>
 
             <div className="flex justify-between">
@@ -1328,7 +1566,7 @@ export default function WorkflowPage() {
                 disabled={project.selectedCompanyIds.length === 0}
                 className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                Continue to Contacts
+                Continue to Contacts ({project.selectedCompanyIds.length})
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>

@@ -52,7 +52,7 @@
       "id": "F3",
       "name": "Segment-based Company Discovery",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "description": "Show target segments with count inputs, generate or import companies",
       "steps": [
         "Display 3-4 target segments as cards (from extracted context)",

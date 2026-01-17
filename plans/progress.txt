@@ -5,3 +5,6 @@ Files: src/app/project/[id]/workflow/page.tsx, src/components/ContextInput.tsx (
 
 F2 Context Extraction & Editable Fields: DONE - added extract step with editable fields (client, product, market, seniority dropdown, target roles chips, value prop), Save Context to Supabase, company source choice
 Files: src/app/project/[id]/workflow/page.tsx
+
+F3 Segment-based Company Discovery: DONE - added CompanyCards view for card selection, manual add with LLM enrichment, CSV import, view toggle (cards/table)
+Files: src/components/CompanyCards.tsx (new), src/app/api/parse-company/route.ts (new), src/app/project/[id]/workflow/page.tsx
