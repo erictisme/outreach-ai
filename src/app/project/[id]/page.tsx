@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
 import { WizardPanel, WizardStep } from '@/components/WizardPanel'
+import { ConversationModal } from '@/components/ConversationModal'
+import { EmailDraft, Conversation, Company, ResearchedContact } from '@/types'
 
 export default function ProjectPage() {
   const params = useParams()
@@ -18,6 +20,13 @@ export default function ProjectPage() {
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false)
   const [expandedStep, setExpandedStep] = useState<WizardStep>('setup')
   const [completedSteps, setCompletedSteps] = useState<WizardStep[]>([])
+
+  // Conversation modal state
+  const [conversationModal, setConversationModal] = useState<{
+    isOpen: boolean
+    contactId: string | null
+    email: EmailDraft | null
+  }>({ isOpen: false, contactId: null, email: null })
 
   useEffect(() => {
     async function loadProject() {
@@ -49,6 +58,109 @@ export default function ProjectPage() {
 
     loadProject()
   }, [projectId])
+
+  // Get schema config data
+  const schemaConfig = project?.schema_config as {
+    companies?: Company[]
+    contacts?: ResearchedContact[]
+    emails?: EmailDraft[]
+    conversations?: Conversation[]
+  } | null
+
+  // Handle opening conversation modal
+  const handleOpenConversation = (contactId: string, email: EmailDraft) => {
+    setConversationModal({
+      isOpen: true,
+      contactId,
+      email,
+    })
+  }
+
+  // Handle saving conversation
+  const handleSaveConversation = async (conversation: Conversation) => {
+    if (!project) return
+
+    const existingConversations = schemaConfig?.conversations || []
+    const conversationIndex = existingConversations.findIndex(
+      (c) => c.personId === conversation.personId
+    )
+
+    let updatedConversations: Conversation[]
+    if (conversationIndex >= 0) {
+      // Update existing conversation
+      updatedConversations = [...existingConversations]
+      updatedConversations[conversationIndex] = conversation
+    } else {
+      // Add new conversation
+      updatedConversations = [...existingConversations, conversation]
+    }
+
+    // Save to Supabase
+    const supabase = getSupabase()
+    const updatedSchemaConfig = {
+      ...schemaConfig,
+      conversations: updatedConversations,
+    }
+
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({
+        schema_config: updatedSchemaConfig,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', project.id)
+
+    if (updateError) {
+      console.error('Failed to save conversation:', updateError)
+      return
+    }
+
+    // Update local state
+    setProject({
+      ...project,
+      schema_config: updatedSchemaConfig,
+      updated_at: new Date().toISOString(),
+    })
+  }
+
+  // Get contact and company data for conversation modal
+  const getConversationData = () => {
+    if (!conversationModal.contactId || !conversationModal.email) {
+      return null
+    }
+
+    const contact = schemaConfig?.contacts?.find(
+      (c) => c.id === conversationModal.contactId
+    )
+    const company = schemaConfig?.companies?.find(
+      (c) => c.id === conversationModal.email?.company?.id
+    )
+    const existingConversation = schemaConfig?.conversations?.find(
+      (c) => c.personId === conversationModal.contactId
+    )
+
+    if (!contact || !company) return null
+
+    return {
+      contact: {
+        id: contact.id,
+        company: contact.company,
+        companyId: contact.companyId,
+        name: contact.name,
+        title: contact.title,
+        email: (contact as ResearchedContact & { email?: string }).email || '',
+        linkedin: contact.linkedinUrl || '',
+        seniority: contact.seniority,
+        source: 'web_research' as const,
+        verificationStatus: 'unverified' as const,
+        emailCertainty: 50,
+        emailSource: '',
+        emailVerified: false,
+      },
+      company,
+      existingConversation,
+    }
+  }
 
   if (loading) {
     return (
@@ -108,6 +220,7 @@ export default function ProjectPage() {
               onStepChange={setExpandedStep}
               onProjectUpdate={setProject}
               completedSteps={completedSteps}
+              onOpenConversation={handleOpenConversation}
             />
           </div>
         </div>
@@ -132,6 +245,23 @@ export default function ProjectPage() {
           </div>
         </div>
       </div>
+
+      {/* Conversation Modal */}
+      {conversationModal.isOpen && conversationModal.email && (() => {
+        const data = getConversationData()
+        if (!data) return null
+        return (
+          <ConversationModal
+            isOpen={conversationModal.isOpen}
+            contact={data.contact}
+            company={data.company}
+            initialEmail={conversationModal.email}
+            existingConversation={data.existingConversation}
+            onClose={() => setConversationModal({ isOpen: false, contactId: null, email: null })}
+            onSave={handleSaveConversation}
+          />
+        )
+      })()}
     </div>
   )
 }

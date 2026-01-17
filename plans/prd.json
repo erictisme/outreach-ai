@@ -198,7 +198,7 @@
       "id": "F17",
       "name": "Conversation modal - shell and display",
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "description": "Create the conversation modal structure",
       "steps": [
         "Create src/components/ConversationModal.tsx",

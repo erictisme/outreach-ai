@@ -8,6 +8,7 @@ import { ContextStep } from '@/components/wizard/ContextStep'
 import { CompaniesStep } from '@/components/wizard/CompaniesStep'
 import { ContactsStep } from '@/components/wizard/ContactsStep'
 import { EmailsStep } from '@/components/wizard/EmailsStep'
+import { EmailDraft } from '@/types'
 
 export type WizardStep = 'setup' | 'context' | 'companies' | 'contacts' | 'emails'
 
@@ -31,6 +32,7 @@ interface WizardPanelProps {
   onStepChange: (step: WizardStep) => void
   onProjectUpdate: (project: Project) => void
   completedSteps?: WizardStep[]
+  onOpenConversation?: (contactId: string, email: EmailDraft) => void
 }
 
 export function WizardPanel({
@@ -39,6 +41,7 @@ export function WizardPanel({
   onStepChange,
   onProjectUpdate,
   completedSteps = [],
+  onOpenConversation,
 }: WizardPanelProps) {
   return (
     <div className="flex flex-col h-full">
@@ -113,6 +116,7 @@ export function WizardPanel({
                     project={project}
                     onProjectUpdate={onProjectUpdate}
                     onStepComplete={() => onStepChange(getNextStep(step.id))}
+                    onOpenConversation={onOpenConversation}
                   />
                 </div>
               </div>
@@ -135,9 +139,10 @@ interface StepContentProps {
   project: Project
   onProjectUpdate: (project: Project) => void
   onStepComplete: () => void
+  onOpenConversation?: (contactId: string, email: EmailDraft) => void
 }
 
-function StepContent({ step, project, onProjectUpdate, onStepComplete }: StepContentProps) {
+function StepContent({ step, project, onProjectUpdate, onStepComplete, onOpenConversation }: StepContentProps) {
   switch (step) {
     case 'setup':
       return (
@@ -177,6 +182,7 @@ function StepContent({ step, project, onProjectUpdate, onStepComplete }: StepCon
           project={project}
           onUpdate={onProjectUpdate}
           onComplete={onStepComplete}
+          onOpenConversation={onOpenConversation}
         />
       )
     default:
