@@ -2,3 +2,6 @@
 
 F1: Project page shell - DONE
 Files: src/app/project/[id]/page.tsx (two-column layout, collapsible wizard panel, loading/error states)
+
+F2: Data table component - DONE
+Files: src/components/DataTable.tsx (unified table with Company, Contact, Title, Email, Status dropdown, Date Sent picker, follow-up indicator, empty state)

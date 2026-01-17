@@ -40,7 +40,7 @@
       "id": "F2",
       "name": "Data table component",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "description": "Create the main unified data table that shows all enriched data",
       "steps": [
         "Create src/components/DataTable.tsx",
