@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Send, Copy, Check } from 'lucide-react'
+import { X, Send, Copy, Check, Plus, Sparkles, Loader2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { EmailDraft, Message, Conversation, Person, Company } from '@/types'
+import { EmailDraft, Message, Conversation, Person, Company, ResponseType, ProjectContext } from '@/types'
 
 interface ConversationModalProps {
   isOpen: boolean
@@ -11,9 +11,19 @@ interface ConversationModalProps {
   company: Company
   initialEmail: EmailDraft
   existingConversation?: Conversation
+  projectContext?: ProjectContext
   onClose: () => void
   onSave: (conversation: Conversation) => void
 }
+
+const RESPONSE_TYPE_OPTIONS: { value: ResponseType; label: string }[] = [
+  { value: 'schedule', label: 'Schedule Meeting' },
+  { value: 'confirm', label: 'Confirm Details' },
+  { value: 'reschedule', label: 'Reschedule' },
+  { value: 'thankyou', label: 'Thank You' },
+  { value: 'clarify', label: 'Clarify' },
+  { value: 'custom', label: 'General' },
+]
 
 export function ConversationModal({
   isOpen,
@@ -21,6 +31,7 @@ export function ConversationModal({
   company,
   initialEmail,
   existingConversation,
+  projectContext,
   onClose,
   onSave,
 }: ConversationModalProps) {
@@ -51,6 +62,13 @@ export function ConversationModal({
 
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Reply handling state
+  const [replyText, setReplyText] = useState('')
+  const [responseType, setResponseType] = useState<ResponseType>('custom')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generatedResponse, setGeneratedResponse] = useState<{ subject: string; body: string } | null>(null)
+  const [showResponseTypeDropdown, setShowResponseTypeDropdown] = useState(false)
 
   // Reset conversation when modal opens with new contact
   useEffect(() => {
@@ -109,6 +127,93 @@ export function ConversationModal({
     onClose()
   }
 
+  // Add their reply to the thread
+  const handleAddReply = () => {
+    if (!replyText.trim()) return
+
+    const newMessage: Message = {
+      id: `msg-${Date.now()}`,
+      sender: 'them',
+      content: replyText.trim(),
+      timestamp: Date.now(),
+    }
+
+    setConversation((prev) => ({
+      ...prev,
+      status: 'reply_received',
+      messages: [...prev.messages, newMessage],
+      updatedAt: Date.now(),
+    }))
+
+    setReplyText('')
+    setGeneratedResponse(null)
+  }
+
+  // Generate AI response
+  const handleGenerateResponse = async () => {
+    if (!projectContext) {
+      console.error('Project context required for response generation')
+      return
+    }
+
+    setIsGenerating(true)
+    setGeneratedResponse(null)
+
+    try {
+      const response = await fetch('/api/draft-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: projectContext,
+          person: contact,
+          company,
+          messages: conversation.messages,
+          responseType,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate response')
+      }
+
+      const data = await response.json()
+      setGeneratedResponse({
+        subject: data.subject || '',
+        body: data.body || '',
+      })
+    } catch (error) {
+      console.error('Error generating response:', error)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  // Add generated response to thread as sent message
+  const handleSendResponse = () => {
+    if (!generatedResponse) return
+
+    const newMessage: Message = {
+      id: `msg-${Date.now()}`,
+      sender: 'you',
+      subject: generatedResponse.subject,
+      content: generatedResponse.body,
+      timestamp: Date.now(),
+    }
+
+    setConversation((prev) => ({
+      ...prev,
+      status: 'awaiting_reply',
+      messages: [...prev.messages, newMessage],
+      updatedAt: Date.now(),
+    }))
+
+    setGeneratedResponse(null)
+  }
+
+  // Check if last message is from them (we need to respond)
+  const lastMessage = conversation.messages[conversation.messages.length - 1]
+  const awaitingOurResponse = lastMessage?.sender === 'them'
+
   if (!isOpen) return null
 
   return (
@@ -150,6 +255,129 @@ export function ConversationModal({
             />
           ))}
           <div ref={messagesEndRef} />
+        </div>
+
+        {/* Reply Input Section */}
+        <div className="border-t border-gray-200 p-4 space-y-3">
+          {/* Paste their reply textarea */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Paste their reply here
+            </label>
+            <div className="flex gap-2">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Paste the email reply you received..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={3}
+              />
+              <button
+                onClick={handleAddReply}
+                disabled={!replyText.trim()}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 self-end"
+              >
+                <Plus className="w-4 h-4" />
+                Add Reply
+              </button>
+            </div>
+          </div>
+
+          {/* Generate Response Section - show after they add a reply */}
+          {awaitingOurResponse && (
+            <div className="bg-blue-50 rounded-lg p-3 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowResponseTypeDropdown(!showResponseTypeDropdown)}
+                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm flex items-center gap-2 hover:bg-gray-50"
+                  >
+                    {RESPONSE_TYPE_OPTIONS.find((o) => o.value === responseType)?.label}
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {showResponseTypeDropdown && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[160px]">
+                      {RESPONSE_TYPE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setResponseType(option.value)
+                            setShowResponseTypeDropdown(false)
+                          }}
+                          className={cn(
+                            'w-full px-3 py-2 text-left text-sm hover:bg-gray-50',
+                            responseType === option.value && 'bg-blue-50 text-blue-700'
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleGenerateResponse}
+                  disabled={isGenerating || !projectContext}
+                  className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Generate Response
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Generated Response */}
+              {generatedResponse && (
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-500">Subject: {generatedResponse.subject}</div>
+                  <textarea
+                    value={generatedResponse.body}
+                    onChange={(e) =>
+                      setGeneratedResponse((prev) =>
+                        prev ? { ...prev, body: e.target.value } : null
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    rows={5}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleCopy(generatedResponse.body, 'generated-response')}
+                      className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-1"
+                    >
+                      {copiedField === 'generated-response' ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-600" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleSendResponse}
+                      className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center gap-1"
+                    >
+                      <Send className="w-4 h-4" />
+                      Add to Thread
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer with Save button */}

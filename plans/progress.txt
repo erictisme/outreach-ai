@@ -21,3 +21,6 @@ Files: src/components/wizard/EmailsStep.tsx (per-contact email cards with copy b
 
 F17: Conversation modal - shell and display - DONE
 Files: src/components/ConversationModal.tsx (new modal with contact header, thread display with message bubbles), src/app/project/[id]/page.tsx (modal state + save handler), src/components/WizardPanel.tsx (prop passing)
+
+F17b: Conversation modal - reply handling - DONE
+Files: src/components/ConversationModal.tsx (reply textarea, Add Reply button, response type dropdown, Generate Response API call, editable response textarea, copy/add to thread buttons), src/app/project/[id]/page.tsx (projectContext prop)

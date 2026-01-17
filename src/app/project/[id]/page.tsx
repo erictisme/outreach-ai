@@ -257,6 +257,7 @@ export default function ProjectPage() {
             company={data.company}
             initialEmail={conversationModal.email}
             existingConversation={data.existingConversation}
+            projectContext={(project?.schema_config as { context?: import('@/types').ProjectContext })?.context}
             onClose={() => setConversationModal({ isOpen: false, contactId: null, email: null })}
             onSave={handleSaveConversation}
           />

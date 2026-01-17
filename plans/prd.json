@@ -216,7 +216,7 @@
       "id": "F17b",
       "name": "Conversation modal - reply handling",
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "description": "Handle pasting replies and generating responses",
       "steps": [
         "Add textarea at bottom: 'Paste their reply here'",
