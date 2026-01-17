@@ -381,7 +381,7 @@
       "id": "F23",
       "name": "Keyboard shortcuts",
       "priority": 23,
-      "passes": false,
+      "passes": true,
       "description": "Add keyboard shortcuts for power users",
       "steps": [
         "Cmd+S to save current step",

@@ -1,36 +1,3 @@
-F11: Companies step - import flow - DONE
-Files: src/components/wizard/CompaniesStep.tsx (paste textarea, CSV upload with column mapping, enrichment progress bar, Supabase save)
-
-F12: Contacts step - company selection - DONE
-Files: src/components/wizard/ContactsStep.tsx (new), src/components/WizardPanel.tsx (import + integration)
-
-F13: Contacts step - free AI research - DONE
-Files: src/components/wizard/ContactsStep.tsx (research button, API call, contact cards with seniority/relevance, LinkedIn links, Supabase save)
-
-F13b: Contacts step - Apollo paid search - DONE
-Files: src/components/wizard/ContactsStep.tsx (Apollo button, API key check via ApiKeyModal, cost estimate confirmation modal, email display)
-
-F14: Contacts step - email enrichment - DONE
-Files: src/components/wizard/ContactsStep.tsx (existing contacts view, Find Emails button, cost estimate, confirmation modal, API call, Supabase update)
-
-F15: Emails step - master prompt - DONE
-Files: src/components/wizard/EmailsStep.tsx (new), src/components/WizardPanel.tsx (import + integration)
-
-F16: Emails step - per-contact display - DONE
-Files: src/components/wizard/EmailsStep.tsx (per-contact email cards with copy buttons, collapsible individual prompt, regenerate button, Enter Conversation button)
-
-F17: Conversation modal - shell and display - DONE
-Files: src/components/ConversationModal.tsx (new modal with contact header, thread display with message bubbles), src/app/project/[id]/page.tsx (modal state + save handler), src/components/WizardPanel.tsx (prop passing)
-
-F17b: Conversation modal - reply handling - DONE
-Files: src/components/ConversationModal.tsx (reply textarea, Add Reply button, response type dropdown, Generate Response API call, editable response textarea, copy/add to thread buttons), src/app/project/[id]/page.tsx (projectContext prop)
-
-F17c: Conversation modal - follow-up generation - DONE
-Files: src/components/ConversationModal.tsx (follow-up section with dropdown, generate button, editable textarea, add to thread, follow-up count badge), src/app/project/[id]/page.tsx (followUpCount persist to contact)
-
-F18: Load existing data on page mount - DONE
-Files: src/app/project/[id]/page.tsx (DataTable integration, useMemo transform, status/date change handlers with Supabase persistence)
-
 F18b: Wizard-to-table data flow - DONE
 Files: src/components/wizard/{CompaniesStep,ContactsStep,EmailsStep}.tsx (toast notifications on save/error via useToast hook)
 
@@ -51,3 +18,6 @@ Files: src/components/DataTable.tsx (sortable headers with arrows, filter dropdo
 
 F22: Mobile responsive layout - DONE
 Files: src/app/project/[id]/page.tsx (mobile wizard toggle header, stacked layout, touch-manipulation), src/components/DataTable.tsx (horizontal scroll, touch-friendly toolbar), src/components/StatusDropdown.tsx (touch-friendly sizing)
+
+F23: Keyboard shortcuts - DONE
+Files: src/app/project/[id]/page.tsx (useKeyboardShortcuts hook, Cmd+S, Cmd+1-5, Escape, arrow keys, j/k vim nav, KeyboardShortcutsHelp in header), src/components/DataTable.tsx (focusedRowIndex prop, row focus highlight, scroll into view)

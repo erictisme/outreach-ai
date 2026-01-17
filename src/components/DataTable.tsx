@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { Company, Person, EmailDraft } from '@/types'
 import { StatusDropdown, Status } from './StatusDropdown'
@@ -43,6 +43,8 @@ interface DataTableProps {
   onBulkStatusChange?: (indices: number[], status: Status) => void
   isSaving?: boolean
   onRetry?: () => void
+  focusedRowIndex?: number
+  onFocusedRowChange?: (index: number) => void
 }
 
 const STORAGE_KEY_PREFIX = 'outreach-table-prefs-'
@@ -92,9 +94,21 @@ function SortableHeader({
   )
 }
 
-export function DataTable({ data, projectId, onStatusChange, onDateChange, onBulkDelete, onBulkStatusChange, isSaving, onRetry }: DataTableProps) {
+export function DataTable({ data, projectId, onStatusChange, onDateChange, onBulkDelete, onBulkStatusChange, isSaving, onRetry, focusedRowIndex = -1, onFocusedRowChange }: DataTableProps) {
   const { addToast } = useToast()
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
+  const tableContainerRef = useRef<HTMLDivElement>(null)
+  const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map())
+
+  // Scroll focused row into view
+  useEffect(() => {
+    if (focusedRowIndex >= 0) {
+      const rowEl = rowRefs.current.get(focusedRowIndex)
+      if (rowEl) {
+        rowEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
+    }
+  }, [focusedRowIndex])
 
   // Load preferences from localStorage
   const [preferences, setPreferences] = useState<TablePreferences>(defaultPreferences)
@@ -581,14 +595,21 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
                 : null
               const needsFollowUp = row.status === 'email_sent' && daysSinceSent !== null && daysSinceSent >= 3
               const isSelected = selectedRows.has(originalIndex)
+              const isFocused = focusedRowIndex === originalIndex
 
               return (
                 <tr
                   key={rowIds[displayIndex]}
+                  ref={(el) => {
+                    if (el) rowRefs.current.set(originalIndex, el)
+                    else rowRefs.current.delete(originalIndex)
+                  }}
+                  onClick={() => onFocusedRowChange?.(originalIndex)}
                   className={cn(
-                    'hover:bg-gray-50 active:bg-gray-100 transition-colors',
+                    'hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer',
                     needsFollowUp && 'bg-amber-50 hover:bg-amber-100',
-                    isSelected && 'bg-blue-50 hover:bg-blue-100'
+                    isSelected && 'bg-blue-50 hover:bg-blue-100',
+                    isFocused && 'ring-2 ring-inset ring-blue-500 bg-blue-50'
                   )}
                 >
                   {/* Checkbox */}
