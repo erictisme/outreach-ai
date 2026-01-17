@@ -315,7 +315,7 @@
       "id": "F20",
       "name": "Settings page with API keys",
       "priority": 20,
-      "passes": false,
+      "passes": true,
       "description": "API key management page",
       "steps": [
         "Create src/app/project/[id]/settings/page.tsx",

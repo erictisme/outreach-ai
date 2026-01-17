@@ -39,3 +39,6 @@ Files: src/app/project/[id]/page.tsx (debounced handlers with useCallback, 300ms
 
 F19: Add more companies button - DONE
 Files: src/app/project/[id]/page.tsx (Add More Companies button above DataTable, expands wizard to Companies step), src/components/wizard/CompaniesStep.tsx (duplicate detection by name/domain, toast with count)
+
+F20: Settings page with API keys - DONE
+Files: src/app/project/[id]/settings/page.tsx (new settings page with API key inputs, show/hide, save/clear, status indicators), src/app/project/[id]/page.tsx (gear icon link in header)

@@ -3,326 +3,278 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Key, Eye, EyeOff, ExternalLink, CheckCircle, AlertCircle, Trash2 } from 'lucide-react'
-import { getApiKey, setApiKey, clearApiKey, ApiKeyType } from '@/components/ApiKeyModal'
+import { ArrowLeft, Key, Eye, EyeOff, ExternalLink, CheckCircle } from 'lucide-react'
+import { getSupabase, Project } from '@/lib/supabase'
+import { Spinner } from '@/components/ui/Spinner'
+import { useToast } from '@/components/ui/Toast'
+import {
+  getApiKey,
+  setApiKey,
+  ApiKeyType,
+} from '@/components/ApiKeyModal'
 
-const API_KEY_INFO: Record<ApiKeyType, {
-  name: string
-  url: string
-  description: string
-  required: boolean
-}> = {
+const API_KEY_INFO: Record<ApiKeyType, { name: string; url: string; description: string; required: boolean }> = {
   apollo: {
     name: 'Apollo.io',
     url: 'https://app.apollo.io/#/settings/integrations/api',
-    description: 'Find contacts by company domain and job titles. Required for contact discovery with verified emails.',
-    required: true,
-  },
-  perplexity: {
-    name: 'Perplexity AI',
-    url: 'https://www.perplexity.ai/settings/api',
-    description: 'Web search to enrich company data with real-time information. Reduces AI hallucinations.',
+    description: 'Find contacts by company domain and job titles',
     required: true,
   },
   hunter: {
     name: 'Hunter.io',
     url: 'https://hunter.io/api-keys',
-    description: 'Alternative email finder. Useful as a backup to Apollo.',
+    description: 'Find email addresses by company domain',
     required: false,
   },
   apify: {
     name: 'Apify',
     url: 'https://console.apify.com/account/integrations',
-    description: 'Web scraping for contact data from LinkedIn and company websites.',
+    description: 'Web scraping for contact data',
+    required: false,
+  },
+  perplexity: {
+    name: 'Perplexity AI',
+    url: 'https://www.perplexity.ai/settings/api',
+    description: 'Web search to enrich company data (reduce hallucinations)',
     required: false,
   },
 }
 
-// Order keys by importance
-const KEY_ORDER: ApiKeyType[] = ['apollo', 'perplexity', 'hunter', 'apify']
+interface ApiKeyState {
+  apollo: string
+  hunter: string
+  apify: string
+  perplexity: string
+}
 
 export default function SettingsPage() {
   const params = useParams()
   const router = useRouter()
   const projectId = params.id as string
+  const { addToast } = useToast()
 
-  const [keys, setKeys] = useState<Record<ApiKeyType, string>>({
+  const [project, setProject] = useState<Project | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [keys, setKeys] = useState<ApiKeyState>({
     apollo: '',
-    perplexity: '',
     hunter: '',
     apify: '',
+    perplexity: '',
   })
   const [showKeys, setShowKeys] = useState<Record<ApiKeyType, boolean>>({
     apollo: false,
-    perplexity: false,
     hunter: false,
     apify: false,
+    perplexity: false,
   })
-  const [savedKey, setSavedKey] = useState<ApiKeyType | null>(null)
-  const [validatingKey, setValidatingKey] = useState<ApiKeyType | null>(null)
 
-  // Load keys on mount
+  // Load project
+  useEffect(() => {
+    async function loadProject() {
+      try {
+        const supabase = getSupabase()
+        const { data, error: fetchError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single()
+
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') {
+            setError('Project not found')
+          } else {
+            throw fetchError
+          }
+          return
+        }
+
+        setProject(data)
+      } catch (err) {
+        console.error('Error loading project:', err)
+        setError('Failed to load project')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProject()
+  }, [projectId])
+
+  // Load API keys from localStorage
   useEffect(() => {
     setKeys({
       apollo: getApiKey('apollo') || '',
-      perplexity: getApiKey('perplexity') || '',
       hunter: getApiKey('hunter') || '',
       apify: getApiKey('apify') || '',
+      perplexity: getApiKey('perplexity') || '',
     })
   }, [])
 
-  const handleSaveKey = async (keyType: ApiKeyType) => {
-    const value = keys[keyType].trim()
+  const handleKeyChange = (keyType: ApiKeyType, value: string) => {
+    setKeys(prev => ({ ...prev, [keyType]: value }))
+  }
 
-    if (value) {
-      // Optional: validate the key before saving
-      setValidatingKey(keyType)
-
-      // Simple validation - just check format for now
-      // Could add actual API validation in the future
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      setApiKey(keyType, value)
-      setValidatingKey(null)
-    } else {
-      clearApiKey(keyType)
-    }
-
-    setSavedKey(keyType)
-    setTimeout(() => setSavedKey(null), 2000)
-
-    // Trigger storage event for other components
-    window.dispatchEvent(new Event('storage'))
+  const handleSaveKey = (keyType: ApiKeyType) => {
+    setApiKey(keyType, keys[keyType])
+    addToast(`${API_KEY_INFO[keyType].name} key saved`, 'success')
   }
 
   const handleClearKey = (keyType: ApiKeyType) => {
     setKeys(prev => ({ ...prev, [keyType]: '' }))
-    clearApiKey(keyType)
-    window.dispatchEvent(new Event('storage'))
+    setApiKey(keyType, '')
+    addToast(`${API_KEY_INFO[keyType].name} key cleared`, 'info')
   }
 
   const toggleShowKey = (keyType: ApiKeyType) => {
     setShowKeys(prev => ({ ...prev, [keyType]: !prev[keyType] }))
   }
 
-  const hasKey = (keyType: ApiKeyType) => !!keys[keyType]
-  const requiredKeys = KEY_ORDER.filter(k => API_KEY_INFO[k].required)
-  const optionalKeys = KEY_ORDER.filter(k => !API_KEY_INFO[k].required)
-  const allRequiredSet = requiredKeys.every(k => hasKey(k))
+  const isKeySet = (keyType: ApiKeyType): boolean => {
+    return !!keys[keyType]?.trim()
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" label="Loading settings..." />
+      </div>
+    )
+  }
+
+  if (error || !project) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <div className="text-red-600 text-lg">{error || 'Project not found'}</div>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Projects
+        </Link>
+      </div>
+    )
+  }
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href={`/project/${projectId}/workflow`}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm">Back to Workflow</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Key className="w-6 h-6 text-blue-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">API Keys</h1>
-            <p className="text-gray-500">
-              Manage your API keys for contact discovery and data enrichment
-            </p>
-          </div>
-        </div>
-
-        {/* Status summary */}
-        <div className={`mb-6 p-4 rounded-lg border ${
-          allRequiredSet
-            ? 'bg-green-50 border-green-200'
-            : 'bg-amber-50 border-amber-200'
-        }`}>
-          <div className="flex items-center gap-2">
-            {allRequiredSet ? (
-              <>
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="text-green-800 font-medium">All required keys configured</span>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="w-5 h-5 text-amber-600" />
-                <span className="text-amber-800 font-medium">
-                  Missing required keys: {requiredKeys.filter(k => !hasKey(k)).map(k => API_KEY_INFO[k].name).join(', ')}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Required keys section */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Required Keys</h2>
-          <div className="space-y-4">
-            {requiredKeys.map(keyType => (
-              <ApiKeyCard
-                key={keyType}
-                keyType={keyType}
-                info={API_KEY_INFO[keyType]}
-                value={keys[keyType]}
-                showValue={showKeys[keyType]}
-                isSaved={savedKey === keyType}
-                isValidating={validatingKey === keyType}
-                onChange={(value) => setKeys(prev => ({ ...prev, [keyType]: value }))}
-                onSave={() => handleSaveKey(keyType)}
-                onClear={() => handleClearKey(keyType)}
-                onToggleShow={() => toggleShowKey(keyType)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Optional keys section */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Optional Keys</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            These services provide alternative data sources and can be used as fallbacks.
-          </p>
-          <div className="space-y-4">
-            {optionalKeys.map(keyType => (
-              <ApiKeyCard
-                key={keyType}
-                keyType={keyType}
-                info={API_KEY_INFO[keyType]}
-                value={keys[keyType]}
-                showValue={showKeys[keyType]}
-                isSaved={savedKey === keyType}
-                isValidating={validatingKey === keyType}
-                onChange={(value) => setKeys(prev => ({ ...prev, [keyType]: value }))}
-                onSave={() => handleSaveKey(keyType)}
-                onClear={() => handleClearKey(keyType)}
-                onToggleShow={() => toggleShowKey(keyType)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Privacy note */}
-        <div className="mt-8 p-4 bg-gray-100 rounded-lg">
-          <p className="text-sm text-gray-600">
-            <strong>Privacy:</strong> API keys are stored securely in your browser&apos;s local storage.
-            They are never sent to our servers and are only used to make direct API calls from your browser.
-          </p>
-        </div>
-      </div>
-    </main>
-  )
-}
-
-interface ApiKeyCardProps {
-  keyType: ApiKeyType
-  info: typeof API_KEY_INFO[ApiKeyType]
-  value: string
-  showValue: boolean
-  isSaved: boolean
-  isValidating: boolean
-  onChange: (value: string) => void
-  onSave: () => void
-  onClear: () => void
-  onToggleShow: () => void
-}
-
-function ApiKeyCard({
-  keyType,
-  info,
-  value,
-  showValue,
-  isSaved,
-  isValidating,
-  onChange,
-  onSave,
-  onClear,
-  onToggleShow,
-}: ApiKeyCardProps) {
-  const hasValue = !!value
-  const isStoredKey = !!getApiKey(keyType)
-  const hasUnsavedChanges = value !== (getApiKey(keyType) || '')
-
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-900">{info.name}</span>
-          {isStoredKey && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
-              <CheckCircle className="w-3 h-3" />
-              Configured
-            </span>
-          )}
-          {info.required && !isStoredKey && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">
-              Required
-            </span>
-          )}
-        </div>
-        <a
-          href={info.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-        >
-          Get API key <ExternalLink className="w-3 h-3" />
-        </a>
-      </div>
-
-      <p className="text-sm text-gray-500 mb-3">{info.description}</p>
-
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <input
-            type={showValue ? 'text' : 'password'}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={`Enter ${info.name} API key`}
-            className="w-full p-2.5 pr-10 border border-gray-200 rounded-lg text-gray-900 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400 outline-none font-mono"
-          />
-          <button
-            type="button"
-            onClick={onToggleShow}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+      <header className="border-b border-gray-200 bg-white px-4 py-3">
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/project/${projectId}`}
+            className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
           >
-            {showValue ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm">Back to Project</span>
+          </Link>
+          <h1 className="text-xl font-semibold text-gray-900">
+            Settings
+          </h1>
         </div>
+      </header>
 
-        {hasValue && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            title="Clear key"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
+      {/* Main content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-2xl mx-auto">
+          {/* API Keys Section */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Key className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">API Keys</h2>
+                  <p className="text-sm text-gray-500">
+                    Manage your API keys for contact finding and enrichment
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        <button
-          onClick={onSave}
-          disabled={!hasUnsavedChanges || isValidating}
-          className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            isSaved
-              ? 'bg-green-100 text-green-700'
-              : hasUnsavedChanges
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {isValidating ? 'Saving...' : isSaved ? 'Saved!' : 'Save'}
-        </button>
+            <div className="p-6 space-y-6">
+              {(Object.keys(API_KEY_INFO) as ApiKeyType[]).map((keyType) => {
+                const info = API_KEY_INFO[keyType]
+                const hasKey = isKeySet(keyType)
+
+                return (
+                  <div key={keyType} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <label className="font-medium text-gray-900">
+                          {info.name}
+                        </label>
+                        {info.required && (
+                          <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">
+                            Required
+                          </span>
+                        )}
+                        {hasKey && (
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        )}
+                      </div>
+                      <a
+                        href={info.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                      >
+                        Get API key <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <p className="text-xs text-gray-500">{info.description}</p>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showKeys[keyType] ? 'text' : 'password'}
+                          value={keys[keyType]}
+                          onChange={(e) => handleKeyChange(keyType, e.target.value)}
+                          placeholder={`Enter ${info.name} API key`}
+                          className="w-full p-2.5 pr-10 border border-gray-200 rounded-lg text-gray-900 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400 outline-none font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleShowKey(keyType)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                        >
+                          {showKeys[keyType] ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleSaveKey(keyType)}
+                        disabled={!keys[keyType]?.trim()}
+                        className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Save
+                      </button>
+                      {hasKey && (
+                        <button
+                          onClick={() => handleClearKey(keyType)}
+                          className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+              <p className="text-xs text-gray-500">
+                Keys are stored in your browser only and never sent to our servers.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, ArrowLeft, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowLeft, Plus, Settings } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
 import { WizardPanel, WizardStep } from '@/components/WizardPanel'
@@ -436,6 +436,13 @@ export default function ProjectPage() {
               {project?.client_name}
             </h1>
           </div>
+          <Link
+            href={`/project/${projectId}/settings`}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </Link>
         </div>
       </header>
 
