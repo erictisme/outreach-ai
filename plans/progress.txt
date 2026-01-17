@@ -23,3 +23,6 @@ Files: src/app/project/[id]/emails/page.tsx (updated), src/app/api/write-emails/
 
 F8 Conversation Mode with Follow-ups: DONE - new /conversations page with thread view, conversation stored in contact.custom_fields, start conversation from contacts with emails, add reply + generate AI response (schedule/confirm/reschedule/followup/thankyou/clarify), mark as sent, status updates (awaiting_reply/reply_received/meeting_set/declined/closed), conversation link in data table
 Files: src/app/project/[id]/conversations/page.tsx (new), src/app/project/[id]/data/page.tsx (updated), src/components/WizardNav.tsx (updated), src/app/project/[id]/page.tsx (updated)
+
+F9 Incremental Company Addition: DONE - Add More Companies button on data table, modal with paste/CSV import, enrichment flow (Gemini AI), contact discovery (Apollo), appends to Supabase, newly added indicator (green badge + row highlighting)
+Files: src/app/project/[id]/data/page.tsx (updated)

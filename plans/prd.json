@@ -161,7 +161,7 @@
       "id": "F9",
       "name": "Incremental Company Addition",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "description": "Add new companies anytime, goes through same enrichment flow, appends to main table",
       "steps": [
         "Add 'Add More Companies' button on main data table",

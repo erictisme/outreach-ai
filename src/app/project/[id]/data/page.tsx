@@ -18,9 +18,16 @@ import {
   ExternalLink,
   ChevronDown,
   MessageSquare,
+  Plus,
+  Upload,
+  Building2,
+  Loader2,
+  Sparkles,
 } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, Email as DbEmail } from '@/lib/supabase'
 import { useToast, ErrorMessage } from '@/components/ui'
+import { getApiKey, ApiKeyModal, ApiKeyType } from '@/components/ApiKeyModal'
+import { extractDomain } from '@/lib/storage'
 
 // Status options for contacts
 type ContactStatus = 'not_contacted' | 'email_sent' | 'accepted' | 'rejected' | 'meeting_secured' | 'done_closed'
@@ -55,6 +62,7 @@ interface EnrichedRow {
   needsFollowUp: boolean
   hasConversation: boolean
   updatedAt: string
+  isNewlyAdded: boolean // Added within last 24 hours
 }
 
 type SortKey = keyof EnrichedRow
@@ -81,6 +89,17 @@ export default function DataPage() {
 
   // Copy state
   const [copied, setCopied] = useState<string | null>(null)
+
+  // Add companies modal state
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addMode, setAddMode] = useState<'paste' | 'csv'>('paste')
+  const [pastedCompanies, setPastedCompanies] = useState('')
+  const [addingCompanies, setAddingCompanies] = useState(false)
+  const [enrichingCompanies, setEnrichingCompanies] = useState(false)
+  const [findingContacts, setFindingContacts] = useState(false)
+  const [addProgress, setAddProgress] = useState({ step: '', current: 0, total: 0 })
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
+  const [requiredApiKey, setRequiredApiKey] = useState<ApiKeyType | undefined>()
 
   // Load all data
   useEffect(() => {
@@ -139,6 +158,7 @@ export default function DataPage() {
         // Build enriched rows
         const now = new Date()
         const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
         const enrichedRows: EnrichedRow[] = contacts.map(contact => {
           const company = companies.find(c => c.id === contact.company_id)!
@@ -156,6 +176,10 @@ export default function DataPage() {
             const sentDate = new Date(dateSent)
             needsFollowUp = sentDate < threeDaysAgo
           }
+
+          // Check if newly added (within last 24 hours)
+          const createdAt = new Date(contact.created_at)
+          const isNewlyAdded = createdAt > oneDayAgo
 
           return {
             id: contact.id,
@@ -177,6 +201,7 @@ export default function DataPage() {
             needsFollowUp,
             hasConversation,
             updatedAt: contact.updated_at,
+            isNewlyAdded,
           }
         })
 
@@ -421,6 +446,222 @@ export default function DataPage() {
     copyToClipboard(text, row.id)
   }, [copyToClipboard])
 
+  // Handle CSV file import
+  const handleCSVImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+
+      if (lines.length < 2) {
+        addToast('CSV file must have at least a header row and one data row', 'error')
+        return
+      }
+
+      // Parse CSV header
+      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
+      const nameIndex = headers.findIndex(h => h === 'name' || h === 'company' || h === 'company name')
+
+      if (nameIndex === -1) {
+        addToast('CSV must have a "name" or "company" column', 'error')
+        return
+      }
+
+      // Parse data rows
+      const companyNames = lines.slice(1).map(line => {
+        // Simple CSV parsing (handles quoted values)
+        const values: string[] = []
+        let current = ''
+        let inQuotes = false
+        for (const char of line) {
+          if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim())
+            current = ''
+          } else {
+            current += char
+          }
+        }
+        values.push(current.trim())
+        return values[nameIndex] || ''
+      }).filter(Boolean)
+
+      setPastedCompanies(companyNames.join('\n'))
+      setAddMode('paste')
+      addToast(`Loaded ${companyNames.length} companies from CSV`, 'success')
+
+      // Reset file input
+      e.target.value = ''
+    } catch (err) {
+      console.error('CSV import error:', err)
+      addToast('Failed to parse CSV file', 'error')
+    }
+  }, [addToast])
+
+  // Add companies flow: parse → enrich → find contacts → save to Supabase
+  const handleAddCompanies = useCallback(async () => {
+    if (!pastedCompanies.trim() || !project) return
+
+    const names = pastedCompanies.split('\n').map(n => n.trim()).filter(Boolean)
+    if (names.length === 0) return
+
+    setAddingCompanies(true)
+    setAddProgress({ step: 'Creating companies...', current: 0, total: names.length })
+
+    try {
+      const supabase = getSupabase()
+
+      // Step 1: Create basic company records
+      const basicCompanies = names.map((name, i) => ({
+        id: crypto.randomUUID(),
+        name,
+        type: '',
+        website: '',
+        domain: '',
+        description: '',
+        relevance: 'Medium',
+      }))
+
+      // Step 2: Enrich companies with LLM
+      setEnrichingCompanies(true)
+      setAddProgress({ step: 'Enriching companies with AI...', current: 0, total: basicCompanies.length })
+
+      let enrichedCompanies = basicCompanies
+      try {
+        const enrichRes = await fetch('/api/enrich-companies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companies: basicCompanies,
+            context: project.schema_config?.extractedContext || null,
+          }),
+        })
+
+        if (enrichRes.ok) {
+          const enrichData = await enrichRes.json()
+          enrichedCompanies = enrichData.companies || basicCompanies
+        }
+      } catch (err) {
+        console.error('Enrichment error:', err)
+        // Continue with basic companies
+      }
+
+      setEnrichingCompanies(false)
+      setAddProgress({ step: 'Saving companies to database...', current: 0, total: enrichedCompanies.length })
+
+      // Step 3: Save companies to Supabase
+      const dbCompanies = enrichedCompanies.map(c => ({
+        id: c.id,
+        project_id: projectId,
+        name: c.name,
+        website: c.website || null,
+        description: c.description || null,
+        relevance_score: c.relevance === 'High' ? 90 : c.relevance === 'Medium' ? 70 : 50,
+        relevance_notes: c.relevance || null,
+        status: 'not_contacted',
+        custom_fields: { type: c.type || 'Unknown' },
+      }))
+
+      const { error: companyError } = await supabase
+        .from('companies')
+        .insert(dbCompanies)
+
+      if (companyError) {
+        throw new Error(`Failed to save companies: ${companyError.message}`)
+      }
+
+      // Step 4: Find contacts using Apollo (if API key available)
+      const apolloKey = getApiKey('apollo')
+      let newContacts: DbContact[] = []
+
+      if (apolloKey) {
+        setFindingContacts(true)
+        setAddProgress({ step: 'Finding contacts via Apollo...', current: 0, total: enrichedCompanies.length })
+
+        try {
+          const contactRes = await fetch('/api/find-contacts-apollo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              companies: enrichedCompanies.map(c => ({
+                id: c.id,
+                name: c.name,
+                website: c.website,
+                domain: c.domain || extractDomain(c.website || ''),
+              })),
+              context: project.schema_config?.extractedContext || null,
+              apiKey: apolloKey,
+            }),
+          })
+
+          if (contactRes.ok) {
+            const contactData = await contactRes.json()
+            const persons = contactData.persons || []
+
+            // Save contacts to Supabase
+            if (persons.length > 0) {
+              setAddProgress({ step: 'Saving contacts to database...', current: 0, total: persons.length })
+
+              const dbContacts = persons.map((p: { id: string; companyId: string; name: string; title?: string; email?: string; linkedin?: string; source?: string }) => ({
+                id: p.id || crypto.randomUUID(),
+                company_id: p.companyId,
+                name: p.name,
+                title: p.title || null,
+                email: p.email || null,
+                phone: null,
+                linkedin_url: p.linkedin || null,
+                source: p.source || 'apollo',
+                verified: !!p.email,
+                custom_fields: {},
+              }))
+
+              const { data: insertedContacts, error: contactError } = await supabase
+                .from('contacts')
+                .insert(dbContacts)
+                .select()
+
+              if (contactError) {
+                console.error('Contact save error:', contactError)
+              } else {
+                newContacts = insertedContacts || []
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Contact finding error:', err)
+          // Continue without contacts
+        }
+
+        setFindingContacts(false)
+      }
+
+      // Step 5: Reload data to show new entries
+      addToast(
+        `Added ${enrichedCompanies.length} companies${newContacts.length > 0 ? ` and ${newContacts.length} contacts` : ''}`,
+        'success'
+      )
+
+      // Reset modal state
+      setShowAddModal(false)
+      setPastedCompanies('')
+
+      // Reload the page data
+      window.location.reload()
+
+    } catch (err) {
+      console.error('Add companies error:', err)
+      addToast(err instanceof Error ? err.message : 'Failed to add companies', 'error')
+    } finally {
+      setAddingCompanies(false)
+      setEnrichingCompanies(false)
+      setFindingContacts(false)
+      setAddProgress({ step: '', current: 0, total: 0 })
+    }
+  }, [pastedCompanies, project, projectId, addToast])
+
   // Sort icon helper
   const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
     if (sortKey !== columnKey) return <ArrowUpDown className="w-3 h-3 text-gray-400" />
@@ -431,6 +672,7 @@ export default function DataPage() {
 
   // Count stats
   const needsFollowUpCount = rows.filter(r => r.needsFollowUp).length
+  const newlyAddedCount = rows.filter(r => r.isNewlyAdded).length
 
   if (loading) {
     return (
@@ -472,6 +714,12 @@ export default function DataPage() {
           <span className="text-gray-500">Showing:</span>{' '}
           <span className="font-medium">{filteredAndSortedRows.length}</span>
         </div>
+        {newlyAddedCount > 0 && (
+          <div className="flex items-center gap-1 text-green-600">
+            <Sparkles className="w-4 h-4" />
+            <span className="font-medium">{newlyAddedCount} newly added</span>
+          </div>
+        )}
         {needsFollowUpCount > 0 && (
           <div className="flex items-center gap-1 text-amber-600">
             <AlertCircle className="w-4 h-4" />
@@ -518,8 +766,15 @@ export default function DataPage() {
           <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
 
-        {/* Copy buttons */}
+        {/* Action buttons */}
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Companies
+          </button>
           <button
             onClick={copyAllAsTSV}
             className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -617,12 +872,19 @@ export default function DataPage() {
                 {filteredAndSortedRows.map(row => (
                   <tr
                     key={row.id}
-                    className={`hover:bg-gray-50 ${row.needsFollowUp ? 'bg-amber-50' : ''}`}
+                    className={`hover:bg-gray-50 ${row.needsFollowUp ? 'bg-amber-50' : ''} ${row.isNewlyAdded ? 'bg-green-50' : ''}`}
                   >
                     {/* Company */}
                     <td className="px-3 py-3">
-                      <div className="font-medium text-gray-900 max-w-[160px] truncate" title={row.companyName}>
-                        {row.companyName}
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-gray-900 max-w-[140px] truncate" title={row.companyName}>
+                          {row.companyName}
+                        </span>
+                        {row.isNewlyAdded && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                            New
+                          </span>
+                        )}
                       </div>
                       {row.companyWebsite && (
                         <a
@@ -765,6 +1027,144 @@ export default function DataPage() {
           </div>
         </div>
       )}
+
+      {/* Add Companies Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                Add More Companies
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAddModal(false)
+                  setPastedCompanies('')
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {/* Mode toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAddMode('paste')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    addMode === 'paste'
+                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-transparent'
+                  }`}
+                >
+                  Paste Names
+                </button>
+                <label
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors cursor-pointer text-center ${
+                    addMode === 'csv'
+                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-transparent'
+                  }`}
+                >
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVImport}
+                    className="hidden"
+                  />
+                  <Upload className="w-4 h-4 inline mr-1" />
+                  Import CSV
+                </label>
+              </div>
+
+              {/* Paste textarea */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Company names (one per line)
+                </label>
+                <textarea
+                  value={pastedCompanies}
+                  onChange={(e) => setPastedCompanies(e.target.value)}
+                  placeholder="Acme Corp&#10;Beta Industries&#10;Gamma Solutions"
+                  rows={8}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  disabled={addingCompanies}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {pastedCompanies.split('\n').filter(l => l.trim()).length} companies entered
+                </p>
+              </div>
+
+              {/* Progress indicator */}
+              {addingCompanies && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    <span className="text-sm font-medium text-blue-700">{addProgress.step}</span>
+                  </div>
+                  {addProgress.total > 0 && (
+                    <div className="w-full bg-blue-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{ width: `${(addProgress.current / addProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Info about flow */}
+              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
+                <p className="font-medium mb-1">What happens next:</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-xs">
+                  <li>Companies enriched with AI (type, website, description)</li>
+                  <li>Contacts discovered via Apollo API (if key is set)</li>
+                  <li>New contacts appended to this table</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowAddModal(false)
+                  setPastedCompanies('')
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                disabled={addingCompanies}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddCompanies}
+                disabled={addingCompanies || !pastedCompanies.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {addingCompanies ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Add & Enrich
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* API Key Modal */}
+      <ApiKeyModal
+        isOpen={apiKeyModalOpen}
+        onClose={() => setApiKeyModalOpen(false)}
+        requiredKey={requiredApiKey}
+      />
     </main>
   )
 }
