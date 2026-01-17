@@ -29,3 +29,6 @@ Files: src/components/wizard/CompaniesStep.tsx (new), src/components/WizardPanel
 
 F10: Companies step - generate flow - DONE
 Files: src/components/wizard/CompaniesStep.tsx (generate API call, selectable cards, enrich flow, Supabase save)
+
+F11: Companies step - import flow - DONE
+Files: src/components/wizard/CompaniesStep.tsx (paste textarea, CSV upload with column mapping, enrichment progress bar, Supabase save)

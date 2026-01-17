@@ -76,7 +76,7 @@
       "id": "F11",
       "name": "Step 3: Companies - import flow",
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "description": "Implement paste/import companies",
       "steps": [
         "Show textarea for pasting company names (one per line)",

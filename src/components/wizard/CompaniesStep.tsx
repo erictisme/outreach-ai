@@ -1,13 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { Minus, Plus, Sparkles, Upload, Check, Loader2 } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Minus, Plus, Sparkles, Upload, Check, Loader2, FileText, X } from 'lucide-react'
+import Papa from 'papaparse'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { ProjectContext, Segment, Company } from '@/types'
 
 interface SegmentWithCount extends Segment {
   count: number
+}
+
+// Parsed company from import (before enrichment)
+interface ParsedCompany {
+  id: string
+  name: string
+  website?: string
+  type?: string
+  description?: string
 }
 
 // Generated company from API (before enrichment)
@@ -42,6 +52,16 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
   const [isEnriching, setIsEnriching] = useState(false)
   const [generatedCompanies, setGeneratedCompanies] = useState<GeneratedCompany[]>([])
   const [error, setError] = useState<string | null>(null)
+
+  // Import flow state
+  const [importText, setImportText] = useState('')
+  const [parsedCompanies, setParsedCompanies] = useState<ParsedCompany[]>([])
+  const [csvColumns, setCsvColumns] = useState<string[]>([])
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
+  const [showColumnMapper, setShowColumnMapper] = useState(false)
+  const [csvData, setCsvData] = useState<Record<string, string>[]>([])
+  const [enrichProgress, setEnrichProgress] = useState<{ current: number; total: number } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // No extracted context yet
   if (!extractedContext) {
@@ -239,6 +259,439 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
 
   const handleImportClick = () => {
     setShowImport(true)
+  }
+
+  // Parse pasted text into company objects
+  const handleParseText = () => {
+    const lines = importText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+
+    if (lines.length === 0) {
+      setError('Please enter at least one company name')
+      return
+    }
+
+    const parsed: ParsedCompany[] = lines.map((name, index) => ({
+      id: `import-${Date.now()}-${index}`,
+      name,
+    }))
+
+    setParsedCompanies(parsed)
+    setError(null)
+  }
+
+  // Handle CSV file upload
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    Papa.parse<Record<string, string>>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (results.data.length === 0) {
+          setError('CSV file is empty')
+          return
+        }
+
+        const columns = results.meta.fields || []
+        setCsvColumns(columns)
+        setCsvData(results.data)
+
+        // Auto-map columns by common names
+        const autoMapping: Record<string, string> = {}
+        const nameMatches = ['name', 'company', 'company_name', 'companyname', 'company name']
+        const websiteMatches = ['website', 'url', 'site', 'web', 'domain']
+        const typeMatches = ['type', 'category', 'segment', 'industry']
+        const descMatches = ['description', 'desc', 'about', 'notes']
+
+        columns.forEach((col) => {
+          const lowerCol = col.toLowerCase()
+          if (nameMatches.some((m) => lowerCol.includes(m))) {
+            autoMapping.name = col
+          } else if (websiteMatches.some((m) => lowerCol.includes(m))) {
+            autoMapping.website = col
+          } else if (typeMatches.some((m) => lowerCol.includes(m))) {
+            autoMapping.type = col
+          } else if (descMatches.some((m) => lowerCol.includes(m))) {
+            autoMapping.description = col
+          }
+        })
+
+        setColumnMapping(autoMapping)
+        setShowColumnMapper(true)
+        setError(null)
+      },
+      error: (err) => {
+        setError(`Failed to parse CSV: ${err.message}`)
+      },
+    })
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Apply column mapping and parse CSV data
+  const handleApplyMapping = () => {
+    if (!columnMapping.name) {
+      setError('Please select a column for Company Name')
+      return
+    }
+
+    const parsed: ParsedCompany[] = csvData.map((row, index) => ({
+      id: `import-${Date.now()}-${index}`,
+      name: row[columnMapping.name] || '',
+      website: columnMapping.website ? row[columnMapping.website] : undefined,
+      type: columnMapping.type ? row[columnMapping.type] : undefined,
+      description: columnMapping.description ? row[columnMapping.description] : undefined,
+    })).filter((c) => c.name.trim().length > 0)
+
+    if (parsed.length === 0) {
+      setError('No valid companies found in CSV')
+      return
+    }
+
+    setParsedCompanies(parsed)
+    setShowColumnMapper(false)
+    setError(null)
+  }
+
+  // Remove a parsed company from the list
+  const handleRemoveParsed = (id: string) => {
+    setParsedCompanies((prev) => prev.filter((c) => c.id !== id))
+  }
+
+  // Enrich imported companies and save to database
+  const handleEnrichImported = async () => {
+    if (parsedCompanies.length === 0) return
+
+    setIsEnriching(true)
+    setError(null)
+    setEnrichProgress({ current: 0, total: parsedCompanies.length })
+
+    try {
+      // Convert ParsedCompany to Company format for API
+      const companiesToEnrich: Company[] = parsedCompanies.map((pc) => ({
+        id: pc.id,
+        name: pc.name,
+        type: pc.type || '',
+        website: pc.website || '',
+        domain: '',
+        description: pc.description || '',
+        relevance: '',
+        status: 'not_contacted' as const,
+        verificationStatus: 'unverified' as const,
+        verificationSource: 'import' as const,
+        verifiedAt: null,
+        websiteAccessible: false,
+      }))
+
+      // Enrich in batches of 10
+      const batchSize = 10
+      const enrichedResults: Company[] = []
+
+      for (let i = 0; i < companiesToEnrich.length; i += batchSize) {
+        const batch = companiesToEnrich.slice(i, i + batchSize)
+
+        const response = await fetch('/api/enrich-companies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companies: batch,
+            context: extractedContext,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to enrich companies')
+        }
+
+        const data = await response.json()
+        enrichedResults.push(...(data.companies || []))
+
+        setEnrichProgress({ current: Math.min(i + batchSize, companiesToEnrich.length), total: companiesToEnrich.length })
+      }
+
+      // Merge with existing companies
+      const existingCompanies: Company[] = schemaConfig.companies || []
+      const allCompanies = [...existingCompanies, ...enrichedResults]
+
+      // Save to Supabase
+      const supabase = getSupabase()
+
+      // Save companies to companies table
+      for (const company of enrichedResults) {
+        await supabase.from('companies').upsert({
+          id: company.id,
+          project_id: project.id,
+          name: company.name,
+          website: company.website || null,
+          description: company.description || null,
+          relevance_score: company.relevance?.includes('High') ? 3 : company.relevance?.includes('Medium') ? 2 : 1,
+          relevance_notes: company.relevance || null,
+          status: company.status || 'not_contacted',
+          custom_fields: {
+            type: company.type,
+            domain: company.domain,
+            verificationStatus: company.verificationStatus,
+            verificationSource: company.verificationSource,
+          },
+        })
+      }
+
+      // Update project schema_config with companies list
+      const updatedSchemaConfig = {
+        ...schemaConfig,
+        companies: allCompanies,
+      }
+
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({
+          schema_config: updatedSchemaConfig,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      // Update local state
+      const updatedProject: Project = {
+        ...project,
+        schema_config: updatedSchemaConfig,
+        updated_at: new Date().toISOString(),
+      }
+      onUpdate(updatedProject)
+
+      // Clear import state
+      setParsedCompanies([])
+      setImportText('')
+      setShowImport(false)
+      setEnrichProgress(null)
+
+      // Move to next step
+      onComplete()
+    } catch (err) {
+      console.error('Enrich import error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to enrich companies')
+    } finally {
+      setIsEnriching(false)
+      setEnrichProgress(null)
+    }
+  }
+
+  // Cancel import and reset state
+  const handleCancelImport = () => {
+    setShowImport(false)
+    setParsedCompanies([])
+    setImportText('')
+    setCsvColumns([])
+    setColumnMapping({})
+    setShowColumnMapper(false)
+    setCsvData([])
+    setError(null)
+  }
+
+  // Show column mapper for CSV
+  if (showColumnMapper) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-gray-900">Map CSV Columns</h4>
+          <button
+            onClick={() => setShowColumnMapper(false)}
+            className="text-xs text-gray-500 hover:text-gray-700"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Found {csvData.length} rows. Map columns to import fields:
+        </p>
+
+        <div className="space-y-3">
+          {/* Company Name (required) */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700 w-28">Company Name *</label>
+            <select
+              value={columnMapping.name || ''}
+              onChange={(e) => setColumnMapping((prev) => ({ ...prev, name: e.target.value }))}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select column...</option>
+              {csvColumns.map((col) => (
+                <option key={col} value={col}>{col}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Website (optional) */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700 w-28">Website</label>
+            <select
+              value={columnMapping.website || ''}
+              onChange={(e) => setColumnMapping((prev) => ({ ...prev, website: e.target.value }))}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Skip</option>
+              {csvColumns.map((col) => (
+                <option key={col} value={col}>{col}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Type (optional) */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700 w-28">Type</label>
+            <select
+              value={columnMapping.type || ''}
+              onChange={(e) => setColumnMapping((prev) => ({ ...prev, type: e.target.value }))}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Skip</option>
+              {csvColumns.map((col) => (
+                <option key={col} value={col}>{col}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Description (optional) */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700 w-28">Description</label>
+            <select
+              value={columnMapping.description || ''}
+              onChange={(e) => setColumnMapping((prev) => ({ ...prev, description: e.target.value }))}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Skip</option>
+              {csvColumns.map((col) => (
+                <option key={col} value={col}>{col}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {error && (
+          <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleApplyMapping}
+          disabled={!columnMapping.name}
+          className={cn(
+            'w-full py-2 px-4 rounded-md text-sm font-medium transition-colors',
+            !columnMapping.name
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          )}
+        >
+          Import {csvData.length} Companies
+        </button>
+      </div>
+    )
+  }
+
+  // Show parsed companies (editable list before enrichment)
+  if (parsedCompanies.length > 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            <span className="font-semibold">{parsedCompanies.length}</span> companies to import
+          </div>
+          <button
+            onClick={handleCancelImport}
+            disabled={isEnriching}
+            className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        </div>
+
+        {/* Progress bar during enrichment */}
+        {enrichProgress && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Enriching companies...</span>
+              <span>{enrichProgress.current} / {enrichProgress.total}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(enrichProgress.current / enrichProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Parsed company list */}
+        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          {parsedCompanies.map((company) => (
+            <div
+              key={company.id}
+              className="p-3 border border-gray-200 rounded-lg bg-white flex items-start gap-3"
+            >
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-gray-900 text-sm">
+                  {company.name}
+                </h4>
+                {company.website && (
+                  <p className="text-xs text-gray-500 mt-0.5">{company.website}</p>
+                )}
+                {company.type && (
+                  <p className="text-xs text-gray-400 mt-0.5">{company.type}</p>
+                )}
+              </div>
+              <button
+                onClick={() => handleRemoveParsed(company.id)}
+                disabled={isEnriching}
+                className="text-gray-400 hover:text-red-500 disabled:opacity-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleEnrichImported}
+          disabled={parsedCompanies.length === 0 || isEnriching}
+          className={cn(
+            'w-full py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
+            parsedCompanies.length === 0 || isEnriching
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          )}
+        >
+          {isEnriching ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Enriching...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              Enrich & Add ({parsedCompanies.length})
+            </>
+          )}
+        </button>
+      </div>
+    )
   }
 
   // Show generated companies if we have them
@@ -463,33 +916,53 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
         </button>
       </div>
 
+      {/* Hidden file input for CSV upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
       {/* Import Section (revealed when clicking "I have companies") */}
       {showImport && (
         <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium text-gray-900">Import Companies</h4>
             <button
-              onClick={() => setShowImport(false)}
+              onClick={handleCancelImport}
               className="text-xs text-gray-500 hover:text-gray-700"
             >
               Cancel
             </button>
           </div>
           <textarea
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
             placeholder="Paste company names (one per line)..."
             rows={4}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
           />
           <div className="flex gap-2">
             <button
-              className="flex-1 py-2 px-3 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 py-2 px-3 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
             >
+              <FileText className="w-4 h-4" />
               Upload CSV
             </button>
             <button
-              className="flex-1 py-2 px-3 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              onClick={handleParseText}
+              disabled={importText.trim().length === 0}
+              className={cn(
+                'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors',
+                importText.trim().length === 0
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              )}
             >
-              Import & Enrich
+              Parse & Review
             </button>
           </div>
         </div>
