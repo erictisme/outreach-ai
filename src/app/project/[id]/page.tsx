@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, ArrowLeft, Plus, Settings } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Plus, Settings } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
 import { WizardPanel, WizardStep } from '@/components/WizardPanel'
@@ -21,6 +21,7 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false)
+  const [isMobileWizardOpen, setIsMobileWizardOpen] = useState(false)
   const [expandedStep, setExpandedStep] = useState<WizardStep>('setup')
   const [completedSteps, setCompletedSteps] = useState<WizardStep[]>([])
 
@@ -446,11 +447,43 @@ export default function ProjectPage() {
         </div>
       </header>
 
-      {/* Main content area - two column layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left panel - Wizard */}
+      {/* Main content area - responsive layout */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Mobile wizard toggle header */}
+        <div className="md:hidden border-b border-gray-200 bg-gray-50">
+          <button
+            onClick={() => setIsMobileWizardOpen(!isMobileWizardOpen)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left touch-manipulation"
+          >
+            <span className="font-medium text-gray-900">Wizard</span>
+            {isMobileWizardOpen ? (
+              <ChevronUp className="w-5 h-5 text-gray-500" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-500" />
+            )}
+          </button>
+          {/* Mobile wizard panel (collapsible) */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              isMobileWizardOpen ? 'max-h-[60vh]' : 'max-h-0'
+            }`}
+          >
+            <div className="p-4 overflow-y-auto max-h-[calc(60vh-1rem)]">
+              <WizardPanel
+                project={project}
+                expandedStep={expandedStep}
+                onStepChange={setExpandedStep}
+                onProjectUpdate={setProject}
+                completedSteps={completedSteps}
+                onOpenConversation={handleOpenConversation}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop left panel - Wizard (hidden on mobile) */}
         <div
-          className={`${
+          className={`hidden md:block ${
             isPanelCollapsed ? 'w-0' : 'w-80'
           } border-r border-gray-200 bg-gray-50 flex-shrink-0 transition-all duration-300 overflow-hidden`}
         >
@@ -466,10 +499,10 @@ export default function ProjectPage() {
           </div>
         </div>
 
-        {/* Collapse/expand button */}
+        {/* Desktop collapse/expand button (hidden on mobile) */}
         <button
           onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
-          className="flex-shrink-0 w-6 bg-gray-100 hover:bg-gray-200 flex items-center justify-center border-r border-gray-200 transition-colors"
+          className="hidden md:flex flex-shrink-0 w-6 bg-gray-100 hover:bg-gray-200 items-center justify-center border-r border-gray-200 transition-colors"
           aria-label={isPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
         >
           {isPanelCollapsed ? (
@@ -480,23 +513,26 @@ export default function ProjectPage() {
         </button>
 
         {/* Right area - Data Table */}
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto p-2 md:p-4 min-h-0">
           {/* Add More Companies button */}
-          <div className="mb-4">
+          <div className="mb-3 md:mb-4">
             <button
               onClick={() => {
                 setExpandedStep('companies')
+                // On mobile, open the wizard panel
+                setIsMobileWizardOpen(true)
+                // On desktop, expand if collapsed
                 if (isPanelCollapsed) {
                   setIsPanelCollapsed(false)
                 }
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 active:bg-blue-200 transition-colors touch-manipulation"
             >
               <Plus className="w-4 h-4" />
               Add More Companies
             </button>
           </div>
-          <div className="h-[calc(100%-60px)] bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="h-[calc(100%-52px)] md:h-[calc(100%-60px)] bg-white rounded-lg border border-gray-200 overflow-hidden">
             <DataTable
               data={tableRows}
               projectId={projectId}

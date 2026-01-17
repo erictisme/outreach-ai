@@ -48,3 +48,6 @@ Files: src/components/DataTable.tsx (checkbox column, select all, selected state
 
 F21b: Table sorting and filtering - DONE
 Files: src/components/DataTable.tsx (sortable headers with arrows, filter dropdown, search input, clear filters, localStorage persistence), src/app/project/[id]/page.tsx (projectId prop)
+
+F22: Mobile responsive layout - DONE
+Files: src/app/project/[id]/page.tsx (mobile wizard toggle header, stacked layout, touch-manipulation), src/components/DataTable.tsx (horizontal scroll, touch-friendly toolbar), src/components/StatusDropdown.tsx (touch-friendly sizing)

@@ -366,7 +366,7 @@
       "id": "F22",
       "name": "Mobile responsive layout",
       "priority": 22,
-      "passes": false,
+      "passes": true,
       "description": "Make layout work on mobile",
       "steps": [
         "On mobile (<768px): stack wizard above table (not side by side)",

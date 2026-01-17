@@ -399,39 +399,40 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col h-full">
+      {/* Toolbar - responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 md:px-4 md:py-3 bg-gray-50 border-b border-gray-200">
+        <div className="flex flex-wrap items-center gap-2">
           {selectedRows.size > 0 ? (
             <>
               {/* Selection count and bulk actions */}
-              <span className="text-sm font-medium text-blue-700 bg-blue-50 px-3 py-1.5 rounded-md">
-                {selectedRows.size} row{selectedRows.size === 1 ? '' : 's'} selected
+              <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-1 md:px-3 md:py-1.5 rounded-md">
+                {selectedRows.size} selected
               </span>
               <button
                 onClick={handleClearSelection}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
               >
                 <X className="w-4 h-4" />
-                Clear
+                <span className="hidden sm:inline">Clear</span>
               </button>
-              <div className="w-px h-6 bg-gray-300" />
+              <div className="hidden sm:block w-px h-6 bg-gray-300" />
               {onBulkDelete && (
                 <button
                   onClick={handleBulkDelete}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-1.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 active:bg-red-200 transition-colors touch-manipulation"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Delete
+                  <span className="hidden sm:inline">Delete</span>
                 </button>
               )}
               {onBulkStatusChange && (
                 <select
                   onChange={(e) => handleBulkStatusChange(e.target.value as Status)}
                   value=""
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="px-2 py-1.5 md:px-3 md:py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors cursor-pointer touch-manipulation min-h-[36px]"
                 >
-                  <option value="" disabled>Change Status</option>
+                  <option value="" disabled>Status</option>
                   <option value="not_contacted">Not Contacted</option>
                   <option value="email_sent">Email Sent</option>
                   <option value="replied">Replied</option>
@@ -441,34 +442,34 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
               )}
               <button
                 onClick={handleExportSelected}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
               >
                 <Download className="w-4 h-4" />
-                Export Selected
+                <span className="hidden sm:inline">Export</span>
               </button>
             </>
           ) : (
             <>
               <button
                 onClick={handleCopyTSV}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
               >
                 <Copy className="w-4 h-4" />
-                Copy as TSV
+                <span className="hidden sm:inline">Copy TSV</span>
               </button>
               <button
                 onClick={handleCopyEmails}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
               >
                 <Mail className="w-4 h-4" />
-                Copy Emails Only
+                <span className="hidden sm:inline">Emails</span>
               </button>
               <button
                 onClick={handleExportCSV}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
               >
                 <Download className="w-4 h-4" />
-                Export CSV
+                <span className="hidden sm:inline">CSV</span>
               </button>
             </>
           )}
@@ -485,7 +486,7 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
           {onRetry && !isSaving && (
             <button
               onClick={onRetry}
-              className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 active:bg-amber-200 transition-colors touch-manipulation"
             >
               <RefreshCw className="w-3 h-3" />
               Retry
@@ -494,192 +495,202 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
         </div>
       </div>
 
-      {/* Filter and search row */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200">
+      {/* Filter and search row - responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 py-2 md:px-4 bg-white border-b border-gray-200">
         {/* Search input */}
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search company or contact..."
+            placeholder="Search..."
             value={preferences.search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            className="w-full pl-8 pr-3 py-2 md:py-1.5 text-sm border border-gray-300 rounded-md focus:border-blue-400 focus:ring-1 focus:ring-blue-400 touch-manipulation"
           />
         </div>
 
-        {/* Filter dropdown */}
-        <div className="flex items-center gap-1.5">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <select
-            value={preferences.filter}
-            onChange={(e) => handleFilterChange(e.target.value as FilterOption)}
-            className="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer"
-          >
-            <option value="all">All</option>
-            <option value="needs_contact">Needs Contact</option>
-            <option value="needs_email">Needs Email</option>
-            <option value="needs_followup">Needs Follow-up</option>
-          </select>
+        {/* Filter and clear row */}
+        <div className="flex items-center gap-2">
+          {/* Filter dropdown */}
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-4 h-4 text-gray-400" />
+            <select
+              value={preferences.filter}
+              onChange={(e) => handleFilterChange(e.target.value as FilterOption)}
+              className="px-2 py-2 md:py-1.5 text-sm border border-gray-300 rounded-md focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer touch-manipulation min-h-[36px]"
+            >
+              <option value="all">All</option>
+              <option value="needs_contact">Needs Contact</option>
+              <option value="needs_email">Needs Email</option>
+              <option value="needs_followup">Needs Follow-up</option>
+            </select>
+          </div>
+
+          {/* Clear filters button */}
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearFilters}
+              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200 rounded transition-colors touch-manipulation"
+            >
+              <X className="w-3 h-3" />
+              Clear
+            </button>
+          )}
+
+          {/* Result count */}
+          <span className="text-xs text-gray-500 ml-auto whitespace-nowrap">
+            {processedData.length === data.length
+              ? `${data.length} row${data.length === 1 ? '' : 's'}`
+              : `${processedData.length}/${data.length}`
+            }
+          </span>
         </div>
-
-        {/* Clear filters button */}
-        {hasActiveFilters && (
-          <button
-            onClick={handleClearFilters}
-            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-          >
-            <X className="w-3 h-3" />
-            Clear filters
-          </button>
-        )}
-
-        {/* Result count */}
-        <span className="text-xs text-gray-500 ml-auto">
-          {processedData.length === data.length
-            ? `${data.length} row${data.length === 1 ? '' : 's'}`
-            : `${processedData.length} of ${data.length} row${data.length === 1 ? '' : 's'}`
-          }
-        </span>
       </div>
 
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th className="px-4 py-3 w-10">
-              <input
-                type="checkbox"
-                checked={isAllSelected}
-                ref={(el) => {
-                  if (el) el.indeterminate = isPartiallySelected
-                }}
-                onChange={handleSelectAll}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                aria-label="Select all rows"
-              />
-            </th>
-            <SortableHeader field="company" label="Company" sort={preferences.sort} onSort={handleSort} />
-            <SortableHeader field="contact" label="Contact" sort={preferences.sort} onSort={handleSort} />
-            <SortableHeader field="title" label="Title" sort={preferences.sort} onSort={handleSort} />
-            <SortableHeader field="email" label="Email" sort={preferences.sort} onSort={handleSort} />
-            <SortableHeader field="status" label="Status" sort={preferences.sort} onSort={handleSort} />
-            <SortableHeader field="dateSent" label="Date Sent" sort={preferences.sort} onSort={handleSort} />
-            <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {processedData.map(({ row, originalIndex }, displayIndex) => {
-            // Calculate if follow-up is needed
-            const daysSinceSent = row.dateSent
-              ? Math.floor((Date.now() - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
-              : null
-            const needsFollowUp = row.status === 'email_sent' && daysSinceSent !== null && daysSinceSent >= 3
-            const isSelected = selectedRows.has(originalIndex)
+      {/* Table container with horizontal scroll */}
+      <div className="flex-1 overflow-x-auto overflow-y-auto -webkit-overflow-scrolling-touch">
+        <table className="w-full text-sm min-w-[800px]">
+          <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+            <tr>
+              <th className="px-2 md:px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = isPartiallySelected
+                  }}
+                  onChange={handleSelectAll}
+                  className="w-5 h-5 md:w-4 md:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer touch-manipulation"
+                  aria-label="Select all rows"
+                />
+              </th>
+              <SortableHeader field="company" label="Company" sort={preferences.sort} onSort={handleSort} />
+              <SortableHeader field="contact" label="Contact" sort={preferences.sort} onSort={handleSort} />
+              <SortableHeader field="title" label="Title" sort={preferences.sort} onSort={handleSort} />
+              <SortableHeader field="email" label="Email" sort={preferences.sort} onSort={handleSort} />
+              <SortableHeader field="status" label="Status" sort={preferences.sort} onSort={handleSort} />
+              <SortableHeader field="dateSent" label="Date Sent" sort={preferences.sort} onSort={handleSort} />
+              <th className="px-2 md:px-4 py-3 text-left font-medium text-gray-600">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {processedData.map(({ row, originalIndex }, displayIndex) => {
+              // Calculate if follow-up is needed
+              const daysSinceSent = row.dateSent
+                ? Math.floor((Date.now() - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
+                : null
+              const needsFollowUp = row.status === 'email_sent' && daysSinceSent !== null && daysSinceSent >= 3
+              const isSelected = selectedRows.has(originalIndex)
 
-            return (
-              <tr
-                key={rowIds[displayIndex]}
-                className={cn(
-                  'hover:bg-gray-50 transition-colors',
-                  needsFollowUp && 'bg-amber-50 hover:bg-amber-100',
-                  isSelected && 'bg-blue-50 hover:bg-blue-100'
-                )}
-              >
-                {/* Checkbox */}
-                <td className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleSelectRow(originalIndex)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                    aria-label={`Select row ${displayIndex + 1}`}
-                  />
-                </td>
-
-                {/* Company */}
-                <td className="px-4 py-3">
-                  <div className="font-medium text-gray-900">{row.company.name}</div>
-                  {row.company.website && (
-                    <a
-                      href={row.company.website.startsWith('http') ? row.company.website : `https://${row.company.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      {row.company.domain || row.company.website.replace(/^https?:\/\//, '')}
-                    </a>
+              return (
+                <tr
+                  key={rowIds[displayIndex]}
+                  className={cn(
+                    'hover:bg-gray-50 active:bg-gray-100 transition-colors',
+                    needsFollowUp && 'bg-amber-50 hover:bg-amber-100',
+                    isSelected && 'bg-blue-50 hover:bg-blue-100'
                   )}
-                </td>
-
-                {/* Contact */}
-                <td className="px-4 py-3 text-gray-900">
-                  {row.contact?.name || <span className="text-gray-400">-</span>}
-                </td>
-
-                {/* Title */}
-                <td className="px-4 py-3 text-gray-600">
-                  {row.contact?.title || <span className="text-gray-400">-</span>}
-                </td>
-
-                {/* Email */}
-                <td className="px-4 py-3">
-                  {row.contact?.email ? (
-                    <a
-                      href={`mailto:${row.contact.email}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      {row.contact.email}
-                    </a>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-
-                {/* Status */}
-                <td className="px-4 py-3">
-                  <StatusDropdown
-                    value={row.status}
-                    onChange={(status) => onStatusChange?.(originalIndex, status)}
-                  />
-                </td>
-
-                {/* Date Sent */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
+                >
+                  {/* Checkbox */}
+                  <td className="px-2 md:px-4 py-3 w-10">
                     <input
-                      type="date"
-                      value={row.dateSent || ''}
-                      onChange={(e) => onDateChange?.(originalIndex, e.target.value || null)}
-                      className="px-2 py-1 text-sm border border-gray-200 rounded focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleSelectRow(originalIndex)}
+                      className="w-5 h-5 md:w-4 md:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer touch-manipulation"
+                      aria-label={`Select row ${displayIndex + 1}`}
                     />
-                    {needsFollowUp && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-200 text-amber-800">
-                        Follow-up
-                      </span>
-                    )}
-                  </div>
-                </td>
+                  </td>
 
-                {/* Actions */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {row.email && (
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(`Subject: ${row.email?.subject}\n\n${row.email?.body}`)
-                        }}
-                        className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
+                  {/* Company */}
+                  <td className="px-2 md:px-4 py-3 min-w-[140px]">
+                    <div className="font-medium text-gray-900 truncate max-w-[180px]">{row.company.name}</div>
+                    {row.company.website && (
+                      <a
+                        href={row.company.website.startsWith('http') ? row.company.website : `https://${row.company.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline truncate block max-w-[180px]"
                       >
-                        Copy Email
-                      </button>
+                        {row.company.domain || row.company.website.replace(/^https?:\/\//, '')}
+                      </a>
                     )}
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+                  </td>
+
+                  {/* Contact */}
+                  <td className="px-2 md:px-4 py-3 text-gray-900 min-w-[120px]">
+                    <span className="truncate block max-w-[150px]">
+                      {row.contact?.name || <span className="text-gray-400">-</span>}
+                    </span>
+                  </td>
+
+                  {/* Title */}
+                  <td className="px-2 md:px-4 py-3 text-gray-600 min-w-[100px]">
+                    <span className="truncate block max-w-[150px]">
+                      {row.contact?.title || <span className="text-gray-400">-</span>}
+                    </span>
+                  </td>
+
+                  {/* Email */}
+                  <td className="px-2 md:px-4 py-3 min-w-[160px]">
+                    {row.contact?.email ? (
+                      <a
+                        href={`mailto:${row.contact.email}`}
+                        className="text-blue-600 hover:underline truncate block max-w-[200px]"
+                      >
+                        {row.contact.email}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-2 md:px-4 py-3 min-w-[130px]">
+                    <StatusDropdown
+                      value={row.status}
+                      onChange={(status) => onStatusChange?.(originalIndex, status)}
+                    />
+                  </td>
+
+                  {/* Date Sent */}
+                  <td className="px-2 md:px-4 py-3 min-w-[150px]">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <input
+                        type="date"
+                        value={row.dateSent || ''}
+                        onChange={(e) => onDateChange?.(originalIndex, e.target.value || null)}
+                        className="px-2 py-1.5 md:py-1 text-sm border border-gray-200 rounded focus:border-blue-400 focus:ring-1 focus:ring-blue-400 touch-manipulation min-h-[36px] md:min-h-0"
+                      />
+                      {needsFollowUp && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-200 text-amber-800 whitespace-nowrap">
+                          Follow-up
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-2 md:px-4 py-3 min-w-[90px]">
+                    <div className="flex items-center gap-2">
+                      {row.email && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`Subject: ${row.email?.subject}\n\n${row.email?.body}`)
+                          }}
+                          className="px-2 py-1.5 md:py-1 text-xs bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 rounded transition-colors touch-manipulation whitespace-nowrap"
+                        >
+                          Copy Email
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

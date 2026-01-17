@@ -37,10 +37,10 @@ export function StatusDropdown({ value, onChange, disabled }: StatusDropdownProp
       onChange={(e) => onChange?.(e.target.value as Status)}
       disabled={disabled}
       className={cn(
-        'px-2 py-1 rounded text-xs font-medium cursor-pointer',
+        'px-2 py-1.5 md:py-1 rounded text-xs font-medium cursor-pointer',
         'border border-transparent hover:border-gray-300 focus:border-blue-400',
         'focus:ring-2 focus:ring-blue-400 focus:outline-none',
-        'transition-colors',
+        'transition-colors touch-manipulation min-h-[36px] md:min-h-0',
         STATUS_CONFIG[value].color,
         disabled && 'opacity-50 cursor-not-allowed'
       )}
