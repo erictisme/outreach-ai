@@ -44,3 +44,6 @@ Files: src/components/wizard/ContactsStep.tsx (Apollo button, API key check via 
 
 F14: Contacts step - email enrichment - DONE
 Files: src/components/wizard/ContactsStep.tsx (existing contacts view, Find Emails button, cost estimate, confirmation modal, API call, Supabase update)
+
+F15: Emails step - master prompt - DONE
+Files: src/components/wizard/EmailsStep.tsx (new), src/components/WizardPanel.tsx (import + integration)

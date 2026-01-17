@@ -164,7 +164,7 @@
       "id": "F15",
       "name": "Step 5: Emails - master prompt",
       "priority": 15,
-      "passes": false,
+      "passes": true,
       "description": "Master prompt for bulk email generation",
       "steps": [
         "Create src/components/wizard/EmailsStep.tsx",

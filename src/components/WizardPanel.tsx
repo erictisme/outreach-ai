@@ -7,6 +7,7 @@ import { SetupStep } from '@/components/wizard/SetupStep'
 import { ContextStep } from '@/components/wizard/ContextStep'
 import { CompaniesStep } from '@/components/wizard/CompaniesStep'
 import { ContactsStep } from '@/components/wizard/ContactsStep'
+import { EmailsStep } from '@/components/wizard/EmailsStep'
 
 export type WizardStep = 'setup' | 'context' | 'companies' | 'contacts' | 'emails'
 
@@ -172,9 +173,11 @@ function StepContent({ step, project, onProjectUpdate, onStepComplete }: StepCon
       )
     case 'emails':
       return (
-        <div className="text-sm text-gray-500">
-          Generate and manage outreach emails.
-        </div>
+        <EmailsStep
+          project={project}
+          onUpdate={onProjectUpdate}
+          onComplete={onStepComplete}
+        />
       )
     default:
       return null
