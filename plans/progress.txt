@@ -41,3 +41,6 @@ Files: src/components/wizard/ContactsStep.tsx (research button, API call, contac
 
 F13b: Contacts step - Apollo paid search - DONE
 Files: src/components/wizard/ContactsStep.tsx (Apollo button, API key check via ApiKeyModal, cost estimate confirmation modal, email display)
+
+F14: Contacts step - email enrichment - DONE
+Files: src/components/wizard/ContactsStep.tsx (existing contacts view, Find Emails button, cost estimate, confirmation modal, API call, Supabase update)

@@ -147,7 +147,7 @@
       "id": "F14",
       "name": "Step 4: Contacts - email enrichment",
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "description": "Get emails for selected contacts with cost estimate",
       "steps": [
         "Show 'Find Emails' button with cost estimate",
