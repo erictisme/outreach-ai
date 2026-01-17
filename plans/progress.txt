@@ -42,3 +42,6 @@ Files: src/app/project/[id]/page.tsx (Add More Companies button above DataTable,
 
 F20: Settings page with API keys - DONE
 Files: src/app/project/[id]/settings/page.tsx (new settings page with API key inputs, show/hide, save/clear, status indicators), src/app/project/[id]/page.tsx (gear icon link in header)
+
+F21: Table row selection - DONE
+Files: src/components/DataTable.tsx (checkbox column, select all, selected state, blue highlight, selection count, bulk actions: Delete/Change Status/Export Selected, clear selection)

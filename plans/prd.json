@@ -333,7 +333,7 @@
       "id": "F21",
       "name": "Table row selection",
       "priority": 21,
-      "passes": false,
+      "passes": true,
       "description": "Add checkbox selection to table rows for bulk operations",
       "steps": [
         "Add checkbox column as first column in DataTable",

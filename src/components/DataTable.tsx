@@ -1,10 +1,11 @@
 'use client'
 
+import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { Company, Person, EmailDraft } from '@/types'
 import { StatusDropdown, Status } from './StatusDropdown'
 import { useToast } from './ui/Toast'
-import { Copy, Mail, Download, Loader2, RefreshCw } from 'lucide-react'
+import { Copy, Mail, Download, Loader2, RefreshCw, Trash2, X } from 'lucide-react'
 
 // Combined row type for unified display
 export interface DataTableRow {
@@ -19,12 +20,97 @@ interface DataTableProps {
   data: DataTableRow[]
   onStatusChange?: (index: number, status: Status) => void
   onDateChange?: (index: number, date: string | null) => void
+  onBulkDelete?: (indices: number[]) => void
+  onBulkStatusChange?: (indices: number[], status: Status) => void
   isSaving?: boolean
   onRetry?: () => void
 }
 
-export function DataTable({ data, onStatusChange, onDateChange, isSaving, onRetry }: DataTableProps) {
+export function DataTable({ data, onStatusChange, onDateChange, onBulkDelete, onBulkStatusChange, isSaving, onRetry }: DataTableProps) {
   const { addToast } = useToast()
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
+
+  // Generate stable row IDs for selection
+  const rowIds = useMemo(() => {
+    return data.map((row, index) => `${row.company.id}-${row.contact?.id || index}`)
+  }, [data])
+
+  const isAllSelected = data.length > 0 && selectedRows.size === data.length
+  const isPartiallySelected = selectedRows.size > 0 && selectedRows.size < data.length
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedRows(new Set())
+    } else {
+      setSelectedRows(new Set(data.map((_, i) => i)))
+    }
+  }
+
+  const handleSelectRow = (index: number) => {
+    const newSelected = new Set(selectedRows)
+    if (newSelected.has(index)) {
+      newSelected.delete(index)
+    } else {
+      newSelected.add(index)
+    }
+    setSelectedRows(newSelected)
+  }
+
+  const handleClearSelection = () => {
+    setSelectedRows(new Set())
+  }
+
+  const handleBulkDelete = () => {
+    if (onBulkDelete && selectedRows.size > 0) {
+      onBulkDelete(Array.from(selectedRows))
+      setSelectedRows(new Set())
+    }
+  }
+
+  const handleBulkStatusChange = (status: Status) => {
+    if (onBulkStatusChange && selectedRows.size > 0) {
+      onBulkStatusChange(Array.from(selectedRows), status)
+      setSelectedRows(new Set())
+    }
+  }
+
+  const handleExportSelected = () => {
+    const selectedData = data.filter((_, i) => selectedRows.has(i))
+    const headers = ['Company', 'Website', 'Contact', 'Title', 'Email', 'Status', 'Date Sent']
+    const rows = selectedData.map(row => [
+      row.company.name,
+      row.company.website || '',
+      row.contact?.name || '',
+      row.contact?.title || '',
+      row.contact?.email || '',
+      row.status,
+      row.dateSent || ''
+    ])
+
+    const escapeCSV = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`
+      }
+      return value
+    }
+
+    const csv = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(r => r.map(escapeCSV).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `outreach-selected-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    addToast(`Exported ${selectedData.length} selected row${selectedData.length === 1 ? '' : 's'}`, 'success')
+  }
 
   const handleCopyTSV = async () => {
     const headers = ['Company', 'Website', 'Contact', 'Title', 'Email', 'Status', 'Date Sent']
@@ -116,27 +202,76 @@ export function DataTable({ data, onStatusChange, onDateChange, isSaving, onRetr
     <div className="overflow-x-auto">
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleCopyTSV}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            <Copy className="w-4 h-4" />
-            Copy as TSV
-          </button>
-          <button
-            onClick={handleCopyEmails}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            <Mail className="w-4 h-4" />
-            Copy Emails Only
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
+          {selectedRows.size > 0 ? (
+            <>
+              {/* Selection count and bulk actions */}
+              <span className="text-sm font-medium text-blue-700 bg-blue-50 px-3 py-1.5 rounded-md">
+                {selectedRows.size} row{selectedRows.size === 1 ? '' : 's'} selected
+              </span>
+              <button
+                onClick={handleClearSelection}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Clear
+              </button>
+              <div className="w-px h-6 bg-gray-300" />
+              {onBulkDelete && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              )}
+              {onBulkStatusChange && (
+                <select
+                  onChange={(e) => handleBulkStatusChange(e.target.value as Status)}
+                  value=""
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <option value="" disabled>Change Status</option>
+                  <option value="not_contacted">Not Contacted</option>
+                  <option value="email_sent">Email Sent</option>
+                  <option value="replied">Replied</option>
+                  <option value="meeting_booked">Meeting Booked</option>
+                  <option value="not_interested">Not Interested</option>
+                </select>
+              )}
+              <button
+                onClick={handleExportSelected}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export Selected
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleCopyTSV}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+                Copy as TSV
+              </button>
+              <button
+                onClick={handleCopyEmails}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <Mail className="w-4 h-4" />
+                Copy Emails Only
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+            </>
+          )}
         </div>
 
         {/* Saving indicator and retry button */}
@@ -161,6 +296,18 @@ export function DataTable({ data, onStatusChange, onDateChange, isSaving, onRetr
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
+            <th className="px-4 py-3 w-10">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = isPartiallySelected
+                }}
+                onChange={handleSelectAll}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                aria-label="Select all rows"
+              />
+            </th>
             <th className="px-4 py-3 text-left font-medium text-gray-600">Company</th>
             <th className="px-4 py-3 text-left font-medium text-gray-600">Contact</th>
             <th className="px-4 py-3 text-left font-medium text-gray-600">Title</th>
@@ -177,15 +324,28 @@ export function DataTable({ data, onStatusChange, onDateChange, isSaving, onRetr
               ? Math.floor((Date.now() - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
               : null
             const needsFollowUp = row.status === 'email_sent' && daysSinceSent !== null && daysSinceSent >= 3
+            const isSelected = selectedRows.has(index)
 
             return (
               <tr
-                key={`${row.company.id}-${row.contact?.id || index}`}
+                key={rowIds[index]}
                 className={cn(
                   'hover:bg-gray-50 transition-colors',
-                  needsFollowUp && 'bg-amber-50 hover:bg-amber-100'
+                  needsFollowUp && 'bg-amber-50 hover:bg-amber-100',
+                  isSelected && 'bg-blue-50 hover:bg-blue-100'
                 )}
               >
+                {/* Checkbox */}
+                <td className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleSelectRow(index)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    aria-label={`Select row ${index + 1}`}
+                  />
+                </td>
+
                 {/* Company */}
                 <td className="px-4 py-3">
                   <div className="font-medium text-gray-900">{row.company.name}</div>
