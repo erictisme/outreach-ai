@@ -88,7 +88,7 @@
       "id": "F5",
       "name": "Two-phase Contact Discovery",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "description": "Free contact discovery (name, role, LinkedIn) → Paid email enrichment with cost estimate",
       "steps": [
         "Create /api/find-contacts-free endpoint (LinkedIn scraping or free Apollo tier)",

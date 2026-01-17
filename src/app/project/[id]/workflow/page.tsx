@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import {
   Step, Project, ProjectContext, Company, Person, EmailDraft, Segment,
   Conversation, UploadedDoc, ProviderSelection, ProjectObjective, OBJECTIVE_OPTIONS,
-  SeniorityLevel, SENIORITY_OPTIONS
+  SeniorityLevel, SENIORITY_OPTIONS, ResearchedContact
 } from '@/types'
 import {
   extractDomain, normalizeName, isDuplicateCompany
@@ -112,6 +112,14 @@ export default function WorkflowPage() {
   const [enrichingWithWeb, setEnrichingWithWeb] = useState(false)
   const [enrichmentProgress, setEnrichmentProgress] = useState(0)
   const [enrichmentTotal, setEnrichmentTotal] = useState(0)
+
+  // Two-phase contact discovery state
+  const [researchedContacts, setResearchedContacts] = useState<ResearchedContact[]>([])
+  const [selectedResearchedIds, setSelectedResearchedIds] = useState<Set<string>>(new Set())
+  const [researchingContacts, setResearchingContacts] = useState(false)
+  const [enrichingEmails, setEnrichingEmails] = useState(false)
+  const [showCostConfirmModal, setShowCostConfirmModal] = useState(false)
+  const [contactPhase, setContactPhase] = useState<'research' | 'enriched'>('research')
 
   // Load project from Supabase + workflow state from localStorage
   useEffect(() => {
@@ -743,6 +751,166 @@ export default function WorkflowPage() {
   const handlePersonSelectionChange = (ids: Set<number>) => {
     saveProject({ selectedPersonIds: Array.from(ids) })
   }
+
+  // --- Two-Phase Contact Discovery ---
+  // Phase 1: Free research (find contacts without emails)
+  const handleResearchContacts = async () => {
+    if (!project?.context) return
+
+    // Get selected companies
+    const selectedCompanies = project.selectedCompanyIds.map(i => project.companies[i]).filter(Boolean)
+
+    if (selectedCompanies.length === 0) {
+      setError('Please select at least one company')
+      return
+    }
+
+    setResearchingContacts(true)
+    setError(null)
+    setResearchedContacts([])
+    setSelectedResearchedIds(new Set())
+    setContactPhase('research')
+
+    try {
+      const res = await fetch('/api/find-contacts-free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companies: selectedCompanies,
+          context: project.context,
+        }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Failed to research contacts')
+      }
+
+      const data = await res.json()
+      const contacts: ResearchedContact[] = data.contacts || []
+
+      setResearchedContacts(contacts)
+      // Select all by default
+      setSelectedResearchedIds(new Set(contacts.map(c => c.id)))
+
+      addToast(`Found ${contacts.length} contacts (free research)`, 'success')
+    } catch (err) {
+      console.error('Research contacts error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to research contacts')
+    } finally {
+      setResearchingContacts(false)
+    }
+  }
+
+  // Toggle selection of a researched contact
+  const handleToggleResearchedContact = (contactId: string) => {
+    setSelectedResearchedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(contactId)) {
+        next.delete(contactId)
+      } else {
+        next.add(contactId)
+      }
+      return next
+    })
+  }
+
+  // Select/deselect all researched contacts
+  const handleSelectAllResearchedContacts = (selectAll: boolean) => {
+    if (selectAll) {
+      setSelectedResearchedIds(new Set(researchedContacts.map(c => c.id)))
+    } else {
+      setSelectedResearchedIds(new Set())
+    }
+  }
+
+  // Phase 2: Paid email enrichment (Apollo)
+  const handleEnrichEmails = async () => {
+    if (!project) return
+
+    const selectedContacts = researchedContacts.filter(c => selectedResearchedIds.has(c.id))
+    if (selectedContacts.length === 0) {
+      setError('Please select at least one contact to enrich')
+      return
+    }
+
+    // Check for Apollo API key
+    if (!getApiKey('apollo')) {
+      setRequiredApiKey('apollo')
+      setApiKeyModalOpen(true)
+      return
+    }
+
+    // Build domain mapping
+    const companyDomains: Record<string, string> = {}
+    for (const company of project.companies) {
+      if (company.domain) {
+        companyDomains[company.id] = company.domain
+      } else if (company.website) {
+        try {
+          const url = new URL(company.website.startsWith('http') ? company.website : `https://${company.website}`)
+          companyDomains[company.id] = url.hostname.replace('www.', '')
+        } catch {
+          // Skip if invalid URL
+        }
+      }
+    }
+
+    setEnrichingEmails(true)
+    setShowCostConfirmModal(false)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/enrich-contacts-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contacts: selectedContacts,
+          companyDomains,
+          apiKey: getApiKey('apollo'),
+        }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Failed to enrich contacts')
+      }
+
+      const data = await res.json()
+      const enrichedPersons: Person[] = data.persons || []
+
+      // Filter out duplicates
+      const existingEmails = new Set(project.persons.map(p => p.email?.toLowerCase()).filter(Boolean))
+      const newPersons = enrichedPersons.filter(
+        p => !p.email || !existingEmails.has(p.email.toLowerCase())
+      )
+
+      // Add to existing persons
+      const updatedPersons = [...project.persons, ...newPersons]
+      const selectedIds = updatedPersons.map((_, i) => i)
+
+      saveProject({
+        persons: updatedPersons,
+        selectedPersonIds: selectedIds,
+        emailsFound: updatedPersons.some(p => !!p.email),
+      })
+
+      // Clear researched contacts and switch phase
+      setResearchedContacts([])
+      setSelectedResearchedIds(new Set())
+      setContactPhase('enriched')
+
+      addToast(`Enriched ${newPersons.length} contacts (${data.summary?.emailsFound || 0} emails found)`, 'success')
+    } catch (err) {
+      console.error('Enrich emails error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to enrich contacts with emails')
+    } finally {
+      setEnrichingEmails(false)
+    }
+  }
+
+  // Cost estimate for email enrichment (Apollo credits)
+  const estimatedCost = selectedResearchedIds.size * 1 // 1 credit per contact lookup
 
   const handleDeletePerson = (index: number) => {
     if (!project) return
@@ -1724,14 +1892,43 @@ export default function WorkflowPage() {
           </div>
         )}
 
-        {/* Contacts Step */}
+        {/* Contacts Step - Two-Phase Discovery */}
         {currentStep === 'contacts' && (
           <div className="space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Find Contacts</h2>
               <p className="text-gray-600">
-                Search for decision makers at your target companies. Select which companies to search.
+                Two-phase contact discovery: First find contacts (free), then get emails for selected contacts (paid).
               </p>
+            </div>
+
+            {/* Phase indicator */}
+            <div className="flex items-center gap-4 text-sm">
+              <div className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-full',
+                researchedContacts.length === 0 && project.persons.length === 0
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600'
+              )}>
+                <span className="w-5 h-5 rounded-full bg-current text-white flex items-center justify-center text-xs font-bold">
+                  <span className="text-white">1</span>
+                </span>
+                <span>Research Contacts (Free)</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+              <div className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-full',
+                researchedContacts.length > 0
+                  ? 'bg-blue-100 text-blue-700'
+                  : project.persons.length > 0
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-gray-100 text-gray-400'
+              )}>
+                <span className="w-5 h-5 rounded-full bg-current text-white flex items-center justify-center text-xs font-bold">
+                  <span className="text-white">2</span>
+                </span>
+                <span>Find Emails (Paid)</span>
+              </div>
             </div>
 
             {/* Company Selection for Search */}
@@ -1760,7 +1957,7 @@ export default function WorkflowPage() {
               {project.companies.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No companies yet. Go back and generate companies first.</p>
               ) : (
-                <div className="max-h-64 overflow-y-auto border rounded-lg">
+                <div className="max-h-48 overflow-y-auto border rounded-lg">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b sticky top-0">
                       <tr>
@@ -1816,62 +2013,251 @@ export default function WorkflowPage() {
                 </div>
               )}
 
-              {/* Search Button with Warning */}
+              {/* Phase 1: Research Button (Free) */}
               <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
-                  Searching uses Apollo API credits (~1 credit per company)
+                <div className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">
+                  Phase 1 is FREE - uses AI to find contacts without using API credits
                 </div>
-                <div className="flex items-center gap-3">
-                  {!hasAnyContactProvider() && (
-                    <button
-                      onClick={() => {
-                        setRequiredApiKey('apollo')
-                        setApiKeyModalOpen(true)
-                      }}
-                      className="px-4 py-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100"
-                    >
-                      Add API Key
-                    </button>
+                <button
+                  onClick={handleResearchContacts}
+                  disabled={researchingContacts || project.selectedCompanyIds.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {researchingContacts ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Researching {project.selectedCompanyIds.length} companies...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      Research Contacts (Free)
+                    </>
                   )}
+                </button>
+              </div>
+            </div>
+
+            {/* Phase 1 Results: Researched Contacts (without emails) */}
+            {researchedContacts.length > 0 && (
+              <div className="bg-white rounded-xl border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Phase 1: Contacts Found (No Emails Yet)</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Select contacts to enrich with emails. Each lookup costs ~1 Apollo credit.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-gray-500">
+                      <strong className="text-blue-600">{selectedResearchedIds.size}</strong> of {researchedContacts.length} selected
+                    </span>
+                    <button
+                      onClick={() => handleSelectAllResearchedContacts(true)}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onClick={() => handleSelectAllResearchedContacts(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                {/* Contact Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+                  {researchedContacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      onClick={() => handleToggleResearchedContact(contact.id)}
+                      className={cn(
+                        'p-4 rounded-lg border-2 cursor-pointer transition-all',
+                        selectedResearchedIds.has(contact.id)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      )}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedResearchedIds.has(contact.id)}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                            />
+                            <h4 className="font-medium text-gray-900 truncate">{contact.name}</h4>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1 truncate">{contact.title}</p>
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">{contact.company}</p>
+                        </div>
+                        <span className={cn(
+                          'text-xs px-2 py-0.5 rounded-full ml-2 whitespace-nowrap',
+                          contact.seniority === 'Executive' ? 'bg-purple-100 text-purple-700' :
+                          contact.seniority === 'Director' ? 'bg-blue-100 text-blue-700' :
+                          contact.seniority === 'Manager' ? 'bg-green-100 text-green-700' :
+                          'bg-gray-100 text-gray-600'
+                        )}>
+                          {contact.seniority}
+                        </span>
+                      </div>
+                      {contact.linkedinUrl && (
+                        <a
+                          href={contact.linkedinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-blue-600 hover:text-blue-700 mt-2 inline-block"
+                        >
+                          LinkedIn Profile
+                        </a>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1 line-clamp-2">{contact.reasoning}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Cost Estimate & Find Emails Button */}
+                <div className="mt-4 pt-4 border-t flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm">
+                      <span className="text-gray-600">Estimated cost: </span>
+                      <span className="font-semibold text-amber-600">
+                        ~{selectedResearchedIds.size} Apollo credits
+                      </span>
+                    </div>
+                    {!getApiKey('apollo') && (
+                      <button
+                        onClick={() => {
+                          setRequiredApiKey('apollo')
+                          setApiKeyModalOpen(true)
+                        }}
+                        className="text-sm text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100"
+                      >
+                        Add Apollo Key
+                      </button>
+                    )}
+                  </div>
                   <button
-                    onClick={handleFindContacts}
-                    disabled={findingContacts || project.selectedCompanyIds.length === 0}
+                    onClick={() => setShowCostConfirmModal(true)}
+                    disabled={enrichingEmails || selectedResearchedIds.size === 0}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
                   >
-                    {findingContacts ? (
+                    {enrichingEmails ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Searching {project.selectedCompanyIds.length} companies...
+                        Finding emails...
                       </>
                     ) : (
                       <>
-                        <Users className="w-4 h-4" />
-                        Search {project.selectedCompanyIds.length} Companies
+                        <Mail className="w-4 h-4" />
+                        Find Emails ({selectedResearchedIds.size} contacts)
                       </>
                     )}
                   </button>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Contacts Found */}
+            {/* Cost Confirmation Modal */}
+            {showCostConfirmModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/50" onClick={() => setShowCostConfirmModal(false)} />
+                <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Email Lookup</h3>
+                  <p className="text-gray-600 mb-4">
+                    This will use approximately <strong className="text-amber-600">{selectedResearchedIds.size} Apollo credits</strong> to
+                    look up emails for the selected contacts.
+                  </p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-amber-800">
+                      Apollo credits are consumed even if an email is not found. Consider selecting only the most relevant contacts.
+                    </p>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => setShowCostConfirmModal(false)}
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleEnrichEmails}
+                      disabled={enrichingEmails}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {enrichingEmails ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          Proceed ({selectedResearchedIds.size} credits)
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Phase 2 Results: Enriched Contacts (with emails) */}
             <div className="bg-white rounded-xl border p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Contacts Found</h3>
+                <h3 className="font-semibold text-gray-900">Contacts with Emails</h3>
                 <span className="text-sm text-gray-500">
                   <strong className="text-gray-900">{project.persons.length}</strong> contacts from {
                     new Set(project.persons.map(p => p.company)).size
                   } companies
                 </span>
               </div>
-              <ResultsTable
-                type="persons"
-                data={project.persons}
-                selectedIds={new Set(project.selectedPersonIds)}
-                onSelectionChange={handlePersonSelectionChange}
-                onDelete={handleDeletePerson}
-              />
+              {project.persons.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  No contacts with emails yet. Use the two-phase process above to find and enrich contacts.
+                </p>
+              ) : (
+                <ResultsTable
+                  type="persons"
+                  data={project.persons}
+                  selectedIds={new Set(project.selectedPersonIds)}
+                  onSelectionChange={handlePersonSelectionChange}
+                  onDelete={handleDeletePerson}
+                />
+              )}
             </div>
+
+            {/* Legacy: Direct Apollo Search (Optional) */}
+            <details className="bg-gray-50 rounded-xl border p-4">
+              <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-900">
+                Alternative: Direct Apollo Search (uses credits immediately)
+              </summary>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
+                  Direct search uses ~1 credit per company
+                </div>
+                <button
+                  onClick={handleFindContacts}
+                  disabled={findingContacts || project.selectedCompanyIds.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                >
+                  {findingContacts ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Users className="w-4 h-4" />
+                      Direct Apollo Search
+                    </>
+                  )}
+                </button>
+              </div>
+            </details>
 
             <div className="flex justify-between">
               <button

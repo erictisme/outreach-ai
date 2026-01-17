@@ -11,3 +11,6 @@ Files: src/components/CompanyCards.tsx (new), src/app/api/parse-company/route.ts
 
 F4 Company Enrichment with Web Search: DONE - Perplexity API endpoint for web search, enrichment button with progress bar, source tracking
 Files: src/app/api/enrich-company-web/route.ts (new), src/components/ApiKeyModal.tsx, src/app/project/[id]/workflow/page.tsx
+
+F5 Two-phase Contact Discovery: DONE - Phase 1 free research (Gemini AI), Phase 2 paid email enrichment (Apollo), contact card selection, cost estimate, confirmation modal
+Files: src/app/api/find-contacts-free/route.ts (new), src/app/api/enrich-contacts-email/route.ts (new), src/app/project/[id]/workflow/page.tsx
