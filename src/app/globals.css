@@ -1,8 +1,19 @@
 @import "tailwindcss";
 
+/* Force light mode - disable system dark mode */
 :root {
+  color-scheme: light only;
   --background: #f8fafc;
   --foreground: #1e293b;
+}
+
+/* Override Tailwind's dark mode completely */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light only;
+    --background: #f8fafc;
+    --foreground: #1e293b;
+  }
 }
 
 @theme inline {
@@ -12,11 +23,15 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Force light mode for now - dark mode needs proper styling */
-body {
-  background: var(--background);
-  color: var(--foreground);
+html, body {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Force all dark: variants to use light colors */
+* {
+  color-scheme: light only !important;
 }
 
 /* Indeterminate progress bar animation */
