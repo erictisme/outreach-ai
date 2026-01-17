@@ -27,3 +27,6 @@ Files: src/components/ConversationModal.tsx (reply textarea, Add Reply button, r
 
 F17c: Conversation modal - follow-up generation - DONE
 Files: src/components/ConversationModal.tsx (follow-up section with dropdown, generate button, editable textarea, add to thread, follow-up count badge), src/app/project/[id]/page.tsx (followUpCount persist to contact)
+
+F18: Load existing data on page mount - DONE
+Files: src/app/project/[id]/page.tsx (DataTable integration, useMemo transform, status/date change handlers with Supabase persistence)

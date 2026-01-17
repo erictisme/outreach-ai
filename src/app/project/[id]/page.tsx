@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
@@ -8,7 +8,9 @@ import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
 import { WizardPanel, WizardStep } from '@/components/WizardPanel'
 import { ConversationModal } from '@/components/ConversationModal'
-import { EmailDraft, Conversation, Company, ResearchedContact } from '@/types'
+import { DataTable, DataTableRow } from '@/components/DataTable'
+import { Status } from '@/components/StatusDropdown'
+import { EmailDraft, Conversation, Company, ResearchedContact, Person } from '@/types'
 
 export default function ProjectPage() {
   const params = useParams()
@@ -65,7 +67,178 @@ export default function ProjectPage() {
     contacts?: ResearchedContact[]
     emails?: EmailDraft[]
     conversations?: Conversation[]
+    tableStatuses?: Record<string, Status> // contactId -> Status
+    tableDatesSent?: Record<string, string> // contactId -> ISO date string
   } | null
+
+  // Transform schema data into DataTableRow format
+  const tableRows: DataTableRow[] = useMemo(() => {
+    if (!schemaConfig) return []
+
+    const companies = schemaConfig.companies || []
+    const contacts = schemaConfig.contacts || []
+    const emails = schemaConfig.emails || []
+    const tableStatuses = schemaConfig.tableStatuses || {}
+    const tableDatesSent = schemaConfig.tableDatesSent || {}
+
+    // Create a map of companyId -> contacts
+    const contactsByCompany = new Map<string, ResearchedContact[]>()
+    contacts.forEach((contact) => {
+      const existing = contactsByCompany.get(contact.companyId) || []
+      existing.push(contact)
+      contactsByCompany.set(contact.companyId, existing)
+    })
+
+    // Create a map of contactId -> email
+    const emailByContact = new Map<string, EmailDraft>()
+    emails.forEach((email) => {
+      if (email.to?.id) {
+        emailByContact.set(email.to.id, email)
+      }
+    })
+
+    const rows: DataTableRow[] = []
+
+    companies.forEach((company) => {
+      const companyContacts = contactsByCompany.get(company.id) || []
+
+      if (companyContacts.length === 0) {
+        // Company with no contacts - show as single row
+        rows.push({
+          company,
+          contact: null,
+          email: null,
+          status: 'not_contacted',
+          dateSent: null,
+        })
+      } else {
+        // One row per contact
+        companyContacts.forEach((contact) => {
+          const email = emailByContact.get(contact.id) || null
+          const contactEmail = (contact as ResearchedContact & { email?: string }).email
+
+          // Convert ResearchedContact to Person if it has an email
+          const person: Person | null = contactEmail
+            ? {
+                id: contact.id,
+                company: contact.company,
+                companyId: contact.companyId,
+                name: contact.name,
+                title: contact.title,
+                email: contactEmail,
+                linkedin: contact.linkedinUrl || '',
+                seniority: contact.seniority,
+                source: 'web_research',
+                verificationStatus: contact.verified ? 'verified' : 'unverified',
+                emailCertainty: contact.verified ? 80 : 50,
+                emailSource: 'web_research',
+                emailVerified: contact.verified || false,
+              }
+            : null
+
+          rows.push({
+            company,
+            contact: person,
+            email,
+            status: tableStatuses[contact.id] || 'not_contacted',
+            dateSent: tableDatesSent[contact.id] || null,
+          })
+        })
+      }
+    })
+
+    return rows
+  }, [schemaConfig])
+
+  // Handle status change in data table
+  const handleStatusChange = async (index: number, status: Status) => {
+    if (!project || !schemaConfig) return
+
+    const row = tableRows[index]
+    const contactId = schemaConfig.contacts?.[index]?.id
+
+    // Find the actual contact ID from the row's contact or use company ID as fallback
+    const actualContactId =
+      row.contact?.id || (row.company ? `company-${row.company.id}` : contactId)
+    if (!actualContactId) return
+
+    const updatedStatuses = {
+      ...(schemaConfig.tableStatuses || {}),
+      [actualContactId]: status,
+    }
+
+    const supabase = getSupabase()
+    const updatedSchemaConfig = {
+      ...schemaConfig,
+      tableStatuses: updatedStatuses,
+    }
+
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({
+        schema_config: updatedSchemaConfig,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', project.id)
+
+    if (updateError) {
+      console.error('Failed to update status:', updateError)
+      return
+    }
+
+    setProject({
+      ...project,
+      schema_config: updatedSchemaConfig,
+      updated_at: new Date().toISOString(),
+    })
+  }
+
+  // Handle date change in data table
+  const handleDateChange = async (index: number, date: string | null) => {
+    if (!project || !schemaConfig) return
+
+    const row = tableRows[index]
+    const contactId = schemaConfig.contacts?.[index]?.id
+
+    const actualContactId =
+      row.contact?.id || (row.company ? `company-${row.company.id}` : contactId)
+    if (!actualContactId) return
+
+    const updatedDates = {
+      ...(schemaConfig.tableDatesSent || {}),
+      [actualContactId]: date || '',
+    }
+
+    // Remove empty dates
+    if (!date) {
+      delete updatedDates[actualContactId]
+    }
+
+    const supabase = getSupabase()
+    const updatedSchemaConfig = {
+      ...schemaConfig,
+      tableDatesSent: updatedDates,
+    }
+
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({
+        schema_config: updatedSchemaConfig,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', project.id)
+
+    if (updateError) {
+      console.error('Failed to update date:', updateError)
+      return
+    }
+
+    setProject({
+      ...project,
+      schema_config: updatedSchemaConfig,
+      updated_at: new Date().toISOString(),
+    })
+  }
 
   // Handle opening conversation modal
   const handleOpenConversation = (contactId: string, email: EmailDraft) => {
@@ -258,8 +431,12 @@ export default function ProjectPage() {
 
         {/* Right area - Data Table */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="h-full bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-gray-500 text-sm">Data Table</div>
+          <div className="h-full bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <DataTable
+              data={tableRows}
+              onStatusChange={handleStatusChange}
+              onDateChange={handleDateChange}
+            />
           </div>
         </div>
       </div>

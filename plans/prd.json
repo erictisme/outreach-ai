@@ -251,7 +251,7 @@
       "id": "F18",
       "name": "Load existing data on page mount",
       "priority": 18,
-      "passes": false,
+      "passes": true,
       "description": "Fetch and display existing companies/contacts from Supabase when page loads",
       "steps": [
         "In project page, after loading project, fetch companies from Supabase where project_id matches",
