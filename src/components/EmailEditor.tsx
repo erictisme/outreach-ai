@@ -400,7 +400,7 @@ export function EmailEditor({ emails, onEmailsChange }: EmailEditorProps) {
                   {/* Show what prompt created this version */}
                   {hasVersions && versions[currentVersionIdx]?.prompt && (
                     <div className="text-xs text-gray-400 italic">
-                      Refined with: "{versions[currentVersionIdx].prompt}"
+                      Refined with: &quot;{versions[currentVersionIdx].prompt}&quot;
                     </div>
                   )}
 

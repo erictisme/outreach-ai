@@ -61,7 +61,7 @@ Only return valid JSON object, no other text or markdown.`
     const text = await generateContent(prompt)
 
     // Remove markdown code blocks if present
-    let cleanedText = text
+    const cleanedText = text
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
       .trim()
@@ -90,7 +90,7 @@ Only return valid JSON object, no other text or markdown.`
     }
 
     // Clean common JSON issues
-    let jsonStr = jsonMatch[0]
+    const jsonStr = jsonMatch[0]
       .replace(/,\s*}/g, '}')
       .replace(/[\x00-\x1F\x7F]/g, ' ')
 

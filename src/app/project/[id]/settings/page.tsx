@@ -49,7 +49,7 @@ interface ApiKeyState {
 
 export default function SettingsPage() {
   const params = useParams()
-  const router = useRouter()
+  const _router = useRouter()
   const projectId = params.id as string
   const { addToast } = useToast()
 

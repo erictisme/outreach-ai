@@ -37,7 +37,7 @@ export default function ProjectPage() {
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false)
   const [isMobileWizardOpen, setIsMobileWizardOpen] = useState(false)
   const [expandedStep, setExpandedStep] = useState<WizardStep>('setup')
-  const [completedSteps, setCompletedSteps] = useState<WizardStep[]>([])
+  const [completedSteps, _setCompletedSteps] = useState<WizardStep[]>([])
 
   // Conversation modal state
   const [conversationModal, setConversationModal] = useState<{
@@ -60,7 +60,7 @@ export default function ProjectPage() {
   const DEBOUNCE_DELAY = 300
 
   // Table ref for keyboard navigation
-  const tableRef = useRef<{ focusRow: (index: number) => void; getFocusedRow: () => number } | null>(null)
+  const _tableRef = useRef<{ focusRow: (index: number) => void; getFocusedRow: () => number } | null>(null)
   const [focusedRowIndex, setFocusedRowIndex] = useState(-1)
 
   // Keyboard shortcuts

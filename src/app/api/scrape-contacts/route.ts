@@ -133,7 +133,7 @@ Only return valid JSON array, no other text or markdown.`
   const text = await generateContent(prompt)
 
   // Parse response
-  let cleanedText = text
+  const cleanedText = text
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim()

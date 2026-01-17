@@ -62,13 +62,13 @@ Only return valid JSON array, no other text or markdown.`
     const text = await generateContent(prompt)
 
     // Remove markdown code blocks if present
-    let cleanedText = text
+    const cleanedText = text
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
       .trim()
 
     // Parse JSON array from response
-    let jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
+    const jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
 
     if (!jsonMatch) {
       console.error('Raw response:', text.substring(0, 500))
@@ -86,7 +86,7 @@ Only return valid JSON array, no other text or markdown.`
     }
 
     // Clean common JSON issues
-    let jsonStr = jsonMatch[0]
+    const jsonStr = jsonMatch[0]
       .replace(/,\s*]/g, ']')
       .replace(/,\s*}/g, '}')
       .replace(/[\x00-\x1F\x7F]/g, ' ')

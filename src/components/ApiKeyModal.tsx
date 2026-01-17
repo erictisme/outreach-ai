@@ -94,15 +94,16 @@ export function ApiKeyModal({ isOpen, requiredKey, onClose, onSave }: ApiKeyModa
   const [savedMessage, setSavedMessage] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Load keys from localStorage on open
+  // Load keys from localStorage and focus input when modal opens
   useEffect(() => {
     if (isOpen) {
-      setKeys(getAllApiKeys())
-      setSavedMessage(false)
-      // Focus the required key input or first input
-      setTimeout(() => {
+      // Use setTimeout to avoid synchronous setState during render cycle
+      const timer = setTimeout(() => {
+        setKeys(getAllApiKeys())
+        setSavedMessage(false)
         inputRef.current?.focus()
-      }, 100)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [isOpen])
 

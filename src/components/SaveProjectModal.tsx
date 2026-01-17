@@ -14,14 +14,16 @@ export function SaveProjectModal({ isOpen, defaultName = '', onSave, onCancel }:
   const [name, setName] = useState(defaultName || 'Untitled Project')
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Update name, focus and select when modal opens
   useEffect(() => {
     if (isOpen) {
-      setName(defaultName || 'Untitled Project')
-      // Focus and select text after modal opens
-      setTimeout(() => {
+      // Use setTimeout to avoid synchronous setState during render cycle
+      const timer = setTimeout(() => {
+        setName(defaultName || 'Untitled Project')
         inputRef.current?.focus()
         inputRef.current?.select()
-      }, 100)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [isOpen, defaultName])
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Upload, FileText, X, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UploadedDoc, ProjectContext } from '@/types'

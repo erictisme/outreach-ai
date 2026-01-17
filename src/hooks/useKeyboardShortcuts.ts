@@ -19,7 +19,10 @@ interface UseKeyboardShortcutsOptions {
 
 export function useKeyboardShortcuts({ shortcuts, enabled = true }: UseKeyboardShortcutsOptions) {
   const shortcutsRef = useRef(shortcuts)
-  shortcutsRef.current = shortcuts
+
+  useEffect(() => {
+    shortcutsRef.current = shortcuts
+  }, [shortcuts])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Don't trigger shortcuts when typing in inputs, textareas, or contenteditable

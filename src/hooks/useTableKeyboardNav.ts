@@ -92,8 +92,10 @@ export function useTableKeyboardNav<T>({
 
   // Reset focus index when items change significantly
   useEffect(() => {
-    if (focusedIndex >= items.length) {
-      setFocusedIndex(items.length - 1)
+    if (focusedIndex >= items.length && items.length > 0) {
+      // Use setTimeout to avoid synchronous setState during render cycle
+      const timer = setTimeout(() => setFocusedIndex(items.length - 1), 0)
+      return () => clearTimeout(timer)
     }
   }, [items.length, focusedIndex])
 

@@ -1,0 +1,143 @@
+{
+  "archived": [
+    {
+      "id": "F1",
+      "name": "Project page shell",
+      "priority": 1,
+      "passes": true,
+      "description": "Create the main project page with two-column layout",
+      "steps": [
+        "Create src/app/project/[id]/page.tsx as 'use client' component",
+        "Add two-column flex layout: left panel (w-80, collapsible) + right main area (flex-1)",
+        "Left panel: placeholder div with 'Wizard Panel' text",
+        "Right area: placeholder div with 'Data Table' text",
+        "Add collapse/expand button for left panel (ChevronLeft/Right icon)",
+        "Load project from Supabase by ID, show loading spinner",
+        "Show error state if project not found",
+        "Header with project name and 'Back to Projects' link"
+      ],
+      "acceptance": "Page loads with two-column layout, panel collapses/expands"
+    },
+    {
+      "id": "F2",
+      "name": "Data table component",
+      "priority": 2,
+      "passes": true,
+      "description": "Create the main unified data table that shows all enriched data",
+      "steps": [
+        "Create src/components/DataTable.tsx",
+        "Columns: Company, Contact, Title, Email, Status, Date Sent, Actions",
+        "Accept data prop: array of rows with company+contact+email info",
+        "Render table with Tailwind styling (border, hover states)",
+        "Empty state: 'No data yet. Use the wizard to add companies and contacts.'",
+        "Add header row with column names",
+        "Each row shows: company name, contact name, title, email (or '-'), status dropdown, date picker"
+      ],
+      "acceptance": "Table renders with columns, shows empty state when no data"
+    },
+    {
+      "id": "F3",
+      "name": "Status dropdown inline edit",
+      "priority": 3,
+      "passes": true,
+      "description": "Add inline status editing to table rows",
+      "steps": [
+        "Create src/components/StatusDropdown.tsx",
+        "Status options: Not Contacted, Email Sent, Replied, Meeting Secured, Rejected, Closed",
+        "Dropdown styled as inline select (no border until hover)",
+        "Color coding: Not Contacted (gray), Email Sent (blue), Replied (green), Meeting Secured (purple), Rejected (red), Closed (dark)",
+        "onChange calls parent handler to update status",
+        "Integrate into DataTable rows"
+      ],
+      "acceptance": "Can change status inline, colors update immediately"
+    },
+    {
+      "id": "F4",
+      "name": "Date sent column with follow-up alert",
+      "priority": 4,
+      "passes": true,
+      "description": "Add date sent picker and 3-day follow-up visual indicator",
+      "steps": [
+        "Add date picker input in Date Sent column (type='date')",
+        "Calculate days since date sent",
+        "If status is 'Email Sent' AND days >= 3: highlight row with amber/yellow background",
+        "Add small badge or icon indicating 'Follow-up needed'",
+        "Clear highlight when status changes to Replied/Meeting Secured/Closed",
+        "Save date to Supabase on change"
+      ],
+      "acceptance": "Date picker works, rows highlight after 3 days of Email Sent status"
+    },
+    {
+      "id": "F5",
+      "name": "Copy buttons for table",
+      "priority": 5,
+      "passes": true,
+      "description": "Add copy functionality for TSV and emails",
+      "steps": [
+        "Add button bar above table: [Copy as TSV] [Copy Emails Only] [Export CSV]",
+        "Copy as TSV: copies all visible rows as tab-separated values",
+        "Copy Emails Only: copies just the email addresses, one per line",
+        "Export CSV: downloads as .csv file",
+        "Show toast notification on successful copy",
+        "Use navigator.clipboard.writeText for copy"
+      ],
+      "acceptance": "All three copy/export buttons work, toast shows on success"
+    },
+    {
+      "id": "F6",
+      "name": "Wizard panel accordion shell",
+      "priority": 6,
+      "passes": true,
+      "description": "Create collapsible accordion for wizard steps",
+      "steps": [
+        "Create src/components/WizardPanel.tsx",
+        "5 accordion sections: Setup, Context, Companies, Contacts, Emails",
+        "Each section has header (clickable) + content (collapsible)",
+        "Only one section expanded at a time (accordion behavior)",
+        "Section header shows: step number, title, completion indicator (checkmark if done)",
+        "Smooth expand/collapse animation",
+        "Pass expanded step and onStepChange as props"
+      ],
+      "acceptance": "Accordion expands/collapses, only one open at a time"
+    },
+    {
+      "id": "F7",
+      "name": "Step 1: Setup form - basic fields",
+      "priority": 7,
+      "passes": true,
+      "description": "Implement the Setup wizard step basic inputs",
+      "steps": [
+        "Create src/components/wizard/SetupStep.tsx",
+        "Objective dropdown: Sales Prospects, Find Distributors, Find Suppliers, Find Partners, Custom",
+        "If Custom selected, show text input for custom objective",
+        "Company/Client name text input",
+        "Context textarea (large, multi-line) for project description",
+        "Optional email template textarea",
+        "Save button that stores to project.schema_config in Supabase",
+        "Load existing values from project on mount"
+      ],
+      "acceptance": "Form fields save to Supabase and persist on reload"
+    },
+    {
+      "id": "F7b",
+      "name": "Step 1: Setup form - file upload and extraction",
+      "priority": 7,
+      "passes": true,
+      "description": "Add file upload and LLM extraction to Setup step",
+      "steps": [
+        "Add file upload area for PDFs/docs in SetupStep.tsx",
+        "Accept PDF, DOCX, TXT files",
+        "Display uploaded file names with remove button",
+        "Extract text from uploaded files client-side (pdf.js or server-side)",
+        "Append extracted text to context textarea OR store separately",
+        "Add 'Extract Context' button that calls /api/extract",
+        "Show loading spinner during extraction",
+        "On success, auto-advance to Context step (step 2)"
+      ],
+      "acceptance": "Can upload files, extract text, and trigger LLM extraction"
+    }
+  ],
+  "archivedAt": [
+    "2026-01-17T16:07:27.765Z"
+  ]
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { ChevronUp, ChevronDown, Copy, Trash2, Check, Clock, AlertCircle, CheckCircle } from 'lucide-react'
-import { PromptLogEntry, getPromptLog, clearPromptLog, subscribeToPromptLog } from '@/lib/promptLogger'
+import { PromptLogEntry, clearPromptLog, subscribeToPromptLog } from '@/lib/promptLogger'
 import { cn } from '@/lib/utils'
 
 interface PromptInspectorProps {

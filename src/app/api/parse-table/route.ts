@@ -65,19 +65,19 @@ Only return valid JSON array, no other text.`
   const text = await generateContent(prompt)
 
   // Clean and parse response
-  let cleanedText = text
+  const cleanedText = text
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim()
 
-  let jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
+  const jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
 
   if (!jsonMatch) {
     console.error('Could not parse companies from:', rawText.substring(0, 200))
     return NextResponse.json({ companies: [], error: 'Could not parse data' })
   }
 
-  let jsonStr = jsonMatch[0]
+  const jsonStr = jsonMatch[0]
     .replace(/,\s*]/g, ']')
     .replace(/,\s*}/g, '}')
     .replace(/[\x00-\x1F\x7F]/g, ' ')
@@ -145,19 +145,19 @@ Only return valid JSON array, no other text.`
   const text = await generateContent(prompt)
 
   // Clean and parse response
-  let cleanedText = text
+  const cleanedText = text
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim()
 
-  let jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
+  const jsonMatch = cleanedText.match(/\[[\s\S]*\]/)
 
   if (!jsonMatch) {
     console.error('Could not parse contacts from:', rawText.substring(0, 200))
     return NextResponse.json({ persons: [], error: 'Could not parse data' })
   }
 
-  let jsonStr = jsonMatch[0]
+  const jsonStr = jsonMatch[0]
     .replace(/,\s*]/g, ']')
     .replace(/,\s*}/g, '}')
     .replace(/[\x00-\x1F\x7F]/g, ' ')

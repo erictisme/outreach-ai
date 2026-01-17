@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If preferred provider specified, reorder to start from there
-    let providers = [...configuredProviders]
+    const providers = [...configuredProviders]
     if (preferredProvider) {
       const idx = providers.findIndex(p => p.name === preferredProvider)
       if (idx > 0) {

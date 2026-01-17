@@ -99,8 +99,16 @@ function SortableHeader({
 export function DataTable({ data, projectId, onStatusChange, onDateChange, onBulkDelete, onBulkStatusChange, isSaving, isLoading, onRetry, focusedRowIndex = -1, onFocusedRowChange }: DataTableProps) {
   const { addToast } = useToast()
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
-  const tableContainerRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map())
+
+  // Use a stable timestamp for filtering to avoid impure currentTime calls during render
+  const [currentTime, setCurrentTime] = useState(() => Date.now())
+
+  // Update current time periodically for follow-up calculations
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 60000) // Update every minute
+    return () => clearInterval(interval)
+  }, [])
 
   // Scroll focused row into view
   useEffect(() => {
@@ -120,7 +128,9 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as TablePreferences
-        setPreferences(parsed)
+        // Use setTimeout to avoid synchronous setState during render cycle
+        const timer = setTimeout(() => setPreferences(parsed), 0)
+        return () => clearTimeout(timer)
       } catch {
         // Invalid stored data, use defaults
       }
@@ -174,7 +184,7 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
     if (preferences.filter !== 'all') {
       result = result.filter(({ row }) => {
         const daysSinceSent = row.dateSent
-          ? Math.floor((Date.now() - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
+          ? Math.floor((currentTime - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
           : null
 
         switch (preferences.filter) {
@@ -231,7 +241,7 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
     }
 
     return result
-  }, [data, preferences.search, preferences.filter, preferences.sort])
+  }, [data, preferences.search, preferences.filter, preferences.sort, currentTime])
 
   // Generate stable row IDs for selection (using processed data)
   const rowIds = useMemo(() => {
@@ -602,7 +612,7 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
             {processedData.map(({ row, originalIndex }, displayIndex) => {
               // Calculate if follow-up is needed
               const daysSinceSent = row.dateSent
-                ? Math.floor((Date.now() - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
+                ? Math.floor((currentTime - new Date(row.dateSent).getTime()) / (1000 * 60 * 60 * 24))
                 : null
               const needsFollowUp = row.status === 'email_sent' && daysSinceSent !== null && daysSinceSent >= 3
               const isSelected = selectedRows.has(originalIndex)

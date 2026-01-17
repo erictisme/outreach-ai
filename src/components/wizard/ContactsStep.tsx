@@ -24,7 +24,10 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
   }
 
   const companies: Company[] = schemaConfig.companies || []
-  const existingContacts: ResearchedContact[] = schemaConfig.contacts || []
+  const existingContacts: ResearchedContact[] = useMemo(
+    () => schemaConfig.contacts || [],
+    [schemaConfig.contacts]
+  )
 
   // Track selected company IDs for research
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(() => {
@@ -55,6 +58,19 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     // Default select contacts without emails
     return new Set(existingContacts.filter((c) => !(c as ResearchedContact & { email?: string }).email).map((c) => c.id))
   })
+
+  // Compute contacts without emails for enrichment - MUST be before early returns
+  const contactsWithoutEmails = useMemo(() => {
+    return existingContacts.filter((c) => {
+      const email = (c as ResearchedContact & { email?: string }).email
+      return !email || email.trim() === ''
+    })
+  }, [existingContacts])
+
+  // Selected existing contacts for email enrichment - MUST be before early returns
+  const selectedExistingContacts = useMemo(() => {
+    return existingContacts.filter((c) => selectedExistingContactIds.has(c.id))
+  }, [existingContacts, selectedExistingContactIds])
 
   // No companies yet
   if (companies.length === 0) {
@@ -107,19 +123,6 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
 
   const selectedCompanyCount = selectedCompanyIds.size
   const targetRoles = schemaConfig.extractedContext?.targetRoles || []
-
-  // Compute contacts without emails for enrichment
-  const contactsWithoutEmails = useMemo(() => {
-    return existingContacts.filter((c) => {
-      const email = (c as ResearchedContact & { email?: string }).email
-      return !email || email.trim() === ''
-    })
-  }, [existingContacts])
-
-  // Selected existing contacts for email enrichment
-  const selectedExistingContacts = useMemo(() => {
-    return existingContacts.filter((c) => selectedExistingContactIds.has(c.id))
-  }, [existingContacts, selectedExistingContactIds])
 
   // Toggle selection for existing contacts
   const handleToggleExistingContact = (contactId: string) => {
