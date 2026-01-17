@@ -181,7 +181,7 @@
       "id": "F16",
       "name": "Step 5: Emails - per-contact display",
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "description": "Display generated emails per contact",
       "steps": [
         "List contacts with their generated emails below master prompt",

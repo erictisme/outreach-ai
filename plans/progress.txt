@@ -47,3 +47,6 @@ Files: src/components/wizard/ContactsStep.tsx (existing contacts view, Find Emai
 
 F15: Emails step - master prompt - DONE
 Files: src/components/wizard/EmailsStep.tsx (new), src/components/WizardPanel.tsx (import + integration)
+
+F16: Emails step - per-contact display - DONE
+Files: src/components/wizard/EmailsStep.tsx (per-contact email cards with copy buttons, collapsible individual prompt, regenerate button, Enter Conversation button)
