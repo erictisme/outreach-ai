@@ -6,6 +6,7 @@ import Papa from 'papaparse'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { ProjectContext, Segment, Company } from '@/types'
+import { useToast } from '@/components/ui/Toast'
 
 interface SegmentWithCount extends Segment {
   count: number
@@ -32,6 +33,7 @@ interface CompaniesStepProps {
 }
 
 export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepProps) {
+  const { addToast } = useToast()
   const schemaConfig = project.schema_config as {
     extractedContext?: ProjectContext
     companies?: Company[]
@@ -244,6 +246,9 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
       }
       onUpdate(updatedProject)
 
+      // Show success toast
+      addToast(`Added ${enrichedCompanies.length} companies to the table`, 'success')
+
       // Clear generated companies (they're now in the table)
       setGeneratedCompanies([])
 
@@ -252,6 +257,7 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
     } catch (err) {
       console.error('Enrich error:', err)
       setError(err instanceof Error ? err.message : 'Failed to enrich companies')
+      addToast('Failed to add companies', 'error')
     } finally {
       setIsEnriching(false)
     }
@@ -469,6 +475,9 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
       }
       onUpdate(updatedProject)
 
+      // Show success toast
+      addToast(`Imported ${enrichedResults.length} companies to the table`, 'success')
+
       // Clear import state
       setParsedCompanies([])
       setImportText('')
@@ -480,6 +489,7 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
     } catch (err) {
       console.error('Enrich import error:', err)
       setError(err instanceof Error ? err.message : 'Failed to enrich companies')
+      addToast('Failed to import companies', 'error')
     } finally {
       setIsEnriching(false)
       setEnrichProgress(null)

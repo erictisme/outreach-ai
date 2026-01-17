@@ -268,7 +268,7 @@
       "id": "F18b",
       "name": "Wizard-to-table data flow",
       "priority": 18,
-      "passes": false,
+      "passes": true,
       "description": "When wizard steps add data, update the table",
       "steps": [
         "Create shared state or context for tableRows in project page",

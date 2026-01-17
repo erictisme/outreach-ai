@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Company, ResearchedContact, ProjectContext, Person } from '@/types'
 import { ApiKeyModal, getApiKey } from '@/components/ApiKeyModal'
+import { useToast } from '@/components/ui/Toast'
 
 interface ContactsStepProps {
   project: Project
@@ -14,6 +15,7 @@ interface ContactsStepProps {
 }
 
 export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProps) {
+  const { addToast } = useToast()
   const schemaConfig = project.schema_config as {
     extractedContext?: ProjectContext
     companies?: Company[]
@@ -378,11 +380,15 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
         total: contactsToEnrich.length,
       })
 
+      // Show success toast
+      addToast(`Found ${summary.emailsFound || 0} email addresses`, 'success')
+
       // Clear selection
       setSelectedExistingContactIds(new Set())
     } catch (err) {
       console.error('Email enrichment error:', err)
       setEnrichError(err instanceof Error ? err.message : 'Failed to enrich contacts with emails')
+      addToast('Failed to find emails', 'error')
     } finally {
       setIsEnrichingEmails(false)
     }
@@ -464,6 +470,9 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
       }
       onUpdate(updatedProject)
 
+      // Show success toast
+      addToast(`Added ${contactsToSave.length} contacts to the table`, 'success')
+
       // Clear found contacts state
       setFoundContacts([])
       setSelectedContactIds(new Set())
@@ -473,6 +482,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     } catch (err) {
       console.error('Save contacts error:', err)
       setError(err instanceof Error ? err.message : 'Failed to save contacts')
+      addToast('Failed to save contacts', 'error')
     } finally {
       setIsResearching(false)
     }

@@ -5,6 +5,7 @@ import { Loader2, AlertTriangle, Mail, Save, RefreshCw, Copy, Check, ChevronDown
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Company, ResearchedContact, ProjectContext, Person, EmailDraft } from '@/types'
+import { useToast } from '@/components/ui/Toast'
 
 interface EmailsStepProps {
   project: Project
@@ -14,6 +15,7 @@ interface EmailsStepProps {
 }
 
 export function EmailsStep({ project, onUpdate, onOpenConversation }: EmailsStepProps) {
+  const { addToast } = useToast()
   const schemaConfig = project.schema_config as {
     extractedContext?: ProjectContext
     companies?: Company[]
@@ -171,9 +173,13 @@ export function EmailsStep({ project, onUpdate, onOpenConversation }: EmailsStep
         updated_at: new Date().toISOString(),
       }
       onUpdate(updatedProject)
+
+      // Show success toast
+      addToast(`Generated ${generatedEmails.length} emails`, 'success')
     } catch (err) {
       console.error('Generate emails error:', err)
       setError(err instanceof Error ? err.message : 'Failed to generate emails')
+      addToast('Failed to generate emails', 'error')
     } finally {
       setIsGenerating(false)
     }
@@ -278,10 +284,14 @@ export function EmailsStep({ project, onUpdate, onOpenConversation }: EmailsStep
           updated_at: new Date().toISOString(),
         }
         onUpdate(updatedProject)
+
+        // Show success toast
+        addToast('Email regenerated', 'success')
       }
     } catch (err) {
       console.error('Regenerate email error:', err)
       setError(err instanceof Error ? err.message : 'Failed to regenerate email')
+      addToast('Failed to regenerate email', 'error')
     } finally {
       setRegeneratingEmail(null)
     }

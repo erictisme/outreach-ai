@@ -30,3 +30,6 @@ Files: src/components/ConversationModal.tsx (follow-up section with dropdown, ge
 
 F18: Load existing data on page mount - DONE
 Files: src/app/project/[id]/page.tsx (DataTable integration, useMemo transform, status/date change handlers with Supabase persistence)
+
+F18b: Wizard-to-table data flow - DONE
+Files: src/components/wizard/{CompaniesStep,ContactsStep,EmailsStep}.tsx (toast notifications on save/error via useToast hook)
