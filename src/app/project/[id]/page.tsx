@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
+import { WizardPanel, WizardStep } from '@/components/WizardPanel'
 
 export default function ProjectPage() {
   const params = useParams()
@@ -15,6 +16,8 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false)
+  const [expandedStep, setExpandedStep] = useState<WizardStep>('setup')
+  const [completedSteps, setCompletedSteps] = useState<WizardStep[]>([])
 
   useEffect(() => {
     async function loadProject() {
@@ -98,10 +101,12 @@ export default function ProjectPage() {
             isPanelCollapsed ? 'w-0' : 'w-80'
           } border-r border-gray-200 bg-gray-50 flex-shrink-0 transition-all duration-300 overflow-hidden`}
         >
-          <div className="w-80 h-full p-4">
-            <div className="h-full bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-gray-500 text-sm">Wizard Panel</div>
-            </div>
+          <div className="w-80 h-full p-4 overflow-y-auto">
+            <WizardPanel
+              expandedStep={expandedStep}
+              onStepChange={setExpandedStep}
+              completedSteps={completedSteps}
+            />
           </div>
         </div>
 

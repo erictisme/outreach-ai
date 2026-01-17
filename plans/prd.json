@@ -105,7 +105,7 @@
       "id": "F6",
       "name": "Wizard panel accordion shell",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "description": "Create collapsible accordion for wizard steps",
       "steps": [
         "Create src/components/WizardPanel.tsx",
