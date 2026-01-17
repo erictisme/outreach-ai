@@ -110,7 +110,7 @@
       "id": "F13",
       "name": "Step 4: Contacts - free research (AI)",
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "description": "Free contact research using AI before paid Apollo search",
       "steps": [
         "Add 'Research Contacts (Free)' button in ContactsStep",

@@ -35,3 +35,6 @@ Files: src/components/wizard/CompaniesStep.tsx (paste textarea, CSV upload with 
 
 F12: Contacts step - company selection - DONE
 Files: src/components/wizard/ContactsStep.tsx (new), src/components/WizardPanel.tsx (import + integration)
+
+F13: Contacts step - free AI research - DONE
+Files: src/components/wizard/ContactsStep.tsx (research button, API call, contact cards with seniority/relevance, LinkedIn links, Supabase save)

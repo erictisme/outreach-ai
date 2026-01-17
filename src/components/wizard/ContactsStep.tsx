@@ -1,14 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Check, Users } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Users, Loader2, Search, Linkedin } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Project } from '@/lib/supabase'
-import { Company } from '@/types'
-
-interface CompanyWithSelection extends Company {
-  selected: boolean
-}
+import { getSupabase, Project } from '@/lib/supabase'
+import { Company, ResearchedContact, ProjectContext } from '@/types'
 
 interface ContactsStepProps {
   project: Project
@@ -18,17 +14,27 @@ interface ContactsStepProps {
 
 export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProps) {
   const schemaConfig = project.schema_config as {
-    extractedContext?: { targetRoles?: string[] }
+    extractedContext?: ProjectContext
     companies?: Company[]
+    contacts?: ResearchedContact[]
   }
 
   const companies: Company[] = schemaConfig.companies || []
+  const existingContacts: ResearchedContact[] = schemaConfig.contacts || []
 
-  // Track selected company IDs
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
-    // Default: all companies selected
+  // Track selected company IDs for research
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(() => {
     return new Set(companies.map((c) => c.id))
   })
+
+  // Research state
+  const [isResearching, setIsResearching] = useState(false)
+  const [researchProgress, setResearchProgress] = useState<{ current: number; total: number } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // Found contacts state
+  const [foundContacts, setFoundContacts] = useState<ResearchedContact[]>([])
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set())
 
   // No companies yet
   if (companies.length === 0) {
@@ -39,8 +45,8 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     )
   }
 
-  const handleToggle = (companyId: string) => {
-    setSelectedIds((prev) => {
+  const handleToggleCompany = (companyId: string) => {
+    setSelectedCompanyIds((prev) => {
       const next = new Set(prev)
       if (next.has(companyId)) {
         next.delete(companyId)
@@ -51,35 +57,343 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     })
   }
 
-  const handleSelectAll = () => {
-    setSelectedIds(new Set(companies.map((c) => c.id)))
+  const handleSelectAllCompanies = () => {
+    setSelectedCompanyIds(new Set(companies.map((c) => c.id)))
   }
 
-  const handleDeselectAll = () => {
-    setSelectedIds(new Set())
+  const handleDeselectAllCompanies = () => {
+    setSelectedCompanyIds(new Set())
   }
 
-  const selectedCount = selectedIds.size
+  const handleToggleContact = (contactId: string) => {
+    setSelectedContactIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(contactId)) {
+        next.delete(contactId)
+      } else {
+        next.add(contactId)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAllContacts = () => {
+    setSelectedContactIds(new Set(foundContacts.map((c) => c.id)))
+  }
+
+  const handleDeselectAllContacts = () => {
+    setSelectedContactIds(new Set())
+  }
+
+  const selectedCompanyCount = selectedCompanyIds.size
   const targetRoles = schemaConfig.extractedContext?.targetRoles || []
+
+  // Research contacts for selected companies
+  const handleResearchContacts = async () => {
+    const selectedCompanies = companies.filter((c) => selectedCompanyIds.has(c.id))
+    if (selectedCompanies.length === 0) return
+
+    setIsResearching(true)
+    setError(null)
+    setResearchProgress({ current: 0, total: selectedCompanies.length })
+
+    try {
+      const response = await fetch('/api/find-contacts-free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companies: selectedCompanies,
+          context: schemaConfig.extractedContext || {},
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to research contacts')
+      }
+
+      const data = await response.json()
+      const contacts: ResearchedContact[] = data.contacts || []
+
+      // Set found contacts and select all by default
+      setFoundContacts(contacts)
+      setSelectedContactIds(new Set(contacts.map((c) => c.id)))
+      setResearchProgress({ current: selectedCompanies.length, total: selectedCompanies.length })
+    } catch (err) {
+      console.error('Research contacts error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to research contacts')
+    } finally {
+      setIsResearching(false)
+      setResearchProgress(null)
+    }
+  }
+
+  // Save selected contacts to Supabase
+  const handleSaveContacts = async () => {
+    const contactsToSave = foundContacts.filter((c) => selectedContactIds.has(c.id))
+    if (contactsToSave.length === 0) return
+
+    setIsResearching(true)
+    setError(null)
+
+    try {
+      const supabase = getSupabase()
+
+      // Save contacts to contacts table
+      for (const contact of contactsToSave) {
+        // Find the company's database ID
+        const companyResult = await supabase
+          .from('companies')
+          .select('id')
+          .eq('project_id', project.id)
+          .eq('name', contact.company)
+          .single()
+
+        const dbCompanyId = companyResult.data?.id || contact.companyId
+
+        await supabase.from('contacts').upsert({
+          id: contact.id,
+          company_id: dbCompanyId,
+          name: contact.name,
+          title: contact.title,
+          email: null, // No email in free tier
+          linkedin_url: contact.linkedinUrl || null,
+          source: 'ai_research',
+          verified: false,
+          custom_fields: {
+            seniority: contact.seniority,
+            relevanceScore: contact.relevanceScore,
+            reasoning: contact.reasoning,
+            companyName: contact.company,
+          },
+        })
+      }
+
+      // Merge with existing contacts in schema_config
+      const allContacts = [...existingContacts, ...contactsToSave]
+
+      // Update project schema_config with contacts list
+      const updatedSchemaConfig = {
+        ...schemaConfig,
+        contacts: allContacts,
+      }
+
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({
+          schema_config: updatedSchemaConfig,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      // Update local state
+      const updatedProject: Project = {
+        ...project,
+        schema_config: updatedSchemaConfig,
+        updated_at: new Date().toISOString(),
+      }
+      onUpdate(updatedProject)
+
+      // Clear found contacts state
+      setFoundContacts([])
+      setSelectedContactIds(new Set())
+
+      // Move to next step
+      onComplete()
+    } catch (err) {
+      console.error('Save contacts error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save contacts')
+    } finally {
+      setIsResearching(false)
+    }
+  }
+
+  // Show found contacts for selection
+  if (foundContacts.length > 0) {
+    const selectedContactCount = selectedContactIds.size
+    const contactsByCompany = foundContacts.reduce((acc, contact) => {
+      const company = contact.company
+      if (!acc[company]) acc[company] = []
+      acc[company].push(contact)
+      return acc
+    }, {} as Record<string, ResearchedContact[]>)
+
+    return (
+      <div className="space-y-4">
+        {/* Header with selection controls */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            <span className="font-semibold">{selectedContactCount}</span> of{' '}
+            <span className="font-semibold">{foundContacts.length}</span> contacts selected
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSelectAllContacts}
+              className="text-xs text-blue-600 hover:text-blue-800"
+            >
+              Select all
+            </button>
+            <span className="text-gray-300">|</span>
+            <button
+              onClick={handleDeselectAllContacts}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Deselect all
+            </button>
+          </div>
+        </div>
+
+        {/* Contacts grouped by company */}
+        <div className="space-y-4 max-h-[400px] overflow-y-auto">
+          {Object.entries(contactsByCompany).map(([companyName, contacts]) => (
+            <div key={companyName} className="space-y-2">
+              <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                {companyName}
+              </h4>
+              <div className="space-y-2">
+                {contacts.map((contact) => {
+                  const isSelected = selectedContactIds.has(contact.id)
+                  return (
+                    <button
+                      key={contact.id}
+                      onClick={() => handleToggleContact(contact.id)}
+                      className={cn(
+                        'w-full p-3 border rounded-lg text-left transition-all',
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Checkbox indicator */}
+                        <div
+                          className={cn(
+                            'flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5',
+                            isSelected
+                              ? 'bg-blue-500 border-blue-500'
+                              : 'border-gray-300 bg-white'
+                          )}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                        </div>
+
+                        {/* Contact info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h5 className="font-medium text-gray-900 text-sm">
+                              {contact.name}
+                            </h5>
+                            {contact.linkedinUrl && (
+                              <a
+                                href={contact.linkedinUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Linkedin className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            {contact.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={cn(
+                              'text-xs px-1.5 py-0.5 rounded',
+                              contact.seniority === 'Executive' ? 'bg-purple-100 text-purple-700' :
+                              contact.seniority === 'Director' ? 'bg-blue-100 text-blue-700' :
+                              contact.seniority === 'Manager' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-600'
+                            )}>
+                              {contact.seniority}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              Relevance: {contact.relevanceScore}/10
+                            </span>
+                          </div>
+                          {contact.reasoning && (
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                              {contact.reasoning}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+            {error}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleSaveContacts}
+            disabled={selectedContactCount === 0 || isResearching}
+            className={cn(
+              'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
+              selectedContactCount === 0 || isResearching
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            )}
+          >
+            {isResearching ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                Save Selected ({selectedContactCount})
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              setFoundContacts([])
+              setSelectedContactIds(new Set())
+            }}
+            disabled={isResearching}
+            className="py-2 px-4 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
       {/* Header with selection controls */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">
-          <span className="font-semibold">{selectedCount}</span> of{' '}
+          <span className="font-semibold">{selectedCompanyCount}</span> of{' '}
           <span className="font-semibold">{companies.length}</span> companies selected
         </div>
         <div className="flex gap-2">
           <button
-            onClick={handleSelectAll}
+            onClick={handleSelectAllCompanies}
             className="text-xs text-blue-600 hover:text-blue-800"
           >
             Select all
           </button>
           <span className="text-gray-300">|</span>
           <button
-            onClick={handleDeselectAll}
+            onClick={handleDeselectAllCompanies}
             className="text-xs text-gray-500 hover:text-gray-700"
           >
             Deselect all
@@ -89,7 +403,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
 
       {/* Explanation */}
       <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded-md">
-        Find contacts at selected companies
+        Find contacts at selected companies using AI research (free)
         {targetRoles.length > 0 && (
           <span className="block mt-1">
             Target roles: {targetRoles.slice(0, 3).join(', ')}
@@ -98,19 +412,44 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
         )}
       </div>
 
+      {/* Existing contacts count */}
+      {existingContacts.length > 0 && (
+        <div className="text-xs text-green-600 bg-green-50 p-2 rounded-md">
+          {existingContacts.length} contacts already found
+        </div>
+      )}
+
+      {/* Progress bar during research */}
+      {researchProgress && (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Researching contacts...</span>
+            <span>{researchProgress.current} / {researchProgress.total} companies</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${(researchProgress.current / researchProgress.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Company list with checkboxes */}
       <div className="space-y-2 max-h-[300px] overflow-y-auto">
         {companies.map((company) => {
-          const isSelected = selectedIds.has(company.id)
+          const isSelected = selectedCompanyIds.has(company.id)
           return (
             <button
               key={company.id}
-              onClick={() => handleToggle(company.id)}
+              onClick={() => handleToggleCompany(company.id)}
+              disabled={isResearching}
               className={cn(
                 'w-full p-3 border rounded-lg text-left transition-all',
                 isSelected
                   ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  : 'border-gray-200 bg-white hover:border-gray-300',
+                isResearching && 'opacity-50 cursor-not-allowed'
               )}
             >
               <div className="flex items-start gap-3">
@@ -148,19 +487,35 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
         })}
       </div>
 
-      {/* Next button */}
+      {/* Error message */}
+      {error && (
+        <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+          {error}
+        </div>
+      )}
+
+      {/* Research button */}
       <button
-        onClick={onComplete}
-        disabled={selectedCount === 0}
+        onClick={handleResearchContacts}
+        disabled={selectedCompanyCount === 0 || isResearching}
         className={cn(
           'w-full py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
-          selectedCount === 0
+          selectedCompanyCount === 0 || isResearching
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
             : 'bg-blue-600 text-white hover:bg-blue-700'
         )}
       >
-        <Users className="w-4 h-4" />
-        Find Contacts ({selectedCount} companies)
+        {isResearching ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Researching...
+          </>
+        ) : (
+          <>
+            <Search className="w-4 h-4" />
+            Research Contacts (Free) - {selectedCompanyCount} companies
+          </>
+        )}
       </button>
     </div>
   )
