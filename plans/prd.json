@@ -143,7 +143,7 @@
       "id": "F8",
       "name": "Conversation Mode with Follow-ups",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "description": "Enter replies from contacts, generate follow-up emails, track conversation thread",
       "steps": [
         "Add 'Enter Conversation' button per contact",

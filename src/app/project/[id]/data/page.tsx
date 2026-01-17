@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ExternalLink,
   ChevronDown,
+  MessageSquare,
 } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, Email as DbEmail } from '@/lib/supabase'
 import { useToast, ErrorMessage } from '@/components/ui'
@@ -52,6 +53,7 @@ interface EnrichedRow {
   source: string
   verified: boolean
   needsFollowUp: boolean
+  hasConversation: boolean
   updatedAt: string
 }
 
@@ -146,6 +148,7 @@ export default function DataPage() {
           // Get status from custom_fields or default
           const status = (customFields.outreachStatus as ContactStatus) || 'not_contacted'
           const dateSent = (customFields.dateSent as string) || null
+          const hasConversation = !!customFields.conversation
 
           // Check if needs follow-up: status is email_sent and dateSent is 3+ days ago
           let needsFollowUp = false
@@ -172,6 +175,7 @@ export default function DataPage() {
             source: contact.source || '',
             verified: contact.verified || false,
             needsFollowUp,
+            hasConversation,
             updatedAt: contact.updated_at,
           }
         })
@@ -727,19 +731,32 @@ export default function DataPage() {
                        row.source || '-'}
                     </td>
 
-                    {/* Copy row */}
+                    {/* Actions */}
                     <td className="px-3 py-3">
-                      <button
-                        onClick={() => copyRow(row)}
-                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Copy row as TSV"
-                      >
-                        {copied === row.id ? (
-                          <Check className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <Link
+                          href={`/project/${projectId}/conversations`}
+                          className={`p-1 rounded transition-colors ${
+                            row.hasConversation
+                              ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                          }`}
+                          title={row.hasConversation ? 'View conversation' : 'Start conversation'}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => copyRow(row)}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                          title="Copy row as TSV"
+                        >
+                          {copied === row.id ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

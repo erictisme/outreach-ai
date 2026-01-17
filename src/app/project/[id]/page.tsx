@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { Zap } from 'lucide-react'
 
-type WizardStep = 'companies' | 'contacts' | 'emails' | 'data' | 'export'
+type WizardStep = 'companies' | 'contacts' | 'emails' | 'data' | 'conversations' | 'export'
 
 const STEPS: { key: WizardStep; label: string; description: string }[] = [
   { key: 'companies', label: 'Companies', description: 'Build your target list' },
   { key: 'contacts', label: 'Contacts', description: 'Find decision makers' },
   { key: 'emails', label: 'Emails', description: 'Generate personalized outreach' },
   { key: 'data', label: 'Data', description: 'Track outreach & follow-ups' },
+  { key: 'conversations', label: 'Conversations', description: 'Follow-ups & replies' },
   { key: 'export', label: 'Export', description: 'Download your data' },
 ]
 
@@ -51,7 +52,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
       </div>
 
-      <nav className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mt-6">
+      <nav className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-6">
         {STEPS.map((step, index) => (
           <Link
             key={step.key}

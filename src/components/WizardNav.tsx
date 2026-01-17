@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, Users, Mail, Download, Check, ChevronLeft, ChevronRight, Table } from 'lucide-react'
+import { Building2, Users, Mail, Download, Check, ChevronLeft, ChevronRight, Table, MessageSquare } from 'lucide-react'
 
-export type WizardStep = 'companies' | 'contacts' | 'emails' | 'data' | 'export'
+export type WizardStep = 'companies' | 'contacts' | 'emails' | 'data' | 'conversations' | 'export'
 
 interface StepConfig {
   key: WizardStep
@@ -18,6 +18,7 @@ const STEPS: StepConfig[] = [
   { key: 'contacts', label: 'Contacts', description: 'Find decision makers', icon: Users },
   { key: 'emails', label: 'Emails', description: 'Generate outreach', icon: Mail },
   { key: 'data', label: 'Data', description: 'Track & manage', icon: Table },
+  { key: 'conversations', label: 'Conversations', description: 'Follow-ups', icon: MessageSquare },
   { key: 'export', label: 'Export', description: 'Download your data', icon: Download },
 ]
 
