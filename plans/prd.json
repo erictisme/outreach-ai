@@ -120,22 +120,39 @@
     },
     {
       "id": "F7",
-      "name": "Step 1: Setup form",
+      "name": "Step 1: Setup form - basic fields",
       "priority": 7,
-      "passes": false,
-      "description": "Implement the Setup wizard step",
+      "passes": true,
+      "description": "Implement the Setup wizard step basic inputs",
       "steps": [
         "Create src/components/wizard/SetupStep.tsx",
         "Objective dropdown: Sales Prospects, Find Distributors, Find Suppliers, Find Partners, Custom",
         "If Custom selected, show text input for custom objective",
         "Company/Client name text input",
         "Context textarea (large, multi-line) for project description",
-        "File upload area for PDFs/docs (store in Supabase storage or just extract text)",
         "Optional email template textarea",
-        "Save button that stores to project and calls /api/extract",
-        "Show loading state during extraction"
+        "Save button that stores to project.schema_config in Supabase",
+        "Load existing values from project on mount"
       ],
-      "acceptance": "Form saves to Supabase, triggers extraction API"
+      "acceptance": "Form fields save to Supabase and persist on reload"
+    },
+    {
+      "id": "F7b",
+      "name": "Step 1: Setup form - file upload and extraction",
+      "priority": 7,
+      "passes": true,
+      "description": "Add file upload and LLM extraction to Setup step",
+      "steps": [
+        "Add file upload area for PDFs/docs in SetupStep.tsx",
+        "Accept PDF, DOCX, TXT files",
+        "Display uploaded file names with remove button",
+        "Extract text from uploaded files client-side (pdf.js or server-side)",
+        "Append extracted text to context textarea OR store separately",
+        "Add 'Extract Context' button that calls /api/extract",
+        "Show loading spinner during extraction",
+        "On success, auto-advance to Context step (step 2)"
+      ],
+      "acceptance": "Can upload files, extract text, and trigger LLM extraction"
     },
     {
       "id": "F8",
@@ -227,20 +244,40 @@
     },
     {
       "id": "F13",
-      "name": "Step 4: Contacts - find contacts",
+      "name": "Step 4: Contacts - free research (AI)",
       "priority": 13,
       "passes": false,
-      "description": "Search for contacts at selected companies",
+      "description": "Free contact research using AI before paid Apollo search",
       "steps": [
-        "Add 'Find Contacts' button (requires Apollo API key)",
-        "Check if API key exists, if not show ApiKeyModal",
+        "Add 'Research Contacts (Free)' button in ContactsStep",
+        "Call /api/find-contacts-free with selected companies and target roles from context",
+        "Show loading state with progress per company",
+        "Display found contacts as cards (name, title, company, LinkedIn URL if found)",
+        "NO email shown - this is free tier",
+        "Contacts are selectable with checkboxes",
+        "Show 'X contacts found' count",
+        "Save found contacts to Supabase with source='ai_research'"
+      ],
+      "acceptance": "Free AI research finds contacts without using paid API credits"
+    },
+    {
+      "id": "F13b",
+      "name": "Step 4: Contacts - Apollo paid search",
+      "priority": 13,
+      "passes": false,
+      "description": "Paid Apollo search for contacts with emails",
+      "steps": [
+        "Add 'Find with Apollo (Paid)' button as alternative to free research",
+        "Check if Apollo API key exists, if not show ApiKeyModal",
+        "Show cost estimate: 'This will use ~X Apollo credits'",
+        "Confirmation modal before proceeding",
         "Call /api/find-contacts-apollo with selected companies",
         "Show loading state with progress",
         "Display found contacts as selectable cards (name, title, company, LinkedIn)",
-        "NO email shown yet (two-phase: contacts first, then emails)",
-        "Select contacts to get emails for"
+        "Contacts include email if Apollo returns it",
+        "Save to Supabase with source='apollo'"
       ],
-      "acceptance": "Contacts found and displayed without emails"
+      "acceptance": "Apollo search finds contacts with cost warning"
     },
     {
       "id": "F14",
@@ -295,38 +332,105 @@
     },
     {
       "id": "F17",
-      "name": "Conversation modal",
+      "name": "Conversation modal - shell and display",
       "priority": 17,
       "passes": false,
-      "description": "Modal for tracking email conversations",
+      "description": "Create the conversation modal structure",
       "steps": [
         "Create src/components/ConversationModal.tsx",
-        "Modal opens on 'Enter Conversation' click",
-        "Shows: contact name, company, initial email sent",
-        "Textarea to paste their reply",
-        "'Generate Response' button calls /api/draft-response",
-        "Shows AI-generated response (copy button)",
-        "'No Reply Yet' button generates follow-up email",
-        "Conversation history displayed as thread",
-        "Close button returns to emails step"
+        "Modal opens on 'Enter Conversation' click from email card",
+        "Props: contact info, initial email sent, onClose callback",
+        "Header shows: contact name, company, title",
+        "Display initial outbound email in thread format",
+        "Thread format: alternating left/right bubbles for sent/received",
+        "Close button (X) in corner",
+        "Store conversation in contact.custom_fields.conversation array"
       ],
-      "acceptance": "Can paste replies, generate responses, track conversation"
+      "acceptance": "Modal opens and displays initial email in thread format"
+    },
+    {
+      "id": "F17b",
+      "name": "Conversation modal - reply handling",
+      "priority": 17,
+      "passes": false,
+      "description": "Handle pasting replies and generating responses",
+      "steps": [
+        "Add textarea at bottom: 'Paste their reply here'",
+        "Add 'Add Reply' button to save their message to thread",
+        "After adding reply, show 'Generate Response' button",
+        "Response type dropdown: General, Schedule Meeting, Confirm Details, Reschedule, Thank You, Clarify",
+        "'Generate Response' calls /api/draft-response with conversation history + type",
+        "Show generated response in editable textarea",
+        "Copy button for generated response",
+        "'Save & Close' button to persist and close modal"
+      ],
+      "acceptance": "Can paste replies and generate contextual AI responses"
+    },
+    {
+      "id": "F17c",
+      "name": "Conversation modal - follow-up generation",
+      "priority": 17,
+      "passes": false,
+      "description": "Generate follow-up when no reply received",
+      "steps": [
+        "Add 'No Reply Yet' button when awaiting response",
+        "On click, call /api/draft-response with type='follow_up'",
+        "Show generated follow-up email in editable textarea",
+        "Copy button for follow-up",
+        "Option to add follow-up to thread as 'sent'",
+        "Update contact status to reflect follow-up sent",
+        "Track follow-up count in contact.custom_fields"
+      ],
+      "acceptance": "Can generate and track follow-up emails"
     },
     {
       "id": "F18",
-      "name": "Integrate wizard with table",
+      "name": "Load existing data on page mount",
       "priority": 18,
       "passes": false,
-      "description": "Connect wizard actions to main data table",
+      "description": "Fetch and display existing companies/contacts from Supabase when page loads",
       "steps": [
-        "When companies added in Step 3, update DataTable rows",
-        "When contacts found in Step 4, update DataTable rows (add contact to company row)",
-        "When emails generated in Step 5, update DataTable rows (add email to contact)",
-        "Status changes in table persist to Supabase",
-        "Real-time sync between wizard and table state",
-        "Table filters: show all, show without contacts, show without emails"
+        "In project page, after loading project, fetch companies from Supabase where project_id matches",
+        "For each company, fetch associated contacts from Supabase",
+        "For each contact, fetch associated emails from Supabase",
+        "Transform data into DataTable row format",
+        "Pass rows to DataTable component",
+        "Show loading skeleton while fetching",
+        "Handle empty state gracefully"
       ],
-      "acceptance": "Wizard actions update table in real-time"
+      "acceptance": "Existing data loads and displays in table on page refresh"
+    },
+    {
+      "id": "F18b",
+      "name": "Wizard-to-table data flow",
+      "priority": 18,
+      "passes": false,
+      "description": "When wizard steps add data, update the table",
+      "steps": [
+        "Create shared state or context for tableRows in project page",
+        "When CompaniesStep adds companies: append to tableRows, save to Supabase",
+        "When ContactsStep finds contacts: update matching company rows with contact, save to Supabase",
+        "When EmailsStep generates emails: update matching contact rows with email, save to Supabase",
+        "Use optimistic updates (update UI immediately, then persist)",
+        "Show toast on successful save"
+      ],
+      "acceptance": "Wizard actions immediately reflect in the table"
+    },
+    {
+      "id": "F18c",
+      "name": "Table-to-Supabase persistence",
+      "priority": 18,
+      "passes": false,
+      "description": "Changes in table persist to database",
+      "steps": [
+        "When status dropdown changes: update contact in Supabase",
+        "When date sent changes: update contact in Supabase",
+        "Debounce rapid changes (300ms)",
+        "Show subtle saving indicator",
+        "Handle save errors with toast and retry option",
+        "Verify data persists after page refresh"
+      ],
+      "acceptance": "All table edits persist to Supabase reliably"
     },
     {
       "id": "F19",
@@ -363,6 +467,23 @@
     },
     {
       "id": "F21",
+      "name": "Table row selection",
+      "priority": 21,
+      "passes": false,
+      "description": "Add checkbox selection to table rows for bulk operations",
+      "steps": [
+        "Add checkbox column as first column in DataTable",
+        "Header checkbox for select all / deselect all",
+        "Track selected row IDs in state",
+        "Visual highlight on selected rows (light blue background)",
+        "Show selection count: 'X rows selected'",
+        "Bulk action buttons appear when rows selected: Delete, Change Status, Export Selected",
+        "Clear selection button"
+      ],
+      "acceptance": "Can select multiple rows and perform bulk actions"
+    },
+    {
+      "id": "F21b",
       "name": "Table sorting and filtering",
       "priority": 21,
       "passes": false,
@@ -426,6 +547,25 @@
     },
     {
       "id": "F25",
+      "name": "Prompt inspection panel",
+      "priority": 25,
+      "passes": false,
+      "description": "Make all LLM prompts inspectable for debugging",
+      "steps": [
+        "Create src/components/PromptInspector.tsx",
+        "Collapsible panel at bottom of page (like browser devtools)",
+        "Log every API call: endpoint, request payload, response",
+        "Show prompts sent to /api/extract, /api/generate-list, /api/write-emails, /api/draft-response",
+        "Timestamp each entry",
+        "Copy button for each prompt/response",
+        "Clear log button",
+        "Persist log in sessionStorage (survives refresh within session)",
+        "Toggle button in header to show/hide inspector"
+      ],
+      "acceptance": "Can see all prompts sent to LLM APIs and their responses"
+    },
+    {
+      "id": "F26",
       "name": "Final polish and build verification",
       "priority": 25,
       "passes": false,

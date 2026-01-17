@@ -17,3 +17,6 @@ Files: src/components/DataTable.tsx (added button bar with Copy as TSV, Copy Ema
 
 F6: Wizard panel accordion shell - DONE
 Files: src/components/WizardPanel.tsx (5-step accordion with expand/collapse), src/app/project/[id]/page.tsx (integrated WizardPanel)
+
+F7+F7b: Setup form (basic fields + file upload + extraction) - DONE
+Files: src/components/wizard/SetupStep.tsx (new), src/components/WizardPanel.tsx (updated), src/app/project/[id]/page.tsx (updated)

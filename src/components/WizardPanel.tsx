@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { ChevronDown, Check } from 'lucide-react'
+import { Project } from '@/lib/supabase'
+import { SetupStep } from '@/components/wizard/SetupStep'
 
 export type WizardStep = 'setup' | 'context' | 'companies' | 'contacts' | 'emails'
 
@@ -21,14 +22,18 @@ const STEPS: StepConfig[] = [
 ]
 
 interface WizardPanelProps {
+  project: Project
   expandedStep: WizardStep
   onStepChange: (step: WizardStep) => void
+  onProjectUpdate: (project: Project) => void
   completedSteps?: WizardStep[]
 }
 
 export function WizardPanel({
+  project,
   expandedStep,
   onStepChange,
+  onProjectUpdate,
   completedSteps = [],
 }: WizardPanelProps) {
   return (
@@ -95,11 +100,16 @@ export function WizardPanel({
               <div
                 className={cn(
                   'overflow-hidden transition-all duration-200 ease-in-out',
-                  isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
                 )}
               >
-                <div className="p-4 bg-white">
-                  <StepContent step={step.id} />
+                <div className="p-4 bg-white max-h-[560px] overflow-y-auto">
+                  <StepContent
+                    step={step.id}
+                    project={project}
+                    onProjectUpdate={onProjectUpdate}
+                    onStepComplete={() => onStepChange(getNextStep(step.id))}
+                  />
                 </div>
               </div>
             </div>
@@ -110,14 +120,28 @@ export function WizardPanel({
   )
 }
 
-// Placeholder content for each step - will be replaced by actual step components
-function StepContent({ step }: { step: WizardStep }) {
+function getNextStep(current: WizardStep): WizardStep {
+  const stepOrder: WizardStep[] = ['setup', 'context', 'companies', 'contacts', 'emails']
+  const currentIndex = stepOrder.indexOf(current)
+  return stepOrder[Math.min(currentIndex + 1, stepOrder.length - 1)]
+}
+
+interface StepContentProps {
+  step: WizardStep
+  project: Project
+  onProjectUpdate: (project: Project) => void
+  onStepComplete: () => void
+}
+
+function StepContent({ step, project, onProjectUpdate, onStepComplete }: StepContentProps) {
   switch (step) {
     case 'setup':
       return (
-        <div className="text-sm text-gray-500">
-          Configure your outreach project settings.
-        </div>
+        <SetupStep
+          project={project}
+          onUpdate={onProjectUpdate}
+          onComplete={onStepComplete}
+        />
       )
     case 'context':
       return (

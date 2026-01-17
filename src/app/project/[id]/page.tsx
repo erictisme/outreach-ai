@@ -58,10 +58,10 @@ export default function ProjectPage() {
     )
   }
 
-  if (error) {
+  if (error || !project) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <div className="text-red-600 text-lg">{error}</div>
+        <div className="text-red-600 text-lg">{error || 'Project not found'}</div>
         <Link
           href="/"
           className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-800 hover:underline"
@@ -103,8 +103,10 @@ export default function ProjectPage() {
         >
           <div className="w-80 h-full p-4 overflow-y-auto">
             <WizardPanel
+              project={project}
               expandedStep={expandedStep}
               onStepChange={setExpandedStep}
+              onProjectUpdate={setProject}
               completedSteps={completedSteps}
             />
           </div>
