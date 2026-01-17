@@ -128,6 +128,7 @@ export function createNewProject(name: string = 'Untitled Project'): Project {
     id: createProjectId(),
     name,
     currentStep: 'context' as Step,
+    objective: 'sales_prospects',
     context: null,
     contextDump: '',
     documents: [],
@@ -186,6 +187,7 @@ export function migrateFromLegacy(): Project | null {
       id: createProjectId(),
       name: state.context?.clientName || 'Migrated Project',
       currentStep: state.currentStep || 'context',
+      objective: state.context?.objective || 'sales_prospects',
       context: state.context || null,
       contextDump: state.contextDump || '',
       documents: [], // Documents weren't persisted in legacy format

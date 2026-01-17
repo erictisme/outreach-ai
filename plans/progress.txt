@@ -26,3 +26,6 @@ Files: src/app/project/[id]/conversations/page.tsx (new), src/app/project/[id]/d
 
 F9 Incremental Company Addition: DONE - Add More Companies button on data table, modal with paste/CSV import, enrichment flow (Gemini AI), contact discovery (Apollo), appends to Supabase, newly added indicator (green badge + row highlighting)
 Files: src/app/project/[id]/data/page.tsx (updated)
+
+F10 API Key Management UI: DONE - dedicated settings page with Apollo/Perplexity (required) + Hunter/Apify (optional), key status indicators in header and WizardNav, clear instructions with links, save per-key
+Files: src/app/project/[id]/settings/page.tsx (new), src/components/WizardNav.tsx (updated), src/components/ProjectHeader.tsx (updated), src/app/project/[id]/workflow/page.tsx (updated)

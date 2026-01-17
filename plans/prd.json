@@ -177,7 +177,7 @@
       "id": "F10",
       "name": "API Key Management UI",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "description": "Manage Apollo and Perplexity API keys with clear UI",
       "steps": [
         "Extend existing ApiKeyModal to support multiple services",

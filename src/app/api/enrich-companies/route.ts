@@ -26,18 +26,24 @@ export async function POST(request: NextRequest) {
 - Target Segment: ${context.targetSegment}
 ` : ''
 
-    const prompt = `Enrich the following company names with additional information.
+    const prompt = `Enrich these companies with useful information for B2B outreach.
 
 ${contextInfo}
 ## Companies to Enrich
 - ${companyNames}
 
 ## Task
-For each company, provide:
-1. **type**: What type/category of company (e.g., "Distributor", "Manufacturer", "Retailer", "Technology Company")
-2. **website**: The company's website URL (guess based on company name if unknown, use format https://companyname.com)
-3. **description**: 1-2 sentences about what the company does
-4. **relevance**: Rate as "High", "Medium", or "Low" with a brief reason${context ? ` based on fit with ${context.product}` : ''}
+For each company, provide your best assessment:
+1. **type**: Business category (e.g., "Distributor", "Retailer", "Manufacturer", "Tech Company", "Consulting")
+2. **website**: Leave as "" - user will verify manually
+3. **description**: What they likely do based on company name and market context (1-2 sentences, be specific and useful)
+4. **relevance**: "High", "Medium", or "Low" with brief reason${context ? ` for selling ${context.product}` : ''}
+
+## Guidelines
+- Be specific and actionable, not vague
+- If company name suggests a specific industry, describe that
+- For description, focus on what would help a salesperson understand the company
+- Don't say "might be" or "could be" - make your best assessment
 
 ## Output Format
 Return as JSON array in the SAME ORDER as input:
@@ -45,9 +51,9 @@ Return as JSON array in the SAME ORDER as input:
   {
     "name": "Original Company Name",
     "type": "Company Type",
-    "website": "https://...",
-    "description": "What they do...",
-    "relevance": "High - reason for rating"
+    "website": "",
+    "description": "Specific description of what they do...",
+    "relevance": "High - specific reason"
   }
 ]
 

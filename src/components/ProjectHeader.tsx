@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Sparkles, Check, Pencil } from 'lucide-react'
+import { ArrowLeft, Sparkles, Check, Pencil, Settings, CheckCircle, AlertCircle } from 'lucide-react'
+import { getApiKey } from './ApiKeyModal'
 
 interface ProjectHeaderProps {
   projectName: string
@@ -9,6 +10,7 @@ interface ProjectHeaderProps {
   onBack: () => void
   isSaving?: boolean
   lastSaved?: number
+  onSettingsClick?: () => void
 }
 
 export function ProjectHeader({
@@ -17,10 +19,26 @@ export function ProjectHeader({
   onBack,
   isSaving = false,
   lastSaved,
+  onSettingsClick,
 }: ProjectHeaderProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(projectName)
   const [showSaved, setShowSaved] = useState(false)
+  const [keyStatus, setKeyStatus] = useState({ apollo: false, perplexity: false })
+
+  // Check API key status on mount and when modal closes
+  useEffect(() => {
+    const checkKeys = () => {
+      setKeyStatus({
+        apollo: !!getApiKey('apollo'),
+        perplexity: !!getApiKey('perplexity'),
+      })
+    }
+    checkKeys()
+    // Re-check when localStorage changes (for when modal saves keys)
+    window.addEventListener('storage', checkKeys)
+    return () => window.removeEventListener('storage', checkKeys)
+  }, [])
 
   // Show "Saved" indicator briefly after save
   useEffect(() => {
@@ -94,19 +112,47 @@ export function ProjectHeader({
             </div>
           </div>
 
-          {/* Right: Save status */}
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            {isSaving ? (
-              <span>Saving...</span>
-            ) : showSaved ? (
-              <span className="flex items-center gap-1 text-green-600">
-                <Check className="w-4 h-4" />
-                Saved
-              </span>
-            ) : null}
+          {/* Right: Save status + Settings */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              {isSaving ? (
+                <span>Saving...</span>
+              ) : showSaved ? (
+                <span className="flex items-center gap-1 text-green-600">
+                  <Check className="w-4 h-4" />
+                  Saved
+                </span>
+              ) : null}
+            </div>
+
+            {/* Settings button with key status */}
+            <button
+              onClick={onSettingsClick}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">API Keys</span>
+              <div className="flex items-center gap-1">
+                {keyStatus.apollo && keyStatus.perplexity ? (
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                ) : keyStatus.apollo || keyStatus.perplexity ? (
+                  <AlertCircle className="w-4 h-4 text-amber-500" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-gray-400" />
+                )}
+              </div>
+            </button>
           </div>
         </div>
       </div>
     </div>
   )
+}
+
+// Helper to refresh key status from outside the component
+export function useRefreshKeyStatus() {
+  return () => {
+    // Dispatch storage event to trigger re-check in ProjectHeader
+    window.dispatchEvent(new Event('storage'))
+  }
 }

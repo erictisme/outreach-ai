@@ -1,8 +1,10 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, Users, Mail, Download, Check, ChevronLeft, ChevronRight, Table, MessageSquare } from 'lucide-react'
+import { Building2, Users, Mail, Download, Check, ChevronLeft, ChevronRight, Table, MessageSquare, Settings, CheckCircle, AlertCircle } from 'lucide-react'
+import { getApiKey } from './ApiKeyModal'
 
 export type WizardStep = 'companies' | 'contacts' | 'emails' | 'data' | 'conversations' | 'export'
 
@@ -29,6 +31,20 @@ interface WizardNavProps {
 
 export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
   const pathname = usePathname()
+  const [keyStatus, setKeyStatus] = useState({ apollo: false, perplexity: false })
+
+  // Check API key status on mount
+  useEffect(() => {
+    const checkKeys = () => {
+      setKeyStatus({
+        apollo: !!getApiKey('apollo'),
+        perplexity: !!getApiKey('perplexity'),
+      })
+    }
+    checkKeys()
+    window.addEventListener('storage', checkKeys)
+    return () => window.removeEventListener('storage', checkKeys)
+  }, [])
 
   // Determine current step from pathname
   const currentStep = STEPS.find(step => pathname.includes(`/${step.key}`))?.key || 'companies'
@@ -36,6 +52,9 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
 
   const prevStep = currentStepIndex > 0 ? STEPS[currentStepIndex - 1] : null
   const nextStep = currentStepIndex < STEPS.length - 1 ? STEPS[currentStepIndex + 1] : null
+
+  const allKeysSet = keyStatus.apollo && keyStatus.perplexity
+  const someKeysSet = keyStatus.apollo || keyStatus.perplexity
 
   return (
     <div className="mb-6 sm:mb-8">
@@ -94,7 +113,7 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
         })}
       </div>
 
-      {/* Back/Next navigation */}
+      {/* Back/Next navigation + Settings */}
       <div className="flex justify-between items-center gap-2">
         {prevStep ? (
           <Link
@@ -115,15 +134,33 @@ export function WizardNav({ projectId, completedSteps = [] }: WizardNavProps) {
           </Link>
         )}
 
-        {nextStep && (
+        <div className="flex items-center gap-2">
+          {/* Settings/API Keys link */}
           <Link
-            href={`/project/${projectId}/${nextStep.key}`}
-            className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            href={`/project/${projectId}/settings`}
+            className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
           >
-            <span className="hidden xs:inline">Next:</span> {nextStep.label}
-            <ChevronRight className="w-4 h-4" />
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">API Keys</span>
+            {allKeysSet ? (
+              <CheckCircle className="w-4 h-4 text-green-500" />
+            ) : someKeysSet ? (
+              <AlertCircle className="w-4 h-4 text-amber-500" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-gray-400" />
+            )}
           </Link>
-        )}
+
+          {nextStep && (
+            <Link
+              href={`/project/${projectId}/${nextStep.key}`}
+              className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <span className="hidden xs:inline">Next:</span> {nextStep.label}
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   )

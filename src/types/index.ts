@@ -1,6 +1,22 @@
 // Workflow steps
 export type Step = 'context' | 'extract' | 'segments' | 'list' | 'research' | 'contacts' | 'emails' | 'conversations'
 
+// Project objective types
+export type ProjectObjective =
+  | 'find_suppliers'      // Find suppliers for procurement
+  | 'find_distributors'   // Find distributors for market entry
+  | 'find_partners'       // Find companies to work with / partnerships
+  | 'sales_prospects'     // Find sales prospects / B2B outreach
+  | 'custom'              // Custom objective
+
+export const OBJECTIVE_OPTIONS: { value: ProjectObjective; label: string; description: string }[] = [
+  { value: 'sales_prospects', label: 'Sales Prospects', description: 'Find companies to sell to' },
+  { value: 'find_distributors', label: 'Find Distributors', description: 'Find distributors for market entry' },
+  { value: 'find_suppliers', label: 'Find Suppliers', description: 'Find suppliers for procurement' },
+  { value: 'find_partners', label: 'Find Partners', description: 'Find companies to work with' },
+  { value: 'custom', label: 'Custom', description: 'Define your own objective' },
+]
+
 // Target seniority levels
 export type SeniorityLevel = 'any' | 'c-suite' | 'director' | 'senior' | 'mid-senior' | 'mid' | 'junior'
 
@@ -40,6 +56,8 @@ export interface Segment {
 
 // Project context extracted from documents
 export interface ProjectContext {
+  objective: ProjectObjective // What the user is trying to achieve
+  customObjective?: string // If objective is 'custom', user's description
   clientName: string
   product: string
   valueProposition: string
@@ -240,9 +258,12 @@ export interface Project {
 
   // Workflow state
   currentStep: Step
+  objective: ProjectObjective
+  customObjective?: string
   context: ProjectContext | null
   contextDump: string
   documents: UploadedDoc[]
+  emailTemplate?: string // Optional email template provided by user
 
   // List generation
   selectedSegmentIds: string[]

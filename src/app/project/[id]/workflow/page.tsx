@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   FileText, Sparkles, Building2, Users, Mail, MessageSquare,
-  ChevronRight, ChevronLeft, Loader2, Plus, Upload, Check, Edit2, Save, X, Grid, List
+  ChevronRight, ChevronLeft, Loader2, Plus, Upload, Check, Edit2, Save, X, Grid, List,
+  Settings, CheckCircle, AlertCircle
 } from 'lucide-react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import {
   Step, Project, ProjectContext, Company, Person, EmailDraft, Segment,
@@ -1077,12 +1079,20 @@ export default function WorkflowPage() {
               {project.name || 'Untitled Project'}
             </h1>
           </div>
-          <button
-            onClick={() => setApiKeyModalOpen(true)}
-            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+          <Link
+            href={`/project/${projectId}/settings`}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg border border-gray-200"
           >
-            API Keys
-          </button>
+            <Settings className="w-4 h-4" />
+            <span>API Keys</span>
+            {getApiKey('apollo') && getApiKey('perplexity') ? (
+              <CheckCircle className="w-4 h-4 text-green-500" />
+            ) : getApiKey('apollo') || getApiKey('perplexity') ? (
+              <AlertCircle className="w-4 h-4 text-amber-500" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-gray-400" />
+            )}
+          </Link>
         </div>
       </header>
 
