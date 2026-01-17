@@ -23,3 +23,6 @@ Files: src/components/wizard/SetupStep.tsx (new), src/components/WizardPanel.tsx
 
 F8: Context review form - DONE
 Files: src/components/wizard/ContextStep.tsx (new), src/components/WizardPanel.tsx (updated imports + integration)
+
+F9: Companies step - segment cards with count inputs - DONE
+Files: src/components/wizard/CompaniesStep.tsx (new), src/components/WizardPanel.tsx (updated imports + integration)

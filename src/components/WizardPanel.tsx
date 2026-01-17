@@ -5,6 +5,7 @@ import { ChevronDown, Check } from 'lucide-react'
 import { Project } from '@/lib/supabase'
 import { SetupStep } from '@/components/wizard/SetupStep'
 import { ContextStep } from '@/components/wizard/ContextStep'
+import { CompaniesStep } from '@/components/wizard/CompaniesStep'
 
 export type WizardStep = 'setup' | 'context' | 'companies' | 'contacts' | 'emails'
 
@@ -154,9 +155,11 @@ function StepContent({ step, project, onProjectUpdate, onStepComplete }: StepCon
       )
     case 'companies':
       return (
-        <div className="text-sm text-gray-500">
-          Generate or import target companies.
-        </div>
+        <CompaniesStep
+          project={project}
+          onUpdate={onProjectUpdate}
+          onComplete={onStepComplete}
+        />
       )
     case 'contacts':
       return (

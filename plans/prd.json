@@ -40,7 +40,7 @@
       "id": "F9",
       "name": "Step 3: Companies - segment cards",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "description": "Show segments with count inputs for company generation",
       "steps": [
         "Create src/components/wizard/CompaniesStep.tsx",
