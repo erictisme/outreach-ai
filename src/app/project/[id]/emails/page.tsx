@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Wand2, Check, RefreshCw, Edit3, Save, X, FileText, BookmarkPlus, ChevronDown } from 'lucide-react'
+import { Wand2, Check, RefreshCw, Edit3, Save, X, FileText, BookmarkPlus, ChevronDown, Copy, AlertTriangle, ChevronUp } from 'lucide-react'
 import { getSupabase, Company as DbCompany, Contact as DbContact, Project as DbProject, EmailTemplate as DbEmailTemplate } from '@/lib/supabase'
-import { ProjectContext, Company, Person, EmailDraft, EmailTemplate, EmailTemplateCategory, TEMPLATE_VARIABLES } from '@/types'
+import { ProjectContext, Company, Person, EmailDraft, EmailTemplateCategory } from '@/types'
 import { WizardNav, WizardStep } from '@/components/WizardNav'
 import { useToast, ErrorMessage } from '@/components/ui'
 
@@ -21,6 +21,7 @@ interface LocalEmail {
   status: 'draft' | 'ready' | 'sent'
   isSaved?: boolean
   isNew?: boolean
+  individualPrompt?: string
 }
 
 export default function EmailsPage() {
@@ -38,10 +39,18 @@ export default function EmailsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
+  // Master prompt state
+  const [masterPrompt, setMasterPrompt] = useState('')
+  const [showMasterPromptWarning, setShowMasterPromptWarning] = useState(false)
+
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editSubject, setEditSubject] = useState('')
   const [editBody, setEditBody] = useState('')
+
+  // Individual prompt state (which email has its prompt expanded)
+  const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null)
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
 
   // Bulk refine state
   const [refineInstruction, setRefineInstruction] = useState('')
@@ -72,6 +81,12 @@ export default function EmailsPage() {
 
         if (projError) throw projError
         setProject(proj)
+
+        // Load master prompt from schema_config if it exists
+        const schemaConfig = proj.schema_config as Record<string, unknown>
+        if (schemaConfig?.masterPrompt) {
+          setMasterPrompt(schemaConfig.masterPrompt as string)
+        }
 
         // Load companies
         const { data: comps, error: compsError } = await supabase
@@ -152,8 +167,88 @@ export default function EmailsPage() {
     loadData()
   }, [projectId])
 
+  // Save master prompt to project
+  const saveMasterPrompt = async () => {
+    if (!project) return
+    try {
+      const supabase = getSupabase()
+      const schemaConfig = (project.schema_config as Record<string, unknown>) || {}
+      await supabase
+        .from('projects')
+        .update({
+          schema_config: {
+            ...schemaConfig,
+            masterPrompt
+          }
+        })
+        .eq('id', projectId)
+      addToast('Master prompt saved', 'success')
+    } catch {
+      addToast('Failed to save master prompt', 'error')
+    }
+  }
+
+  // Build context from project
+  const buildContext = useCallback((): ProjectContext | null => {
+    if (!project) return null
+    const schemaConfig = project.schema_config as Record<string, unknown>
+    const extractedContext = schemaConfig?.extractedContext as Record<string, unknown> | undefined
+
+    return {
+      objective: (extractedContext?.objective as ProjectContext['objective']) || 'sales_prospects',
+      clientName: project.client_name,
+      product: project.product_description || '',
+      valueProposition: (extractedContext?.valueProposition as string) || project.product_description || '',
+      targetMarket: project.target_market || '',
+      targetSegment: project.target_segment || '',
+      segments: [],
+      targetRoles: (extractedContext?.targetRoles as string[]) || [],
+      targetSeniority: 'any',
+      visitDates: (extractedContext?.visitDates as string) || undefined,
+      keyDifferentiators: (extractedContext?.keyDifferentiators as string[]) || [],
+      credibilitySignals: (extractedContext?.credibilitySignals as string[]) || []
+    }
+  }, [project])
+
+  // Build API companies array
+  const buildApiCompanies = useCallback((): Company[] => {
+    return companies.map(c => ({
+      id: c.id,
+      name: c.name,
+      type: '',
+      website: c.website || '',
+      domain: c.website ? new URL(c.website.startsWith('http') ? c.website : `https://${c.website}`).hostname.replace('www.', '') : '',
+      description: c.description || '',
+      relevance: c.relevance_notes || '',
+      status: 'not_contacted',
+      verificationStatus: 'unverified',
+      verificationSource: 'manual',
+      verifiedAt: null,
+      websiteAccessible: true
+    }))
+  }, [companies])
+
+  // Build API person from contact
+  const buildApiPerson = useCallback((contact: DbContact): Person => {
+    const company = companies.find(comp => comp.id === contact.company_id)
+    return {
+      id: contact.id,
+      company: company?.name || '',
+      companyId: contact.company_id,
+      name: contact.name,
+      title: contact.title || '',
+      email: contact.email || '',
+      linkedin: contact.linkedin_url || '',
+      source: contact.source as Person['source'],
+      verificationStatus: contact.verified ? 'verified' : 'unverified',
+      emailCertainty: (contact.custom_fields as Record<string, number>)?.emailCertainty || 0,
+      emailSource: 'Apollo',
+      emailVerified: contact.verified
+    }
+  }, [companies])
+
   // Generate emails for contacts without emails
-  const handleGenerate = async () => {
+  const handleGenerate = async (useMasterPrompt = false) => {
     if (!project || contacts.length === 0) return
     setGenerating(true)
     setError(null)
@@ -163,63 +258,19 @@ export default function EmailsPage() {
       const existingContactIds = new Set(emails.map(e => e.contactId))
       const contactsWithoutEmails = contacts.filter(c => !existingContactIds.has(c.id))
 
-      if (contactsWithoutEmails.length === 0) {
+      if (contactsWithoutEmails.length === 0 && !useMasterPrompt) {
         setError('All contacts already have emails generated')
         setGenerating(false)
         return
       }
 
-      // Build context from project
-      const schemaConfig = project.schema_config as Record<string, unknown>
-      const extractedContext = schemaConfig?.extractedContext as Record<string, unknown> | undefined
+      const context = buildContext()
+      if (!context) return
 
-      const context: ProjectContext = {
-        clientName: project.client_name,
-        product: project.product_description || '',
-        valueProposition: (extractedContext?.valueProposition as string) || project.product_description || '',
-        targetMarket: project.target_market || '',
-        targetSegment: project.target_segment || '',
-        segments: [],
-        targetRoles: (extractedContext?.targetRoles as string[]) || [],
-        targetSeniority: 'any',
-        visitDates: (extractedContext?.visitDates as string) || undefined,
-        keyDifferentiators: (extractedContext?.keyDifferentiators as string[]) || [],
-        credibilitySignals: (extractedContext?.credibilitySignals as string[]) || []
-      }
-
-      // Build companies and persons arrays for API
-      const apiCompanies: Company[] = companies.map(c => ({
-        id: c.id,
-        name: c.name,
-        type: '',
-        website: c.website || '',
-        domain: c.website ? new URL(c.website.startsWith('http') ? c.website : `https://${c.website}`).hostname.replace('www.', '') : '',
-        description: c.description || '',
-        relevance: c.relevance_notes || '',
-        status: 'not_contacted',
-        verificationStatus: 'unverified',
-        verificationSource: 'manual',
-        verifiedAt: null,
-        websiteAccessible: true
-      }))
-
-      const apiPersons: Person[] = contactsWithoutEmails.map(c => {
-        const company = companies.find(comp => comp.id === c.company_id)
-        return {
-          id: c.id,
-          company: company?.name || '',
-          companyId: c.company_id,
-          name: c.name,
-          title: c.title || '',
-          email: c.email || '',
-          linkedin: c.linkedin_url || '',
-          source: c.source as Person['source'],
-          verificationStatus: c.verified ? 'verified' : 'unverified',
-          emailCertainty: (c.custom_fields as Record<string, number>)?.emailCertainty || 0,
-          emailSource: 'Apollo',
-          emailVerified: c.verified
-        }
-      })
+      const apiCompanies = buildApiCompanies()
+      const apiPersons = useMasterPrompt
+        ? contacts.map(buildApiPerson)
+        : contactsWithoutEmails.map(buildApiPerson)
 
       const response = await fetch('/api/write-emails', {
         method: 'POST',
@@ -227,7 +278,8 @@ export default function EmailsPage() {
         body: JSON.stringify({
           context,
           companies: apiCompanies,
-          persons: apiPersons
+          persons: apiPersons,
+          masterPrompt: masterPrompt.trim() || undefined
         })
       })
 
@@ -254,7 +306,13 @@ export default function EmailsPage() {
           isNew: true
         }))
 
-        setEmails(prev => [...prev, ...newLocalEmails])
+        if (useMasterPrompt) {
+          // Replace all existing emails
+          setEmails(newLocalEmails)
+        } else {
+          // Append to existing
+          setEmails(prev => [...prev, ...newLocalEmails])
+        }
         setSelectedIds(prev => {
           const next = new Set(prev)
           newLocalEmails.forEach(e => next.add(e.id))
@@ -270,6 +328,89 @@ export default function EmailsPage() {
       addToast('Failed to generate emails', 'error')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // Regenerate single email with individual prompt
+  const handleRegenerateSingle = async (email: LocalEmail) => {
+    if (!project) return
+    setRegeneratingId(email.id)
+    setError(null)
+
+    try {
+      const context = buildContext()
+      if (!context) return
+
+      const contact = contacts.find(c => c.id === email.contactId)
+      if (!contact) return
+
+      const company = companies.find(c => c.id === email.companyId)
+      if (!company) return
+
+      const apiCompanies = buildApiCompanies()
+      const apiPerson = buildApiPerson(contact)
+
+      const response = await fetch('/api/write-emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context,
+          companies: apiCompanies,
+          persons: [apiPerson],
+          masterPrompt: masterPrompt.trim() || undefined,
+          individualPrompt: email.individualPrompt?.trim() || undefined
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to regenerate email')
+      }
+
+      const data = await response.json()
+
+      if (data.emails && data.emails.length > 0) {
+        const newEmail = data.emails[0] as EmailDraft
+        setEmails(prev => prev.map(e => {
+          if (e.id === email.id) {
+            return {
+              ...e,
+              subject: newEmail.subject,
+              body: newEmail.body,
+              isSaved: false
+            }
+          }
+          return e
+        }))
+        addToast('Email regenerated', 'success')
+      }
+
+    } catch (err) {
+      console.error('Error regenerating email:', err)
+      addToast('Failed to regenerate email', 'error')
+    } finally {
+      setRegeneratingId(null)
+    }
+  }
+
+  // Handle Regenerate All with master prompt (with warning modal)
+  const handleRegenerateAll = () => {
+    setShowMasterPromptWarning(true)
+  }
+
+  const confirmRegenerateAll = async () => {
+    setShowMasterPromptWarning(false)
+    await saveMasterPrompt()
+    await handleGenerate(true)
+  }
+
+  // Copy to clipboard
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      addToast(`${label} copied!`, 'success')
+    } catch {
+      addToast('Failed to copy', 'error')
     }
   }
 
@@ -321,6 +462,16 @@ export default function EmailsPage() {
     setEditingId(null)
     setEditSubject('')
     setEditBody('')
+  }
+
+  // Update individual prompt
+  const updateIndividualPrompt = (emailId: string, prompt: string) => {
+    setEmails(prev => prev.map(e => {
+      if (e.id === emailId) {
+        return { ...e, individualPrompt: prompt }
+      }
+      return e
+    }))
   }
 
   // Bulk refine selected emails
@@ -443,7 +594,6 @@ export default function EmailsPage() {
     const usedVariables: Set<string> = new Set()
 
     // Replace actual values with placeholders
-    const company = companies.find(c => c.id === email.companyId)
     const schemaConfig = project?.schema_config as Record<string, unknown>
     const extractedContext = schemaConfig?.extractedContext as Record<string, unknown> | undefined
 
@@ -657,10 +807,51 @@ export default function EmailsPage() {
         />
       )}
 
+      {/* Master Prompt Section */}
+      <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-medium text-purple-900">Master Prompt</h3>
+          <span className="text-xs text-purple-600">Affects ALL emails when regenerating</span>
+        </div>
+        <textarea
+          value={masterPrompt}
+          onChange={(e) => setMasterPrompt(e.target.value)}
+          placeholder="Add instructions that apply to all emails (e.g., 'Keep emails under 150 words', 'Mention our Singapore office', 'Use a more casual tone')"
+          rows={3}
+          className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+        />
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={handleRegenerateAll}
+            disabled={generating || contacts.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {generating ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Regenerating...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                Regenerate All Emails
+              </>
+            )}
+          </button>
+          <button
+            onClick={saveMasterPrompt}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-100"
+          >
+            <Save className="w-4 h-4" />
+            Save Prompt
+          </button>
+        </div>
+      </div>
+
       {/* Action buttons */}
       <div className="flex flex-wrap gap-3 mb-6">
         <button
-          onClick={handleGenerate}
+          onClick={() => handleGenerate(false)}
           disabled={generating || contacts.length === 0}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -915,11 +1106,79 @@ export default function EmailsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-2">
-                    <span className="text-sm text-gray-500">Subject: </span>
-                    <span className="font-medium">{email.subject}</span>
+                  {/* Subject with copy button */}
+                  <div className="mb-2 flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-gray-500">Subject: </span>
+                      <span className="font-medium">{email.subject}</span>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(email.subject, 'Subject')}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded shrink-0"
+                      title="Copy subject"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="text-sm text-gray-700 whitespace-pre-wrap">{email.body}</div>
+
+                  {/* Body with copy button */}
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 text-sm text-gray-700 whitespace-pre-wrap">{email.body}</div>
+                    <button
+                      onClick={() => copyToClipboard(email.body, 'Body')}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded shrink-0"
+                      title="Copy body"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Individual prompt section */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => setExpandedPromptId(expandedPromptId === email.id ? null : email.id)}
+                      className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                    >
+                      {expandedPromptId === email.id ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                      <span>Individual prompt for this contact</span>
+                      {email.individualPrompt && (
+                        <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">Has prompt</span>
+                      )}
+                    </button>
+
+                    {expandedPromptId === email.id && (
+                      <div className="mt-3 space-y-3">
+                        <textarea
+                          value={email.individualPrompt || ''}
+                          onChange={(e) => updateIndividualPrompt(email.id, e.target.value)}
+                          placeholder="Add specific instructions for this contact (e.g., 'Mention their recent acquisition', 'Reference their focus on sustainability')"
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                        />
+                        <button
+                          onClick={() => handleRegenerateSingle(email)}
+                          disabled={regeneratingId === email.id}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 text-sm"
+                        >
+                          {regeneratingId === email.id ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              Regenerating...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              Regenerate This Email
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -932,12 +1191,55 @@ export default function EmailsPage() {
         <div className="text-center py-12 border border-gray-200 rounded-lg">
           <p className="text-gray-500 mb-4">No emails generated yet.</p>
           <button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate(false)}
             disabled={generating}
             className="text-blue-600 hover:underline"
           >
             Click &quot;Generate with AI&quot; to create outreach emails
           </button>
+        </div>
+      )}
+
+      {/* Warning Modal for Regenerate All */}
+      {showMasterPromptWarning && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-yellow-100 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-yellow-600" />
+                </div>
+                <h3 className="text-lg font-semibold">Regenerate All Emails?</h3>
+              </div>
+
+              <p className="text-gray-600 mb-4">
+                This will regenerate <strong>all {emails.length} emails</strong> using the master prompt.
+                Any manual edits you&apos;ve made will be lost.
+              </p>
+
+              {masterPrompt && (
+                <div className="p-3 bg-gray-50 rounded-lg mb-4">
+                  <div className="text-sm text-gray-500 mb-1">Master prompt:</div>
+                  <div className="text-sm text-gray-700">{masterPrompt}</div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowMasterPromptWarning(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmRegenerateAll}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  Yes, Regenerate All
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

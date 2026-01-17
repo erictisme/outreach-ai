@@ -126,7 +126,7 @@
       "id": "F7",
       "name": "Email Generation with Master Prompt",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "description": "Generate emails with master prompt affecting all, plus individual prompt per contact",
       "steps": [
         "At top: Master Prompt textarea that affects ALL emails below",

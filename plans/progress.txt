@@ -17,3 +17,6 @@ Files: src/app/api/find-contacts-free/route.ts (new), src/app/api/enrich-contact
 
 F6 Enriched Data Table with Status Tracking: DONE - new /data page with full contact+company table, status dropdown with auto-save, date sent picker, 3-day follow-up alerts, sortable columns, search/filter, copy TSV/emails/row
 Files: src/app/project/[id]/data/page.tsx (new), src/components/WizardNav.tsx (updated), src/app/project/[id]/page.tsx (updated)
+
+F7 Email Generation with Master Prompt: DONE - master prompt textarea at top, warning modal for regenerate all, individual prompt per contact (expandable), copy buttons for subject/body, Regenerate All + individual regenerate
+Files: src/app/project/[id]/emails/page.tsx (updated), src/app/api/write-emails/route.ts (updated)

@@ -57,10 +57,12 @@ Eric`
 
 export async function POST(request: NextRequest) {
   try {
-    const { context, companies, persons } = await request.json() as {
+    const { context, companies, persons, masterPrompt, individualPrompt } = await request.json() as {
       context: ProjectContext
       companies: Company[]
       persons: Person[]
+      masterPrompt?: string
+      individualPrompt?: string
     }
 
     // Select appropriate example based on segment
@@ -86,7 +88,8 @@ export async function POST(request: NextRequest) {
 
     const companyEntries = Object.entries(personsByCompany).slice(0, 10)
 
-    const prompt = `Write personalized outreach emails for the following contacts.
+    // Build prompt with optional master and individual prompts
+    let prompt = `Write personalized outreach emails for the following contacts.
 
 ## Project Context
 - Client: ${context.clientName}
@@ -95,7 +98,17 @@ export async function POST(request: NextRequest) {
 - Target Market: ${context.targetMarket}
 - Key Differentiators: ${context.keyDifferentiators.join(', ')}
 - Credibility Signals: ${context.credibilitySignals.join(', ')}
-${context.visitDates ? `- Visit Dates: ${context.visitDates}` : ''}
+${context.visitDates ? `- Visit Dates: ${context.visitDates}` : ''}`
+
+    // Add master prompt if provided
+    if (masterPrompt && masterPrompt.trim()) {
+      prompt += `
+
+## IMPORTANT: Master Instructions (Apply to ALL emails)
+${masterPrompt.trim()}`
+    }
+
+    prompt += `
 
 ## Example Email (use this style)
 ${exampleEmail}
@@ -114,7 +127,17 @@ ${companyEntries.map(([companyName, { company, persons: contactPersons }]) => `
 - Website: ${company.website}
 - Why relevant: ${company.relevance}
 - Contacts: ${contactPersons.map(p => `${p.name} (${p.title})`).join(', ')}
-`).join('\n')}
+`).join('\n')}`
+
+    // Add individual prompt if provided (for single email regeneration)
+    if (individualPrompt && individualPrompt.trim()) {
+      prompt += `
+
+## ADDITIONAL: Specific Instructions for This Contact
+${individualPrompt.trim()}`
+    }
+
+    prompt += `
 
 ## Output Format
 Return as JSON array:
