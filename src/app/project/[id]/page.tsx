@@ -9,14 +9,13 @@ import { Spinner } from '@/components/ui/Spinner'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { WizardPanel, WizardStep } from '@/components/WizardPanel'
-import { ConversationModal } from '@/components/ConversationModal'
 import { DataTable, DataTableRow } from '@/components/DataTable'
 import { Status } from '@/components/StatusDropdown'
 import { useToast } from '@/components/ui/Toast'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp'
 import { PromptInspector } from '@/components/PromptInspector'
-import { EmailDraft, Conversation, Company, ResearchedContact, Person } from '@/types'
+import { Conversation, Company, ResearchedContact, Person, EmailDraft } from '@/types'
 
 // View modes for the full-screen layout
 type ViewMode = 'wizard' | 'table'
@@ -58,13 +57,6 @@ export default function ProjectPage() {
     setViewMode(mode)
     localStorage.setItem(VIEW_PREFERENCE_KEY, mode)
   }, [])
-
-  // Conversation modal state
-  const [conversationModal, setConversationModal] = useState<{
-    isOpen: boolean
-    contactId: string | null
-    email: EmailDraft | null
-  }>({ isOpen: false, contactId: null, email: null })
 
   // Prompt inspector state
   const [isPromptInspectorOpen, setIsPromptInspectorOpen] = useState(false)
@@ -119,58 +111,43 @@ export default function ProjectPage() {
           setIsMobileWizardOpen(true)
         },
       })),
-      // Escape to close modals
-      {
-        key: 'Escape',
-        description: 'Close modal',
-        action: () => {
-          if (conversationModal.isOpen) {
-            setConversationModal({ isOpen: false, contactId: null, email: null })
-          }
-        },
-        enabled: conversationModal.isOpen,
-      },
-      // Arrow keys for table navigation (when not in modal)
+      // Arrow keys for table navigation
       {
         key: 'ArrowDown',
         description: 'Next row',
         action: () => {
-          if (!conversationModal.isOpen && tableRows.length > 0) {
+          if (tableRows.length > 0) {
             setFocusedRowIndex(prev => Math.min(prev + 1, tableRows.length - 1))
           }
         },
-        enabled: !conversationModal.isOpen,
       },
       {
         key: 'ArrowUp',
         description: 'Previous row',
         action: () => {
-          if (!conversationModal.isOpen && tableRows.length > 0) {
+          if (tableRows.length > 0) {
             setFocusedRowIndex(prev => Math.max(prev - 1, 0))
           }
         },
-        enabled: !conversationModal.isOpen,
       },
       // j/k for vim-style navigation
       {
         key: 'j',
         description: 'Next row',
         action: () => {
-          if (!conversationModal.isOpen && tableRows.length > 0) {
+          if (tableRows.length > 0) {
             setFocusedRowIndex(prev => Math.min(prev + 1, tableRows.length - 1))
           }
         },
-        enabled: !conversationModal.isOpen,
       },
       {
         key: 'k',
         description: 'Previous row',
         action: () => {
-          if (!conversationModal.isOpen && tableRows.length > 0) {
+          if (tableRows.length > 0) {
             setFocusedRowIndex(prev => Math.max(prev - 1, 0))
           }
         },
-        enabled: !conversationModal.isOpen,
       },
     ],
   })
@@ -184,7 +161,6 @@ export default function ProjectPage() {
     { keys: { key: '3', metaKey: true }, description: 'Go to Companies' },
     { keys: { key: '4', metaKey: true }, description: 'Go to Contacts' },
     { keys: { key: '5', metaKey: true }, description: 'Go to Emails' },
-    { keys: { key: 'Escape' }, description: 'Close modal' },
     { keys: { key: 'ArrowDown' }, description: 'Navigate down in table' },
     { keys: { key: 'ArrowUp' }, description: 'Navigate up in table' },
     { keys: { key: '?', shiftKey: true }, description: 'Show shortcuts help' },
@@ -443,119 +419,6 @@ export default function ProjectPage() {
     }, DEBOUNCE_DELAY)
   }, [project, schemaConfig, tableRows, addToast])
 
-  // Handle opening conversation modal
-  const handleOpenConversation = (contactId: string, email: EmailDraft) => {
-    setConversationModal({
-      isOpen: true,
-      contactId,
-      email,
-    })
-  }
-
-  // Handle saving conversation
-  const handleSaveConversation = async (conversation: Conversation, followUpCount?: number) => {
-    if (!project) return
-
-    const existingConversations = schemaConfig?.conversations || []
-    const conversationIndex = existingConversations.findIndex(
-      (c) => c.personId === conversation.personId
-    )
-
-    let updatedConversations: Conversation[]
-    if (conversationIndex >= 0) {
-      // Update existing conversation
-      updatedConversations = [...existingConversations]
-      updatedConversations[conversationIndex] = conversation
-    } else {
-      // Add new conversation
-      updatedConversations = [...existingConversations, conversation]
-    }
-
-    // Update contact with follow-up count if provided
-    let updatedContacts = schemaConfig?.contacts || []
-    if (followUpCount !== undefined && followUpCount > 0) {
-      updatedContacts = updatedContacts.map((contact) => {
-        if (contact.id === conversation.personId) {
-          return {
-            ...contact,
-            custom_fields: {
-              ...(contact as ResearchedContact & { custom_fields?: Record<string, unknown> }).custom_fields,
-              followup_count: followUpCount,
-            },
-          }
-        }
-        return contact
-      })
-    }
-
-    // Save to Supabase
-    const supabase = getSupabase()
-    const updatedSchemaConfig = {
-      ...schemaConfig,
-      conversations: updatedConversations,
-      contacts: updatedContacts,
-    }
-
-    const { error: updateError } = await supabase
-      .from('projects')
-      .update({
-        schema_config: updatedSchemaConfig,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', project.id)
-
-    if (updateError) {
-      console.error('Failed to save conversation:', updateError)
-      return
-    }
-
-    // Update local state
-    setProject({
-      ...project,
-      schema_config: updatedSchemaConfig,
-      updated_at: new Date().toISOString(),
-    })
-  }
-
-  // Get contact and company data for conversation modal
-  const getConversationData = () => {
-    if (!conversationModal.contactId || !conversationModal.email) {
-      return null
-    }
-
-    const contact = schemaConfig?.contacts?.find(
-      (c) => c.id === conversationModal.contactId
-    )
-    const company = schemaConfig?.companies?.find(
-      (c) => c.id === conversationModal.email?.company?.id
-    )
-    const existingConversation = schemaConfig?.conversations?.find(
-      (c) => c.personId === conversationModal.contactId
-    )
-
-    if (!contact || !company) return null
-
-    return {
-      contact: {
-        id: contact.id,
-        company: contact.company,
-        companyId: contact.companyId,
-        name: contact.name,
-        title: contact.title,
-        email: (contact as ResearchedContact & { email?: string }).email || '',
-        linkedin: contact.linkedinUrl || '',
-        seniority: contact.seniority,
-        source: 'web_research' as const,
-        verificationStatus: 'unverified' as const,
-        emailCertainty: 50,
-        emailSource: '',
-        emailVerified: false,
-      },
-      company,
-      existingConversation,
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -679,7 +542,6 @@ export default function ProjectPage() {
                 onStepChange={setExpandedStep}
                 onProjectUpdate={setProject}
                 completedSteps={completedSteps}
-                onOpenConversation={handleOpenConversation}
               />
             </div>
           </div>
@@ -709,24 +571,6 @@ export default function ProjectPage() {
           </div>
         </div>
       </div>
-
-      {/* Conversation Modal */}
-      {conversationModal.isOpen && conversationModal.email && (() => {
-        const data = getConversationData()
-        if (!data) return null
-        return (
-          <ConversationModal
-            isOpen={conversationModal.isOpen}
-            contact={data.contact}
-            company={data.company}
-            initialEmail={conversationModal.email}
-            existingConversation={data.existingConversation}
-            projectContext={(project?.schema_config as { context?: import('@/types').ProjectContext })?.context}
-            onClose={() => setConversationModal({ isOpen: false, contactId: null, email: null })}
-            onSave={handleSaveConversation}
-          />
-        )
-      })()}
 
       {/* Prompt Inspector */}
       <PromptInspector

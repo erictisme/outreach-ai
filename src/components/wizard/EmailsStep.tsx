@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Loader2, AlertTriangle, Mail, Save, RefreshCw, Copy, Check, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
@@ -12,10 +13,10 @@ interface EmailsStepProps {
   project: Project
   onUpdate: (project: Project) => void
   onComplete: () => void
-  onOpenConversation?: (contactId: string, email: EmailDraft) => void
 }
 
-export function EmailsStep({ project, onUpdate, onOpenConversation }: EmailsStepProps) {
+export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
+  const router = useRouter()
   const { addToast } = useToast()
   const schemaConfig = project.schema_config as {
     extractedContext?: ProjectContext
@@ -447,15 +448,13 @@ export function EmailsStep({ project, onUpdate, onOpenConversation }: EmailsStep
                         </p>
                       </div>
                       {/* Enter Conversation button */}
-                      {onOpenConversation && (
-                        <button
-                          onClick={() => onOpenConversation(email.to.id, email)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 rounded-md hover:bg-purple-100 transition-colors"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          Enter Conversation
-                        </button>
-                      )}
+                      <button
+                        onClick={() => router.push(`/project/${project.id}/conversation/${email.to.id}`)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 rounded-md hover:bg-purple-100 transition-colors"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Enter Conversation
+                      </button>
                     </div>
                   </div>
 

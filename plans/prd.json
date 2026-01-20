@@ -58,7 +58,7 @@
       "id": "F29",
       "name": "Full screen email conversations",
       "priority": 29,
-      "passes": false,
+      "passes": true,
       "description": "Change conversation from modal to full screen page",
       "steps": [
         "Create src/app/project/[id]/conversation/[contactId]/page.tsx",

@@ -135,9 +135,420 @@
         "On success, auto-advance to Context step (step 2)"
       ],
       "acceptance": "Can upload files, extract text, and trigger LLM extraction"
+    },
+    {
+      "id": "F8",
+      "name": "Step 2: Context review form",
+      "priority": 8,
+      "passes": true,
+      "description": "Display and edit extracted context",
+      "steps": [
+        "Create src/components/wizard/ContextStep.tsx",
+        "Load extracted context from project.schema_config.extractedContext",
+        "Editable fields: Client Name (input), Product (input), Value Proposition (textarea)",
+        "Target Market (input), Target Seniority (dropdown: C-suite, Director, Manager, Any)",
+        "Target Roles as tag/chip input (add/remove roles like CEO, CFO, Buyer)",
+        "Target Segments as editable list (from extraction)",
+        "Save button persists changes to Supabase",
+        "Show 'Re-extract' button to call /api/extract again"
+      ],
+      "acceptance": "Extracted fields are editable and save to Supabase"
+    },
+    {
+      "id": "F9",
+      "name": "Step 3: Companies - segment cards",
+      "priority": 9,
+      "passes": true,
+      "description": "Show segments with count inputs for company generation",
+      "steps": [
+        "Create src/components/wizard/CompaniesStep.tsx",
+        "Display extracted segments as cards (from context.segments)",
+        "Each card shows: segment name, description, count input (number, default 5)",
+        "Plus/minus buttons to adjust count",
+        "Total count displayed at bottom",
+        "Two main buttons: 'Generate Companies' and 'I have companies'",
+        "'Generate' calls /api/generate-list with segments and counts",
+        "'I have companies' reveals paste textarea and CSV upload"
+      ],
+      "acceptance": "Segment cards display with adjustable counts"
+    },
+    {
+      "id": "F10",
+      "name": "Step 3: Companies - generate flow",
+      "priority": 10,
+      "passes": true,
+      "description": "Implement company generation from segments",
+      "steps": [
+        "On 'Generate Companies' click, show loading spinner",
+        "Call /api/generate-list with context and segment counts",
+        "Display results as selectable cards (company name, type, description)",
+        "Click card to select/deselect (visual toggle: border highlight, checkmark)",
+        "Show count: 'X of Y selected'",
+        "Add 'Enrich Selected' button that calls /api/enrich-companies",
+        "After enrichment, add companies to main DataTable",
+        "Save companies to Supabase"
+      ],
+      "acceptance": "Companies generate, can select, enrich adds to table"
+    },
+    {
+      "id": "F11",
+      "name": "Step 3: Companies - import flow",
+      "priority": 11,
+      "passes": true,
+      "description": "Implement paste/import companies",
+      "steps": [
+        "Show textarea for pasting company names (one per line)",
+        "Parse pasted text into company objects",
+        "Show parsed companies as editable list",
+        "CSV upload button: parse CSV, map columns",
+        "For each imported company, call /api/enrich-companies to fill details",
+        "Show enrichment progress bar",
+        "Add enriched companies to main DataTable",
+        "Save to Supabase"
+      ],
+      "acceptance": "Can paste or upload companies, they get enriched and added to table"
+    },
+    {
+      "id": "F12",
+      "name": "Step 4: Contacts - company selection",
+      "priority": 12,
+      "passes": true,
+      "description": "Select companies from table for contact search",
+      "steps": [
+        "Create src/components/wizard/ContactsStep.tsx",
+        "Show list of companies from DataTable (checkbox per company)",
+        "Select all / deselect all buttons",
+        "Show count: 'X companies selected'",
+        "Explain: 'Find contacts at selected companies'",
+        "Next button proceeds to contact search"
+      ],
+      "acceptance": "Can select companies for contact search"
+    },
+    {
+      "id": "F13",
+      "name": "Step 4: Contacts - free research (AI)",
+      "priority": 13,
+      "passes": true,
+      "description": "Free contact research using AI before paid Apollo search",
+      "steps": [
+        "Add 'Research Contacts (Free)' button in ContactsStep",
+        "Call /api/find-contacts-free with selected companies and target roles from context",
+        "Show loading state with progress per company",
+        "Display found contacts as cards (name, title, company, LinkedIn URL if found)",
+        "NO email shown - this is free tier",
+        "Contacts are selectable with checkboxes",
+        "Show 'X contacts found' count",
+        "Save found contacts to Supabase with source='ai_research'"
+      ],
+      "acceptance": "Free AI research finds contacts without using paid API credits"
+    },
+    {
+      "id": "F13b",
+      "name": "Step 4: Contacts - Apollo paid search",
+      "priority": 13,
+      "passes": true,
+      "description": "Paid Apollo search for contacts with emails",
+      "steps": [
+        "Add 'Find with Apollo (Paid)' button as alternative to free research",
+        "Check if Apollo API key exists, if not show ApiKeyModal",
+        "Show cost estimate: 'This will use ~X Apollo credits'",
+        "Confirmation modal before proceeding",
+        "Call /api/find-contacts-apollo with selected companies",
+        "Show loading state with progress",
+        "Display found contacts as selectable cards (name, title, company, LinkedIn)",
+        "Contacts include email if Apollo returns it",
+        "Save to Supabase with source='apollo'"
+      ],
+      "acceptance": "Apollo search finds contacts with cost warning"
+    },
+    {
+      "id": "F14",
+      "name": "Step 4: Contacts - email enrichment",
+      "priority": 14,
+      "passes": true,
+      "description": "Get emails for selected contacts with cost estimate",
+      "steps": [
+        "Show 'Find Emails' button with cost estimate",
+        "Cost estimate: 'This will use ~X Apollo credits'",
+        "Confirmation modal before proceeding",
+        "Call Apollo API to get emails for selected contacts",
+        "Update contacts in table with email addresses",
+        "Save to Supabase contacts table",
+        "Show success toast with count"
+      ],
+      "acceptance": "Emails fetched for selected contacts, cost shown beforehand"
+    },
+    {
+      "id": "F15",
+      "name": "Step 5: Emails - master prompt",
+      "priority": 15,
+      "passes": true,
+      "description": "Master prompt for bulk email generation",
+      "steps": [
+        "Create src/components/wizard/EmailsStep.tsx",
+        "Large textarea for master prompt at top",
+        "Placeholder text explaining usage",
+        "Save prompt button (persists to project.schema_config.masterPrompt)",
+        "Warning banner: 'This will regenerate ALL emails'",
+        "'Generate All Emails' button with confirmation modal",
+        "Call /api/write-emails with master prompt and all contacts"
+      ],
+      "acceptance": "Master prompt saves and generates emails with warning"
+    },
+    {
+      "id": "F16",
+      "name": "Step 5: Emails - per-contact display",
+      "priority": 16,
+      "passes": true,
+      "description": "Display generated emails per contact",
+      "steps": [
+        "List contacts with their generated emails below master prompt",
+        "Each contact card shows: name, company, subject line, email body preview",
+        "Copy Subject button (clipboard)",
+        "Copy Body button (clipboard)",
+        "Individual prompt textarea (collapsed by default, expand on click)",
+        "Regenerate button for single email with individual prompt",
+        "'Enter Conversation' button per contact"
+      ],
+      "acceptance": "Emails displayed per contact with copy buttons"
+    },
+    {
+      "id": "F17",
+      "name": "Conversation modal - shell and display",
+      "priority": 17,
+      "passes": true,
+      "description": "Create the conversation modal structure",
+      "steps": [
+        "Create src/components/ConversationModal.tsx",
+        "Modal opens on 'Enter Conversation' click from email card",
+        "Props: contact info, initial email sent, onClose callback",
+        "Header shows: contact name, company, title",
+        "Display initial outbound email in thread format",
+        "Thread format: alternating left/right bubbles for sent/received",
+        "Close button (X) in corner",
+        "Store conversation in contact.custom_fields.conversation array"
+      ],
+      "acceptance": "Modal opens and displays initial email in thread format"
+    },
+    {
+      "id": "F17b",
+      "name": "Conversation modal - reply handling",
+      "priority": 17,
+      "passes": true,
+      "description": "Handle pasting replies and generating responses",
+      "steps": [
+        "Add textarea at bottom: 'Paste their reply here'",
+        "Add 'Add Reply' button to save their message to thread",
+        "After adding reply, show 'Generate Response' button",
+        "Response type dropdown: General, Schedule Meeting, Confirm Details, Reschedule, Thank You, Clarify",
+        "'Generate Response' calls /api/draft-response with conversation history + type",
+        "Show generated response in editable textarea",
+        "Copy button for generated response",
+        "'Save & Close' button to persist and close modal"
+      ],
+      "acceptance": "Can paste replies and generate contextual AI responses"
+    },
+    {
+      "id": "F17c",
+      "name": "Conversation modal - follow-up generation",
+      "priority": 17,
+      "passes": true,
+      "description": "Generate follow-up when no reply received",
+      "steps": [
+        "Add 'No Reply Yet' button when awaiting response",
+        "On click, call /api/draft-response with type='follow_up'",
+        "Show generated follow-up email in editable textarea",
+        "Copy button for follow-up",
+        "Option to add follow-up to thread as 'sent'",
+        "Update contact status to reflect follow-up sent",
+        "Track follow-up count in contact.custom_fields"
+      ],
+      "acceptance": "Can generate and track follow-up emails"
+    },
+    {
+      "id": "F18",
+      "name": "Load existing data on page mount",
+      "priority": 18,
+      "passes": true,
+      "description": "Fetch and display existing companies/contacts from Supabase when page loads",
+      "steps": [
+        "In project page, after loading project, fetch companies from Supabase where project_id matches",
+        "For each company, fetch associated contacts from Supabase",
+        "For each contact, fetch associated emails from Supabase",
+        "Transform data into DataTable row format",
+        "Pass rows to DataTable component",
+        "Show loading skeleton while fetching",
+        "Handle empty state gracefully"
+      ],
+      "acceptance": "Existing data loads and displays in table on page refresh"
+    },
+    {
+      "id": "F18b",
+      "name": "Wizard-to-table data flow",
+      "priority": 18,
+      "passes": true,
+      "description": "When wizard steps add data, update the table",
+      "steps": [
+        "Create shared state or context for tableRows in project page",
+        "When CompaniesStep adds companies: append to tableRows, save to Supabase",
+        "When ContactsStep finds contacts: update matching company rows with contact, save to Supabase",
+        "When EmailsStep generates emails: update matching contact rows with email, save to Supabase",
+        "Use optimistic updates (update UI immediately, then persist)",
+        "Show toast on successful save"
+      ],
+      "acceptance": "Wizard actions immediately reflect in the table"
+    },
+    {
+      "id": "F18c",
+      "name": "Table-to-Supabase persistence",
+      "priority": 18,
+      "passes": true,
+      "description": "Changes in table persist to database",
+      "steps": [
+        "When status dropdown changes: update contact in Supabase",
+        "When date sent changes: update contact in Supabase",
+        "Debounce rapid changes (300ms)",
+        "Show subtle saving indicator",
+        "Handle save errors with toast and retry option",
+        "Verify data persists after page refresh"
+      ],
+      "acceptance": "All table edits persist to Supabase reliably"
+    },
+    {
+      "id": "F19",
+      "name": "Add more companies button",
+      "priority": 19,
+      "passes": true,
+      "description": "Incremental company addition",
+      "steps": [
+        "Add 'Add More Companies' button above DataTable",
+        "Opens Companies step in wizard panel (expands it)",
+        "New companies append to existing (don't replace)",
+        "Duplicate detection by company name/domain",
+        "Toast notification showing how many added"
+      ],
+      "acceptance": "Can add more companies anytime, they append to table"
+    },
+    {
+      "id": "F20",
+      "name": "Settings page with API keys",
+      "priority": 20,
+      "passes": true,
+      "description": "API key management page",
+      "steps": [
+        "Create src/app/project/[id]/settings/page.tsx",
+        "Link from project header (gear icon)",
+        "Apollo API key input (required for contacts)",
+        "Perplexity API key input (optional for enrichment)",
+        "Hunter API key input (optional)",
+        "Save keys to localStorage",
+        "Status indicators: green checkmark if set, gray if not",
+        "Links to get API keys from providers"
+      ],
+      "acceptance": "Can manage API keys, status shown in header"
+    },
+    {
+      "id": "F21",
+      "name": "Table row selection",
+      "priority": 21,
+      "passes": true,
+      "description": "Add checkbox selection to table rows for bulk operations",
+      "steps": [
+        "Add checkbox column as first column in DataTable",
+        "Header checkbox for select all / deselect all",
+        "Track selected row IDs in state",
+        "Visual highlight on selected rows (light blue background)",
+        "Show selection count: 'X rows selected'",
+        "Bulk action buttons appear when rows selected: Delete, Change Status, Export Selected",
+        "Clear selection button"
+      ],
+      "acceptance": "Can select multiple rows and perform bulk actions"
+    },
+    {
+      "id": "F21b",
+      "name": "Table sorting and filtering",
+      "priority": 21,
+      "passes": true,
+      "description": "Add sort and filter to DataTable",
+      "steps": [
+        "Click column header to sort (asc/desc toggle)",
+        "Sort indicator arrow in header",
+        "Filter dropdown above table: All, Needs Contact, Needs Email, Needs Follow-up",
+        "Search input to filter by company/contact name",
+        "Clear filters button",
+        "Persist sort/filter preference in localStorage"
+      ],
+      "acceptance": "Table is sortable and filterable"
+    },
+    {
+      "id": "F22",
+      "name": "Mobile responsive layout",
+      "priority": 22,
+      "passes": true,
+      "description": "Make layout work on mobile",
+      "steps": [
+        "On mobile (<768px): stack wizard above table (not side by side)",
+        "Wizard panel becomes collapsible header",
+        "Table becomes horizontally scrollable",
+        "Touch-friendly buttons and inputs",
+        "Test on iPhone/Android viewport sizes"
+      ],
+      "acceptance": "App is usable on mobile devices"
+    },
+    {
+      "id": "F23",
+      "name": "Keyboard shortcuts",
+      "priority": 23,
+      "passes": true,
+      "description": "Add keyboard shortcuts for power users",
+      "steps": [
+        "Cmd+S to save current step",
+        "Cmd+1-5 to jump to wizard steps",
+        "Escape to close modals",
+        "Arrow keys to navigate table rows (when table focused)",
+        "Enter to edit selected row",
+        "Add keyboard shortcuts help modal (? key)"
+      ],
+      "acceptance": "Keyboard shortcuts work, help modal shows them"
+    },
+    {
+      "id": "F24",
+      "name": "Loading and error states",
+      "priority": 24,
+      "passes": true,
+      "description": "Polish loading and error handling",
+      "steps": [
+        "Skeleton loaders for table while loading",
+        "Spinner in wizard steps during API calls",
+        "Error boundaries for component crashes",
+        "Toast notifications for all errors",
+        "Retry buttons for failed API calls",
+        "Graceful degradation if Supabase unavailable"
+      ],
+      "acceptance": "All loading states shown, errors handled gracefully"
+    },
+    {
+      "id": "F25",
+      "name": "Prompt inspection panel",
+      "priority": 25,
+      "passes": true,
+      "description": "Make all LLM prompts inspectable for debugging",
+      "steps": [
+        "Create src/components/PromptInspector.tsx",
+        "Collapsible panel at bottom of page (like browser devtools)",
+        "Log every API call: endpoint, request payload, response",
+        "Show prompts sent to /api/extract, /api/generate-list, /api/write-emails, /api/draft-response",
+        "Timestamp each entry",
+        "Copy button for each prompt/response",
+        "Clear log button",
+        "Persist log in sessionStorage (survives refresh within session)",
+        "Toggle button in header to show/hide inspector"
+      ],
+      "acceptance": "Can see all prompts sent to LLM APIs and their responses"
     }
   ],
   "archivedAt": [
-    "2026-01-17T16:07:27.765Z"
+    "2026-01-17T16:07:27.765Z",
+    "2026-01-20T16:16:31.141Z"
   ]
 }

@@ -5,3 +5,6 @@ Files: src/app/api/find-contacts-free/route.ts
 
 F28: Full screen wizard layout - replaced two-column layout with full-screen views, added toggle button in header, localStorage persistence, smooth transitions
 Files: src/app/project/[id]/page.tsx
+
+F29: Full screen email conversations - created new page route, removed modal, "Enter Conversation" buttons now navigate to full-screen page
+Files: src/app/project/[id]/conversation/[contactId]/page.tsx, src/components/wizard/EmailsStep.tsx, src/components/WizardPanel.tsx, src/app/project/[id]/page.tsx
