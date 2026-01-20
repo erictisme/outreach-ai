@@ -2,3 +2,6 @@
 
 F27: Fixed contact finding - improved prompt to require 3-5 contacts per company, added leadership fallback search, added detailed logging
 Files: src/app/api/find-contacts-free/route.ts
+
+F28: Full screen wizard layout - replaced two-column layout with full-screen views, added toggle button in header, localStorage persistence, smooth transitions
+Files: src/app/project/[id]/page.tsx

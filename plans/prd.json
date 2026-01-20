@@ -40,7 +40,7 @@
       "id": "F28",
       "name": "Full screen wizard layout",
       "priority": 28,
-      "passes": false,
+      "passes": true,
       "description": "Change from side-by-side to full screen wizard with table toggle",
       "steps": [
         "Remove two-column layout from project page",

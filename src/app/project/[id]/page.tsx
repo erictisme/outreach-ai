@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Plus, Settings, Terminal } from 'lucide-react'
+import { ChevronDown, ChevronUp, ArrowLeft, Settings, Terminal, Table2, Wand2 } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
@@ -17,6 +17,12 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp'
 import { PromptInspector } from '@/components/PromptInspector'
 import { EmailDraft, Conversation, Company, ResearchedContact, Person } from '@/types'
+
+// View modes for the full-screen layout
+type ViewMode = 'wizard' | 'table'
+
+// localStorage key for view preference
+const VIEW_PREFERENCE_KEY = 'outreach-view-preference'
 
 // Step mapping for keyboard navigation
 const STEP_MAP: Record<string, WizardStep> = {
@@ -34,10 +40,24 @@ export default function ProjectPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('wizard')
   const [isMobileWizardOpen, setIsMobileWizardOpen] = useState(false)
   const [expandedStep, setExpandedStep] = useState<WizardStep>('setup')
   const [completedSteps, _setCompletedSteps] = useState<WizardStep[]>([])
+
+  // Load view preference from localStorage on mount
+  useEffect(() => {
+    const savedView = localStorage.getItem(VIEW_PREFERENCE_KEY)
+    if (savedView === 'wizard' || savedView === 'table') {
+      setViewMode(savedView)
+    }
+  }, [])
+
+  // Save view preference to localStorage when it changes
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode)
+    localStorage.setItem(VIEW_PREFERENCE_KEY, mode)
+  }, [])
 
   // Conversation modal state
   const [conversationModal, setConversationModal] = useState<{
@@ -75,6 +95,15 @@ export default function ProjectPage() {
           addToast('Changes are saved automatically', 'info')
         },
       },
+      // Cmd+T to toggle between wizard and table views
+      {
+        key: 't',
+        metaKey: true,
+        description: 'Toggle view',
+        action: () => {
+          handleViewModeChange(viewMode === 'wizard' ? 'table' : 'wizard')
+        },
+      },
       // Cmd+1-5 to jump to wizard steps
       ...Object.entries(STEP_MAP).map(([key, step]) => ({
         key,
@@ -82,12 +111,12 @@ export default function ProjectPage() {
         description: `Go to ${step} step`,
         action: () => {
           setExpandedStep(step)
+          // Switch to wizard view if in table view
+          if (viewMode === 'table') {
+            handleViewModeChange('wizard')
+          }
           // On mobile, open the wizard panel
           setIsMobileWizardOpen(true)
-          // On desktop, expand if collapsed
-          if (isPanelCollapsed) {
-            setIsPanelCollapsed(false)
-          }
         },
       })),
       // Escape to close modals
@@ -149,6 +178,7 @@ export default function ProjectPage() {
   // Shortcuts list for help modal
   const shortcutsList = [
     { keys: { key: 's', metaKey: true }, description: 'Save (auto-saved)' },
+    { keys: { key: 't', metaKey: true }, description: 'Toggle Wizard/Table view' },
     { keys: { key: '1', metaKey: true }, description: 'Go to Setup' },
     { keys: { key: '2', metaKey: true }, description: 'Go to Context' },
     { keys: { key: '3', metaKey: true }, description: 'Go to Companies' },
@@ -573,6 +603,24 @@ export default function ProjectPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* View Toggle Button */}
+            <button
+              onClick={() => handleViewModeChange(viewMode === 'wizard' ? 'table' : 'wizard')}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors bg-white border-gray-200 hover:bg-gray-50"
+              title={viewMode === 'wizard' ? 'View Table (⌘T)' : 'View Wizard (⌘T)'}
+            >
+              {viewMode === 'wizard' ? (
+                <>
+                  <Table2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">View Table</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">View Wizard</span>
+                </>
+              )}
+            </button>
             <KeyboardShortcutsHelp shortcuts={shortcutsList} />
             <button
               onClick={() => setIsPromptInspectorOpen(!isPromptInspectorOpen)}
@@ -596,28 +644,35 @@ export default function ProjectPage() {
         </div>
       </header>
 
-      {/* Main content area - responsive layout */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Mobile wizard toggle header */}
+      {/* Main content area - full screen views with toggle */}
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Mobile view toggle header (visible on mobile only) */}
         <div className="md:hidden border-b border-gray-200 bg-gray-50">
           <button
             onClick={() => setIsMobileWizardOpen(!isMobileWizardOpen)}
             className="w-full flex items-center justify-between px-4 py-3 text-left touch-manipulation"
           >
-            <span className="font-medium text-gray-900">Wizard</span>
+            <span className="font-medium text-gray-900">
+              {viewMode === 'wizard' ? 'Wizard' : 'Table'}
+            </span>
             {isMobileWizardOpen ? (
               <ChevronUp className="w-5 h-5 text-gray-500" />
             ) : (
               <ChevronDown className="w-5 h-5 text-gray-500" />
             )}
           </button>
-          {/* Mobile wizard panel (collapsible) */}
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              isMobileWizardOpen ? 'max-h-[60vh]' : 'max-h-0'
-            }`}
-          >
-            <div className="p-4 overflow-y-auto max-h-[calc(60vh-1rem)]">
+        </div>
+
+        {/* Full-screen Wizard View */}
+        <div
+          className={`absolute inset-0 transition-all duration-300 ease-in-out ${
+            viewMode === 'wizard'
+              ? 'opacity-100 translate-x-0 pointer-events-auto'
+              : 'opacity-0 -translate-x-full pointer-events-none'
+          }`}
+        >
+          <div className="h-full overflow-y-auto p-4 md:p-6 bg-gray-50">
+            <div className="max-w-3xl mx-auto">
               <WizardPanel
                 project={project}
                 expandedStep={expandedStep}
@@ -630,68 +685,27 @@ export default function ProjectPage() {
           </div>
         </div>
 
-        {/* Desktop left panel - Wizard (hidden on mobile) */}
+        {/* Full-screen Table View */}
         <div
-          className={`hidden md:block ${
-            isPanelCollapsed ? 'w-0' : 'w-80'
-          } border-r border-gray-200 bg-gray-50 flex-shrink-0 transition-all duration-300 overflow-hidden`}
+          className={`absolute inset-0 transition-all duration-300 ease-in-out ${
+            viewMode === 'table'
+              ? 'opacity-100 translate-x-0 pointer-events-auto'
+              : 'opacity-0 translate-x-full pointer-events-none'
+          }`}
         >
-          <div className="w-80 h-full p-4 overflow-y-auto">
-            <WizardPanel
-              project={project}
-              expandedStep={expandedStep}
-              onStepChange={setExpandedStep}
-              onProjectUpdate={setProject}
-              completedSteps={completedSteps}
-              onOpenConversation={handleOpenConversation}
-            />
-          </div>
-        </div>
-
-        {/* Desktop collapse/expand button (hidden on mobile) */}
-        <button
-          onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
-          className="hidden md:flex flex-shrink-0 w-6 bg-gray-100 hover:bg-gray-200 items-center justify-center border-r border-gray-200 transition-colors"
-          aria-label={isPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
-        >
-          {isPanelCollapsed ? (
-            <ChevronRight className="w-4 h-4 text-gray-500" />
-          ) : (
-            <ChevronLeft className="w-4 h-4 text-gray-500" />
-          )}
-        </button>
-
-        {/* Right area - Data Table */}
-        <div className="flex-1 overflow-auto p-2 md:p-4 min-h-0">
-          {/* Add More Companies button */}
-          <div className="mb-3 md:mb-4">
-            <button
-              onClick={() => {
-                setExpandedStep('companies')
-                // On mobile, open the wizard panel
-                setIsMobileWizardOpen(true)
-                // On desktop, expand if collapsed
-                if (isPanelCollapsed) {
-                  setIsPanelCollapsed(false)
-                }
-              }}
-              className="inline-flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 active:bg-blue-200 transition-colors touch-manipulation"
-            >
-              <Plus className="w-4 h-4" />
-              Add More Companies
-            </button>
-          </div>
-          <div className="h-[calc(100%-52px)] md:h-[calc(100%-60px)] bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <DataTable
-              data={tableRows}
-              projectId={projectId}
-              onStatusChange={handleStatusChange}
-              onDateChange={handleDateChange}
-              isSaving={isSaving}
-              onRetry={pendingRetry || undefined}
-              focusedRowIndex={focusedRowIndex}
-              onFocusedRowChange={setFocusedRowIndex}
-            />
+          <div className="h-full overflow-auto p-2 md:p-4 bg-white">
+            <div className="h-full bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <DataTable
+                data={tableRows}
+                projectId={projectId}
+                onStatusChange={handleStatusChange}
+                onDateChange={handleDateChange}
+                isSaving={isSaving}
+                onRetry={pendingRetry || undefined}
+                focusedRowIndex={focusedRowIndex}
+                onFocusedRowChange={setFocusedRowIndex}
+              />
+            </div>
           </div>
         </div>
       </div>
