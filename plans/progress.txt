@@ -1,32 +1,4 @@
-F18b: Wizard-to-table data flow - DONE
-Files: src/components/wizard/{CompaniesStep,ContactsStep,EmailsStep}.tsx (toast notifications on save/error via useToast hook)
+# Ralph run Wed Jan 21 00:16:31 +08 2026
 
-F18c: Table-to-Supabase persistence - DONE
-Files: src/app/project/[id]/page.tsx (debounced handlers with useCallback, 300ms debounce, toast errors, retry state), src/components/DataTable.tsx (saving indicator, retry button)
-
-F19: Add more companies button - DONE
-Files: src/app/project/[id]/page.tsx (Add More Companies button above DataTable, expands wizard to Companies step), src/components/wizard/CompaniesStep.tsx (duplicate detection by name/domain, toast with count)
-
-F20: Settings page with API keys - DONE
-Files: src/app/project/[id]/settings/page.tsx (new settings page with API key inputs, show/hide, save/clear, status indicators), src/app/project/[id]/page.tsx (gear icon link in header)
-
-F21: Table row selection - DONE
-Files: src/components/DataTable.tsx (checkbox column, select all, selected state, blue highlight, selection count, bulk actions: Delete/Change Status/Export Selected, clear selection)
-
-F21b: Table sorting and filtering - DONE
-Files: src/components/DataTable.tsx (sortable headers with arrows, filter dropdown, search input, clear filters, localStorage persistence), src/app/project/[id]/page.tsx (projectId prop)
-
-F22: Mobile responsive layout - DONE
-Files: src/app/project/[id]/page.tsx (mobile wizard toggle header, stacked layout, touch-manipulation), src/components/DataTable.tsx (horizontal scroll, touch-friendly toolbar), src/components/StatusDropdown.tsx (touch-friendly sizing)
-
-F23: Keyboard shortcuts - DONE
-Files: src/app/project/[id]/page.tsx (useKeyboardShortcuts hook, Cmd+S, Cmd+1-5, Escape, arrow keys, j/k vim nav, KeyboardShortcutsHelp in header), src/components/DataTable.tsx (focusedRowIndex prop, row focus highlight, scroll into view)
-
-F24: Loading and error states - DONE
-Files: src/components/ui/ErrorBoundary.tsx (new), src/components/ui/Spinner.tsx (enhanced TableSkeleton), src/components/DataTable.tsx (isLoading prop with skeleton), src/app/project/[id]/page.tsx (ErrorBoundary wrap, retry button, graceful error handling)
-
-F25: Prompt inspection panel - DONE
-Files: src/components/PromptInspector.tsx (new collapsible panel), src/lib/promptLogger.ts (new logging utility with sessionStorage), src/app/project/[id]/page.tsx (toggle button, inspector state), wizard steps updated to use loggedFetch
-
-F26: Final polish and build verification - DONE
-Files: Fixed lint errors (React hooks rules, escape quotes), removed unused imports, build passes cleanly
+F27: Fixed contact finding - improved prompt to require 3-5 contacts per company, added leadership fallback search, added detailed logging
+Files: src/app/api/find-contacts-free/route.ts
