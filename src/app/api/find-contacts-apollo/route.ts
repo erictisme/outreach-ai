@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
 
     const targetTitles = context?.targetRoles || ['CEO', 'Managing Director', 'Sales Director', 'Business Development']
 
-    // Build title keywords for Apollo search
-    const titleKeywords = targetTitles.flatMap(title => {
+    // Build title keywords for Apollo search (kept for potential future use)
+    const _titleKeywords = targetTitles.flatMap(title => {
       // Extract key words from titles
       const words = title.toLowerCase().split(/\s+/)
       return words.filter(w => w.length > 3) // Filter out small words

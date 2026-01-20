@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
 
     // Sort by seniority (most senior first), then by company
     const targetSeniority = context.targetSeniority || 'any'
-    const minRank = getMinSeniorityRank(targetSeniority)
+    const _minRank = getMinSeniorityRank(targetSeniority)
 
     const sorted = withSeniority.sort((a, b) => {
       // First sort by company (keep contacts from same company together)
@@ -411,7 +411,7 @@ function dedupeContacts(contacts: Person[]): Person[] {
 
   // Add contacts without emails if no email version exists
   for (const contact of byNameCompany.values()) {
-    const nameKey = `${normalizeName(contact.name)}|${contact.companyId}`
+    const _nameKey = `${normalizeName(contact.name)}|${contact.companyId}`
 
     // Check if we have this person with an email already
     const hasEmailVersion = Array.from(byEmail.values()).some(

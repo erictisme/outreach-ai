@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Key, Eye, EyeOff, ExternalLink, CheckCircle } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
@@ -49,7 +49,6 @@ interface ApiKeyState {
 
 export default function SettingsPage() {
   const params = useParams()
-  const _router = useRouter()
   const projectId = params.id as string
   const { addToast } = useToast()
 

@@ -38,7 +38,6 @@ ${userPrompt}`
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
       // If no JSON, try to use the text as the body
-      const lastMessage = messages[messages.length - 1]
       const originalSubject = messages.find(m => m.subject)?.subject || ''
       return NextResponse.json({
         subject: originalSubject ? `Re: ${originalSubject}` : '',
@@ -54,7 +53,6 @@ ${userPrompt}`
       })
     } catch {
       // Fallback if JSON parsing fails
-      const lastMessage = messages[messages.length - 1]
       const originalSubject = messages.find(m => m.subject)?.subject || ''
       return NextResponse.json({
         subject: originalSubject ? `Re: ${originalSubject}` : '',

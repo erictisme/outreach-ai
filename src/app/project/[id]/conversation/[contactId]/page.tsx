@@ -39,7 +39,7 @@ export default function ConversationPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [contact, setContact] = useState<Person | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
-  const [initialEmail, setInitialEmail] = useState<EmailDraft | null>(null)
+  const [_initialEmail, setInitialEmail] = useState<EmailDraft | null>(null)
   const [projectContext, setProjectContext] = useState<ProjectContext | undefined>(undefined)
 
   // Conversation state

@@ -40,7 +40,7 @@ export function ConversationThread({
   conversation,
   person,
   company,
-  initialEmail,
+  initialEmail: _initialEmail,
   context,
   onBack,
   onUpdateConversation,

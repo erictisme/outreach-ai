@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
 
       try {
         // First attempt: standard search
-        let geminiContacts = await searchCompanyContacts(model, company, targetRoles, context, 'standard')
+        const geminiContacts = await searchCompanyContacts(model, company, targetRoles, context, 'standard')
         console.log(`[find-contacts-free] ${company.name}: Found ${geminiContacts.length} contacts (standard search)`)
 
         // Fallback: if too few contacts, try leadership-focused search

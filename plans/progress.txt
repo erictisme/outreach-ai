@@ -8,3 +8,6 @@ Files: src/app/project/[id]/page.tsx
 
 F29: Full screen email conversations - created new page route, removed modal, "Enter Conversation" buttons now navigate to full-screen page
 Files: src/app/project/[id]/conversation/[contactId]/page.tsx, src/components/wizard/EmailsStep.tsx, src/components/WizardPanel.tsx, src/app/project/[id]/page.tsx
+
+F30: Fixed lint errors/warnings, added eslint config to allow underscore-prefixed unused vars, build passes
+Files: eslint.config.mjs, src/app/api/* (lint fixes), src/app/project/[id]/* (lint fixes), src/components/ConversationThread.tsx

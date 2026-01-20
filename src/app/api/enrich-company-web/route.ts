@@ -60,7 +60,7 @@ Focus on finding: official website, company description, industry, and approxima
   return data.choices[0]?.message?.content || ''
 }
 
-function parseEnrichmentResponse(content: string, companyName: string): {
+function parseEnrichmentResponse(content: string, _companyName: string): {
   website: string
   description: string
   industry: string

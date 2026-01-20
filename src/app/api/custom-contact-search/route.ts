@@ -20,7 +20,7 @@ interface ResearchedContact {
 
 export async function POST(request: NextRequest) {
   try {
-    const { company, criteria, context } = await request.json() as {
+    const { company, criteria, context: _context } = await request.json() as {
       company: { id: string; name: string; domain?: string }
       criteria: string
       context: ProjectContext
