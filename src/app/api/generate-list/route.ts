@@ -3,12 +3,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ProjectContext, Company, Segment } from '@/types'
 import { extractDomain } from '@/lib/storage'
 
+// Helper to create a LinkedIn company URL slug from company name
+function createLinkedInSlug(companyName: string): string {
+  return companyName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+    .replace(/\s+/g, '-')          // Replace spaces with hyphens
+    .replace(/-+/g, '-')           // Collapse multiple hyphens
+    .replace(/^-|-$/g, '')         // Trim hyphens from start/end
+}
+
 // Helper to create a Company with all required fields
 function createCompany(obj: Record<string, string>): Company & { linkedinUrl?: string } {
   const website = obj.website || ''
+  const name = obj.name || 'Unknown'
+
+  // Get LinkedIn URL from response, or construct from company name
+  let linkedinUrl = obj.linkedinUrl || obj.linkedin_url || obj.linkedin || ''
+  if (!linkedinUrl && name !== 'Unknown') {
+    linkedinUrl = `https://linkedin.com/company/${createLinkedInSlug(name)}`
+  }
+
   return {
     id: `company-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-    name: obj.name || 'Unknown',
+    name,
     type: obj.type || 'Unknown',
     website,
     domain: extractDomain(website),
@@ -20,8 +38,8 @@ function createCompany(obj: Record<string, string>): Company & { linkedinUrl?: s
     verificationSource: 'web_search',
     verifiedAt: null,
     websiteAccessible: false,
-    // LinkedIn company page URL (optional)
-    linkedinUrl: obj.linkedinUrl || obj.linkedin_url || obj.linkedin || '',
+    // LinkedIn company page URL
+    linkedinUrl,
   }
 }
 

@@ -53,7 +53,7 @@
       "id": "F45",
       "name": "Fix company LinkedIn links",
       "priority": 45,
-      "passes": false,
+      "passes": true,
       "description": "LinkedIn links for companies are broken/missing",
       "steps": [
         "In /api/generate-list: Update prompt to return LinkedIn company URLs",

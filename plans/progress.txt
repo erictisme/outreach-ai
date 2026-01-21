@@ -8,3 +8,6 @@ Changed: src/components/wizard/ContextStep.tsx
 
 F44: Add Product/Service Focus field to filter companies by what they sell/carry
 Changed: src/types/index.ts, src/components/wizard/ContextStep.tsx, src/app/api/generate-list/route.ts
+
+F45: Fix company LinkedIn links - construct URL from company name slug, show dash when unavailable
+Changed: src/app/api/generate-list/route.ts, src/components/wizard/CompaniesStep.tsx
