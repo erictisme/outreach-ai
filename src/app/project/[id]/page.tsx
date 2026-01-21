@@ -155,7 +155,7 @@ export default function ProjectPage() {
   // Shortcuts list for help modal
   const shortcutsList = [
     { keys: { key: 's', metaKey: true }, description: 'Save (auto-saved)' },
-    { keys: { key: 't', metaKey: true }, description: 'Toggle Wizard/Table view' },
+    { keys: { key: 't', metaKey: true }, description: 'Toggle Steps/Table view' },
     { keys: { key: '1', metaKey: true }, description: 'Go to Setup' },
     { keys: { key: '2', metaKey: true }, description: 'Go to Context' },
     { keys: { key: '3', metaKey: true }, description: 'Go to Companies' },
@@ -470,7 +470,7 @@ export default function ProjectPage() {
             <button
               onClick={() => handleViewModeChange(viewMode === 'wizard' ? 'table' : 'wizard')}
               className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors bg-white border-gray-200 hover:bg-gray-50"
-              title={viewMode === 'wizard' ? 'View Table (⌘T)' : 'View Wizard (⌘T)'}
+              title={viewMode === 'wizard' ? 'View Table (⌘T)' : 'View Steps (⌘T)'}
             >
               {viewMode === 'wizard' ? (
                 <>
@@ -480,7 +480,7 @@ export default function ProjectPage() {
               ) : (
                 <>
                   <Wand2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">View Wizard</span>
+                  <span className="hidden sm:inline">View Steps</span>
                 </>
               )}
             </button>
@@ -516,7 +516,7 @@ export default function ProjectPage() {
             className="w-full flex items-center justify-between px-4 py-3 text-left touch-manipulation"
           >
             <span className="font-medium text-gray-900">
-              {viewMode === 'wizard' ? 'Wizard' : 'Table'}
+              {viewMode === 'wizard' ? 'Steps' : 'Table'}
             </span>
             {isMobileWizardOpen ? (
               <ChevronUp className="w-5 h-5 text-gray-500" />

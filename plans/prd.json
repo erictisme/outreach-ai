@@ -110,7 +110,7 @@
       "id": "F33",
       "name": "Rename Wizard to Steps",
       "priority": 33,
-      "passes": false,
+      "passes": true,
       "description": "Stop calling it 'Wizard' - use 'Steps' or just step names",
       "steps": [
         "In WizardPanel.tsx: Remove 'Wizard Panel' title",

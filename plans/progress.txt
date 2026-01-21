@@ -5,3 +5,6 @@ Files: src/components/wizard/SetupStep.tsx, src/components/wizard/ContextStep.ts
 
 F32: Improved Step 2 segments UI (nicer cards with numbering) + added "Add Segment" in Step 3 with form and Supabase sync
 Files: src/components/wizard/ContextStep.tsx, src/components/wizard/CompaniesStep.tsx
+
+F33: Removed "Wizard" title, updated UI text to say "Steps" instead of "Wizard"
+Files: src/components/WizardPanel.tsx, src/app/project/[id]/page.tsx

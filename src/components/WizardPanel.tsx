@@ -42,7 +42,6 @@ export function WizardPanel({
 }: WizardPanelProps) {
   return (
     <div className="flex flex-col h-full">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Wizard</h2>
       <div className="flex-1 flex flex-col gap-1">
         {STEPS.map((step) => {
           const isExpanded = expandedStep === step.id
