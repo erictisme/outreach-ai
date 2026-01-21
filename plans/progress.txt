@@ -11,3 +11,6 @@ Changed: src/types/index.ts, src/components/wizard/ContextStep.tsx, src/app/api/
 
 F45: Fix company LinkedIn links - construct URL from company name slug, show dash when unavailable
 Changed: src/app/api/generate-list/route.ts, src/components/wizard/CompaniesStep.tsx
+
+F46: Fix Apollo API - use q_organization_domains (string), proper name handling, deduplication
+Changed: src/app/api/find-contacts-apollo/route.ts

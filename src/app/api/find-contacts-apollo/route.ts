@@ -5,10 +5,12 @@ interface ApolloPersonResult {
   id: string
   first_name: string
   last_name: string
+  last_name_obfuscated?: string  // Apollo may return obfuscated last name
   name: string
   title: string
   email: string
   email_status: 'verified' | 'guessed' | 'unavailable' | null
+  has_email: boolean
   linkedin_url: string
   organization: {
     name: string
@@ -68,15 +70,16 @@ export async function POST(request: NextRequest) {
         // Apollo People Search API
         // Docs: https://docs.apollo.io/reference/people-api-search
         // Using mixed_people/api_search endpoint (the non-api_search version is deprecated)
+        // IMPORTANT: q_organization_domains takes a STRING (single domain), not an array
         const response = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
-            'x-api-key': apolloApiKey,
+            'X-Api-Key': apolloApiKey,  // Use X-Api-Key header (capitalized)
           },
           body: JSON.stringify({
-            organization_domains: [domain],
+            q_organization_domains: domain,  // STRING, not array
             person_titles: targetTitles,
             page: 1,
             per_page: 5, // Limit to 5 people per company to save credits
@@ -108,9 +111,22 @@ export async function POST(request: NextRequest) {
 
         // Convert Apollo results to our Person type
         for (const person of data.people || []) {
-          if (!person.name && !person.first_name) continue
+          // Skip contacts without a usable name
+          if (!person.first_name && !person.name) continue
 
-          const fullName = person.name || `${person.first_name} ${person.last_name}`.trim()
+          // Build full name: prefer first_name + last_name (not obfuscated)
+          // Fall back to person.name if available, then just first_name
+          let fullName = ''
+          if (person.first_name && person.last_name) {
+            fullName = `${person.first_name} ${person.last_name}`.trim()
+          } else if (person.name) {
+            fullName = person.name
+          } else if (person.first_name) {
+            fullName = person.first_name
+          }
+
+          // Skip if we couldn't build a valid name
+          if (!fullName || fullName === 'undefined' || fullName === 'undefined undefined') continue
 
           // Determine email certainty based on Apollo's status
           let emailCertainty = 0
@@ -153,11 +169,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Remove duplicates based on name + company combination
+    const seen = new Set<string>()
+    const uniquePersons = allPersons.filter(person => {
+      const key = `${person.name.toLowerCase()}-${person.companyId}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+
     return NextResponse.json({
-      persons: allPersons,
+      persons: uniquePersons,
       summary: {
         companiesProcessed: companies.length,
-        contactsFound: allPersons.length,
+        contactsFound: uniquePersons.length,
         creditsUsed,
       },
     })

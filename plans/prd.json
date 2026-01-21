@@ -69,7 +69,7 @@
       "id": "F46",
       "name": "Fix Apollo API and contact data quality",
       "priority": 46,
-      "passes": false,
+      "passes": true,
       "description": "Apollo API using wrong params, contacts show undefined names",
       "steps": [
         "In /api/find-contacts-apollo: Fix API call to use CORRECT format:",
