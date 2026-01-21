@@ -14,3 +14,6 @@ Changed: src/app/api/generate-list/route.ts, src/components/wizard/CompaniesStep
 
 F46: Fix Apollo API - use q_organization_domains (string), proper name handling, deduplication
 Changed: src/app/api/find-contacts-apollo/route.ts
+
+F47: Add checkbox selection for contacts before email enrichment - header checkbox, row checkboxes, selection count, Find Emails button
+Changed: src/components/wizard/ContactsStep.tsx

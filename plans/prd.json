@@ -88,7 +88,7 @@
       "id": "F47",
       "name": "Add checkbox selection to contacts before email enrichment",
       "priority": 47,
-      "passes": false,
+      "passes": true,
       "description": "User must select which contacts to enrich with emails",
       "steps": [
         "In ContactsStep.tsx: Add checkbox column to contacts table as FIRST column",

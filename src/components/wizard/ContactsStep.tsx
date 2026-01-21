@@ -44,6 +44,9 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
+  // Track selected contact IDs for email enrichment
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set())
+
   // Check if Apollo API key exists
   const hasApolloKey = useMemo(() => {
     return !!getApiKey('apollo')
@@ -166,6 +169,35 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
 
   const selectedCompanyCount = selectedCompanyIds.size
   const targetRoles = schemaConfig.extractedContext?.targetRoles || []
+
+  // Contact selection handlers for email enrichment
+  const contactsNeedingEmails = useMemo(() =>
+    contacts.filter((c) => !(c as ResearchedContact & { email?: string }).email),
+    [contacts]
+  )
+
+  const handleToggleContact = (contactId: string) => {
+    setSelectedContactIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(contactId)) {
+        next.delete(contactId)
+      } else {
+        next.add(contactId)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAllContacts = () => {
+    // Only select contacts that need emails
+    setSelectedContactIds(new Set(contactsNeedingEmails.map((c) => c.id)))
+  }
+
+  const handleDeselectAllContacts = () => {
+    setSelectedContactIds(new Set())
+  }
+
+  const selectedContactCount = selectedContactIds.size
 
   // Handle find contacts button click
   const handleFindContactsClick = () => {
@@ -406,29 +438,74 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     <div className="space-y-4">
       {/* Summary stats if we have contacts */}
       {contacts.length > 0 && (
-        <div className="flex items-center justify-between text-sm border-b pb-3">
-          <div className="text-gray-600">
-            <span className="font-semibold">{contacts.length}</span> contacts found
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-green-600 flex items-center gap-1">
-              <Mail className="w-3.5 h-3.5" />
-              {contactsWithEmails.length} with email
-            </span>
-            {contactsMissingEmails > 0 && (
-              <span className="text-amber-600">
-                {contactsMissingEmails} need email
+        <div className="space-y-3 border-b pb-3">
+          <div className="flex items-center justify-between text-sm">
+            <div className="text-gray-600">
+              <span className="font-semibold">{contacts.length}</span> contacts found
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-green-600 flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5" />
+                {contactsWithEmails.length} with email
               </span>
-            )}
-            <button
-              onClick={() => setShowClearConfirm(true)}
-              disabled={isSearching}
-              className="text-red-500 hover:text-red-700 flex items-center gap-1 text-xs"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Clear All
-            </button>
+              {contactsMissingEmails > 0 && (
+                <span className="text-amber-600">
+                  {contactsMissingEmails} need email
+                </span>
+              )}
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                disabled={isSearching}
+                className="text-red-500 hover:text-red-700 flex items-center gap-1 text-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Clear All
+              </button>
+            </div>
           </div>
+
+          {/* Contact selection for email enrichment */}
+          {contactsNeedingEmails.length > 0 && (
+            <div className="flex items-center justify-between bg-amber-50 rounded-lg p-3">
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-amber-800">
+                  <span className="font-semibold">{selectedContactCount}</span> of{' '}
+                  <span className="font-semibold">{contactsNeedingEmails.length}</span> contacts selected for email enrichment
+                </div>
+                <div className="flex gap-2 text-xs">
+                  <button
+                    onClick={handleSelectAllContacts}
+                    className="text-amber-700 hover:text-amber-900 underline"
+                  >
+                    Select all
+                  </button>
+                  <span className="text-amber-400">|</span>
+                  <button
+                    onClick={handleDeselectAllContacts}
+                    className="text-amber-600 hover:text-amber-800"
+                  >
+                    Deselect all
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  // TODO: Implement email enrichment for selected contacts
+                  addToast(`Email enrichment for ${selectedContactCount} contacts - coming soon!`, 'info')
+                }}
+                disabled={selectedContactCount === 0 || isSearching}
+                className={cn(
+                  'py-1.5 px-4 rounded-md text-sm font-medium transition-colors flex items-center gap-2',
+                  selectedContactCount === 0 || isSearching
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                )}
+              >
+                <Mail className="w-4 h-4" />
+                Find Emails ({selectedContactCount})
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -439,6 +516,33 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
             <table className="w-full text-sm">
               <thead className="bg-gray-50 sticky top-0">
                 <tr className="text-left text-xs text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 font-medium w-10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (selectedContactIds.size === contactsNeedingEmails.length && contactsNeedingEmails.length > 0) {
+                          handleDeselectAllContacts()
+                        } else {
+                          handleSelectAllContacts()
+                        }
+                      }}
+                      className={cn(
+                        'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
+                        selectedContactIds.size === contactsNeedingEmails.length && contactsNeedingEmails.length > 0
+                          ? 'bg-blue-500 border-blue-500'
+                          : selectedContactIds.size > 0
+                            ? 'bg-blue-200 border-blue-400'
+                            : 'border-gray-300 bg-white hover:border-gray-400'
+                      )}
+                    >
+                      {selectedContactIds.size === contactsNeedingEmails.length && contactsNeedingEmails.length > 0 && (
+                        <Check className="w-3.5 h-3.5 text-white" />
+                      )}
+                      {selectedContactIds.size > 0 && selectedContactIds.size < contactsNeedingEmails.length && (
+                        <div className="w-2 h-0.5 bg-blue-600 rounded" />
+                      )}
+                    </button>
+                  </th>
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Title</th>
                   <th className="px-3 py-2 font-medium">Company</th>
@@ -449,8 +553,29 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
               <tbody className="divide-y divide-gray-100">
                 {contacts.map((contact) => {
                   const contactEmail = (contact as ResearchedContact & { email?: string }).email
+                  const needsEmail = !contactEmail
+                  const isSelected = selectedContactIds.has(contact.id)
                   return (
-                    <tr key={contact.id} className="hover:bg-gray-50">
+                    <tr key={contact.id} className={cn('hover:bg-gray-50', isSelected && 'bg-blue-50')}>
+                      <td className="px-3 py-2">
+                        {needsEmail ? (
+                          <button
+                            onClick={() => handleToggleContact(contact.id)}
+                            className={cn(
+                              'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
+                              isSelected
+                                ? 'bg-blue-500 border-blue-500'
+                                : 'border-gray-300 bg-white hover:border-gray-400'
+                            )}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                          </button>
+                        ) : (
+                          <div className="w-5 h-5 flex items-center justify-center text-green-500">
+                            <CheckCircle className="w-4 h-4" />
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-900">{contact.name}</span>
