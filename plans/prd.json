@@ -73,22 +73,184 @@
       "acceptance": "Email conversations are full screen pages, not modals"
     },
     {
-      "id": "F30",
-      "name": "Final polish and build verification",
-      "priority": 30,
+      "id": "F31",
+      "name": "Fix Step 1 extraction not populating fields",
+      "priority": 31,
       "passes": true,
-      "description": "Final cleanup and verification after UX changes",
+      "description": "Save and Extract doesn't populate context fields - they remain empty",
       "steps": [
-        "Run pnpm build - must pass with no errors",
-        "Run pnpm lint - fix any warnings",
-        "Test full flow: create project -> setup -> context -> companies -> contacts -> emails -> conversation",
-        "Verify wizard full screen works",
-        "Verify table toggle works",
-        "Verify conversation full screen works",
-        "Verify data persists after page refresh",
-        "Remove any console.log statements"
+        "Debug /api/extract to ensure it returns structured data correctly",
+        "Check SetupStep.tsx - ensure it receives extraction response",
+        "After extraction completes, auto-populate: Client Name, Product, Value Proposition, Target Market",
+        "Also populate: Target Seniority, Target Roles, Target Segments",
+        "Show loading spinner during extraction",
+        "On success, either auto-advance to Step 2 OR show populated fields",
+        "Save extracted data to project.schema_config in Supabase",
+        "Test: enter context text, click Extract, verify all fields populate"
       ],
-      "acceptance": "Build passes, full flow works with new full-screen UX"
+      "acceptance": "Extraction populates all context fields automatically"
+    },
+    {
+      "id": "F32",
+      "name": "Add segments in Step 3 + improve Step 2 segments UI",
+      "priority": 32,
+      "passes": false,
+      "description": "Allow adding segments in Companies step, improve ugly Target Segments display in Context step",
+      "steps": [
+        "In ContextStep.tsx: Redesign Target Segments as nicer cards with name + description",
+        "Add edit/delete buttons on each segment card",
+        "In CompaniesStep.tsx: Add '+ Add Segment' button at bottom of segment list",
+        "New segment form: name input, description textarea, count input",
+        "New segments append to list and are included in company generation",
+        "Sync segment changes back to project context in Supabase"
+      ],
+      "acceptance": "Can add segments in Step 3, Step 2 segments look clean"
+    },
+    {
+      "id": "F33",
+      "name": "Rename Wizard to Steps",
+      "priority": 33,
+      "passes": false,
+      "description": "Stop calling it 'Wizard' - use 'Steps' or just step names",
+      "steps": [
+        "In WizardPanel.tsx: Remove 'Wizard Panel' title",
+        "Just show step indicators/names directly",
+        "Update any 'wizard' references in UI to 'steps'",
+        "Keep component filenames as-is (internal only)",
+        "Header should show current step name, not 'Wizard'"
+      ],
+      "acceptance": "No 'Wizard' text visible in UI"
+    },
+    {
+      "id": "F34",
+      "name": "Company generation as table with links",
+      "priority": 34,
+      "passes": false,
+      "description": "Show generated companies in table format with website/LinkedIn links for inspection",
+      "steps": [
+        "In CompaniesStep.tsx: Replace card view with table view for generated companies",
+        "Table columns: Checkbox (select), Company Name, Segment, Description (truncated), Website, LinkedIn",
+        "Website and LinkedIn columns show clickable links (open in new tab)",
+        "If no link available, show '-' or 'N/A'",
+        "Keep select all / deselect all functionality",
+        "Keep selection count display",
+        "Ensure /api/generate-list returns website URLs (may need to update prompt)"
+      ],
+      "acceptance": "Companies displayed as table with clickable website/LinkedIn links"
+    },
+    {
+      "id": "F35",
+      "name": "Fix Apollo API deprecated endpoint",
+      "priority": 35,
+      "passes": false,
+      "description": "Apollo returns 422 - endpoint deprecated, must use new mixed_people/api_search",
+      "steps": [
+        "Read Apollo docs: https://docs.apollo.io/reference/people-api-search",
+        "Update /api/find-contacts-apollo/route.ts to use new endpoint",
+        "New endpoint: POST https://api.apollo.io/api/v1/mixed_people/search",
+        "Update request body format per new API spec",
+        "Update response parsing for new format",
+        "Test with real company to verify contacts are returned",
+        "Add proper error handling for API errors"
+      ],
+      "acceptance": "Apollo API returns contacts without 422 error"
+    },
+    {
+      "id": "F36",
+      "name": "Simplify Step 4 - single Find Contacts button + persist",
+      "priority": 36,
+      "passes": false,
+      "description": "One Find Contacts button (uses Apollo if key exists, else free AI), persist results",
+      "steps": [
+        "Remove separate Free/Paid buttons - single 'Find Contacts' button",
+        "Logic: if Apollo API key exists, use Apollo; else use free AI research",
+        "Show which method will be used based on API key status",
+        "After finding contacts, IMMEDIATELY save to Supabase contacts table",
+        "When returning to Step 4, LOAD existing contacts from Supabase first",
+        "New searches APPEND to existing contacts (don't replace)",
+        "Add 'Clear All Contacts' button if user wants to start fresh",
+        "Display contacts in table format with: Name, Title, Company, Email (if available), LinkedIn"
+      ],
+      "acceptance": "Single Find button, contacts persist across navigation"
+    },
+    {
+      "id": "F37",
+      "name": "Rename Copy as TSV to Copy Table",
+      "priority": 37,
+      "passes": false,
+      "description": "TSV is jargon - rename to user-friendly 'Copy Table'",
+      "steps": [
+        "In DataTable.tsx: Change button text from 'Copy as TSV' to 'Copy Table'",
+        "Keep same functionality (tab-separated values for Excel paste)",
+        "Update any tooltips or labels that mention TSV"
+      ],
+      "acceptance": "Button says 'Copy Table' not 'Copy as TSV'"
+    },
+    {
+      "id": "F38",
+      "name": "Autosave master prompt in Step 5",
+      "priority": 38,
+      "passes": false,
+      "description": "Remove Save Prompt button - autosave instead",
+      "steps": [
+        "In EmailsStep.tsx: Remove 'Save Prompt' button",
+        "Add debounced autosave (1 second after typing stops)",
+        "Save to project.schema_config.masterPrompt in Supabase",
+        "Show subtle 'Saved' or checkmark indicator after save",
+        "Show 'Saving...' during save",
+        "Handle save errors gracefully with toast"
+      ],
+      "acceptance": "Master prompt autosaves, no manual save button needed"
+    },
+    {
+      "id": "F39",
+      "name": "Improve email display in Step 5",
+      "priority": 39,
+      "passes": false,
+      "description": "Show email content inline and include email address for copy",
+      "steps": [
+        "In EmailsStep.tsx: Show email body expanded by default (not collapsed)",
+        "Or show first 3-4 lines with 'Show more' to expand",
+        "Add contact's email address prominently above the email content",
+        "Format: 'To: gerald.goh@tangs.com.sg [Copy]' with copy button",
+        "Keep existing Subject [Copy] and Body [Copy] buttons",
+        "Make it easy to read and iterate on email content"
+      ],
+      "acceptance": "Emails are readable inline, email address is visible and copyable"
+    },
+    {
+      "id": "F40",
+      "name": "Fix browser back button navigation",
+      "priority": 40,
+      "passes": false,
+      "description": "Back button should return to previous step, not Step 1",
+      "steps": [
+        "Add step tracking to URL: /project/[id]?step=3",
+        "On page load, read ?step param and set initial step",
+        "When step changes, update URL with history.pushState or router.push",
+        "Browser back/forward should navigate between steps",
+        "If no ?step param, default to step 1",
+        "Ensure URL updates don't cause full page reload"
+      ],
+      "acceptance": "Browser back button navigates to previous wizard step"
+    },
+    {
+      "id": "F41",
+      "name": "Final verification and build",
+      "priority": 41,
+      "passes": false,
+      "description": "Verify all fixes work and build passes",
+      "steps": [
+        "Run pnpm build - must pass",
+        "Test Step 1 extraction populates fields",
+        "Test Step 2 segments look good",
+        "Test Step 3 segment add and company table with links",
+        "Test Step 4 contact persistence",
+        "Test Step 5 autosave and email display",
+        "Test browser back button between steps",
+        "Remove any debug console.logs"
+      ],
+      "acceptance": "All F31-F40 fixes verified, build passes"
     }
   ]
 }

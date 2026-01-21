@@ -132,7 +132,13 @@ export function SetupStep({ project, onUpdate, onComplete }: SetupStepProps) {
         throw new Error('Failed to extract context')
       }
 
-      const { context: extractedContext } = await extractResponse.json()
+      const extractData = await extractResponse.json()
+      const extractedContext = extractData.context
+
+      // Validate extraction returned meaningful data
+      if (!extractedContext || !extractedContext.clientName) {
+        throw new Error('Extraction did not return valid context data')
+      }
 
       // Save extracted context
       const finalSchemaConfig = {

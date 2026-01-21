@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, Plus, X, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
@@ -48,6 +48,25 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
   const [saving, setSaving] = useState(false)
   const [reextracting, setReextracting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Track if this is the initial mount to avoid resetting user edits
+  const initialContextRef = useRef<ProjectContext | undefined>(extractedContext)
+
+  // Sync form state when extractedContext changes (e.g., after initial extraction)
+  useEffect(() => {
+    // Only sync if extractedContext has changed from what we initialized with
+    // This handles the case where component mounts before extraction completes
+    if (extractedContext && extractedContext !== initialContextRef.current) {
+      setClientName(extractedContext.clientName || '')
+      setProduct(extractedContext.product || '')
+      setValueProposition(extractedContext.valueProposition || '')
+      setTargetMarket(extractedContext.targetMarket || '')
+      setTargetSeniority(extractedContext.targetSeniority || 'any')
+      setTargetRoles(extractedContext.targetRoles || [])
+      setSegments(extractedContext.segments || [])
+      initialContextRef.current = extractedContext
+    }
+  }, [extractedContext])
 
   // No extracted context yet - show placeholder
   if (!extractedContext) {
