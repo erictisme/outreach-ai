@@ -17,3 +17,6 @@ Files: src/app/api/find-contacts-apollo/route.ts
 
 F36: Simplified Step 4 - single Find Contacts button, auto-detects Apollo, contacts persist to Supabase, table display
 Files: src/components/wizard/ContactsStep.tsx
+
+F37: Renamed "Copy TSV" to "Copy Table" - updated button text and toast message
+Files: src/components/DataTable.tsx

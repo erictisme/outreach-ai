@@ -353,7 +353,7 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
 
     try {
       await navigator.clipboard.writeText(tsv)
-      addToast('Copied as TSV to clipboard', 'success')
+      addToast('Copied table to clipboard', 'success')
     } catch {
       addToast('Failed to copy to clipboard', 'error')
     }
@@ -490,7 +490,7 @@ export function DataTable({ data, projectId, onStatusChange, onDateChange, onBul
                 className="inline-flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
               >
                 <Copy className="w-4 h-4" />
-                <span className="hidden sm:inline">Copy TSV</span>
+                <span className="hidden sm:inline">Copy Table</span>
               </button>
               <button
                 onClick={handleCopyEmails}

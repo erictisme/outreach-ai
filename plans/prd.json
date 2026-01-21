@@ -177,7 +177,7 @@
       "id": "F37",
       "name": "Rename Copy as TSV to Copy Table",
       "priority": 37,
-      "passes": false,
+      "passes": true,
       "description": "TSV is jargon - rename to user-friendly 'Copy Table'",
       "steps": [
         "In DataTable.tsx: Change button text from 'Copy as TSV' to 'Copy Table'",
