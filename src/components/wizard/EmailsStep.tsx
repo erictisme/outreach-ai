@@ -43,6 +43,7 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
 
   // Per-email state
   const [expandedPrompts, setExpandedPrompts] = useState<Set<string>>(new Set())
+  const [expandedBodies, setExpandedBodies] = useState<Set<string>>(new Set())
   const [individualPrompts, setIndividualPrompts] = useState<Record<string, string>>({})
   const [regeneratingEmail, setRegeneratingEmail] = useState<string | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -247,6 +248,19 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
   // Toggle individual prompt visibility
   const togglePrompt = (emailId: string) => {
     setExpandedPrompts((prev) => {
+      const next = new Set(prev)
+      if (next.has(emailId)) {
+        next.delete(emailId)
+      } else {
+        next.add(emailId)
+      }
+      return next
+    })
+  }
+
+  // Toggle body expansion
+  const toggleBody = (emailId: string) => {
+    setExpandedBodies((prev) => {
       const next = new Set(prev)
       if (next.has(emailId)) {
         next.delete(emailId)
@@ -479,6 +493,10 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
               const isExpanded = expandedPrompts.has(emailId)
               const isRegenerating = regeneratingEmail === emailId
 
+              const isBodyExpanded = expandedBodies.has(emailId)
+              const bodyLines = email.body.split('\n')
+              const isLongBody = bodyLines.length > 6 || email.body.length > 400
+
               return (
                 <div
                   key={emailId}
@@ -508,6 +526,37 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
 
                   {/* Email Content */}
                   <div className="p-3 space-y-3">
+                    {/* To: Email Address */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-gray-500">To:</span>
+                      <span className="text-sm text-gray-800 font-mono">
+                        {email.to.email || '(no email)'}
+                      </span>
+                      {email.to.email && (
+                        <button
+                          onClick={() => handleCopy(email.to.email, `${emailId}-email`)}
+                          className={cn(
+                            'flex items-center gap-1 px-2 py-0.5 text-xs rounded transition-colors',
+                            copiedField === `${emailId}-email`
+                              ? 'text-green-700 bg-green-50'
+                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                          )}
+                        >
+                          {copiedField === `${emailId}-email` ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              Copy
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
                     {/* Subject Line */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
@@ -541,7 +590,7 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
                       </p>
                     </div>
 
-                    {/* Body Preview */}
+                    {/* Body - Expanded by default */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
@@ -569,9 +618,22 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
                           )}
                         </button>
                       </div>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-4">
-                        {email.body}
-                      </p>
+                      <div className="text-sm text-gray-700 bg-gray-50 rounded-md p-3 border border-gray-100">
+                        <p className={cn(
+                          'whitespace-pre-wrap',
+                          !isBodyExpanded && isLongBody && 'line-clamp-6'
+                        )}>
+                          {email.body}
+                        </p>
+                        {isLongBody && (
+                          <button
+                            onClick={() => toggleBody(emailId)}
+                            className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            {isBodyExpanded ? 'Show less' : 'Show more'}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Individual Prompt (Collapsible) */}

@@ -206,7 +206,7 @@
       "id": "F39",
       "name": "Improve email display in Step 5",
       "priority": 39,
-      "passes": false,
+      "passes": true,
       "description": "Show email content inline and include email address for copy",
       "steps": [
         "In EmailsStep.tsx: Show email body expanded by default (not collapsed)",
