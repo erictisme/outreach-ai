@@ -37,7 +37,7 @@
       "id": "F44",
       "name": "Add custom search criteria column",
       "priority": 44,
-      "passes": false,
+      "passes": true,
       "description": "Allow adding criteria like 'products sold' to filter/describe companies",
       "steps": [
         "In ContextStep.tsx: Add 'Product/Service Focus' text field",

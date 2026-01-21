@@ -61,6 +61,7 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
   const [segments, setSegments] = useState<Segment[]>(
     extractedContext?.segments || []
   )
+  const [productFocus, setProductFocus] = useState(extractedContext?.productFocus || '')
   const [newRole, setNewRole] = useState('')
 
   const [saving, setSaving] = useState(false)
@@ -82,6 +83,7 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
       setTargetSeniority(extractedContext.targetSeniority || 'any')
       setTargetRoles(extractedContext.targetRoles || [])
       setSegments(extractedContext.segments || [])
+      setProductFocus(extractedContext.productFocus || '')
       initialContextRef.current = extractedContext
     }
   }, [extractedContext])
@@ -151,6 +153,7 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
         targetSeniority,
         targetRoles,
         segments: segments.filter((s) => s.name.trim()), // Remove empty segments
+        productFocus: productFocus.trim() || undefined,
       }
 
       const newSchemaConfig = {
@@ -213,6 +216,7 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
       setTargetSeniority(newExtractedContext.targetSeniority || 'any')
       setTargetRoles(newExtractedContext.targetRoles || [])
       setSegments(newExtractedContext.segments || [])
+      setProductFocus(newExtractedContext.productFocus || '')
 
       // Save to Supabase
       const supabase = getSupabase()
@@ -301,6 +305,24 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
           placeholder="e.g., Singapore, Southeast Asia"
           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
         />
+      </div>
+
+      {/* Product/Service Focus */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Product/Service Focus
+        </label>
+        <input
+          type="text"
+          value={productFocus}
+          onChange={(e) => setProductFocus(e.target.value)}
+          disabled={isLoading}
+          placeholder="e.g., sells porcelain plates, carries tableware, luxury homeware"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Describe what products/services your target companies should sell or carry
+        </p>
       </div>
 
       {/* Target Seniority */}

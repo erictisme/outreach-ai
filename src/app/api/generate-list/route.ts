@@ -49,13 +49,22 @@ export async function POST(request: NextRequest) {
       ? `\n\n## IMPORTANT: Exclude These Companies\nDo NOT include any of these companies (already in list): ${excludeNames.slice(0, 50).join(', ')}${excludeNames.length > 50 ? '...' : ''}`
       : ''
 
+    // Build product focus criteria if provided
+    const productFocusNote = context.productFocus
+      ? `\n- Product/Service Focus: ${context.productFocus}`
+      : ''
+
+    const productFocusRequirement = context.productFocus
+      ? `\n6. PRIORITIZE companies that: ${context.productFocus}. The company's product/service focus should align with this criteria.`
+      : ''
+
     const prompt = `Generate a target company list for outreach.
 
 ## Project Context
 - Client: ${context.clientName}
 - Product: ${context.product}
 - Value Proposition: ${context.valueProposition}
-- Target Market: ${context.targetMarket}
+- Target Market: ${context.targetMarket}${productFocusNote}
 - Key Differentiators: ${context.keyDifferentiators.join(', ')}
 - Credibility Signals: ${context.credibilitySignals.join(', ')}
 
@@ -67,7 +76,7 @@ ${segmentList}
 2. For each company, indicate which segment it belongs to in the "type" field
 3. Prioritize by relevance (High/Medium/Low with reasoning)
 4. Include real companies with actual websites in ${context.targetMarket}
-5. Focus on companies that would genuinely benefit from ${context.product}${exclusionNote}
+5. Focus on companies that would genuinely benefit from ${context.product}${productFocusRequirement}${exclusionNote}
 
 ## Output Format
 Return as JSON array:

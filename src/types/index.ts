@@ -69,6 +69,7 @@ export interface ProjectContext {
   visitDates?: string
   keyDifferentiators: string[]
   credibilitySignals: string[]
+  productFocus?: string // Custom criteria: what products/services target companies should sell/carry
 }
 
 // Verification status types

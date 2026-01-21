@@ -5,3 +5,6 @@ Changed: src/components/wizard/ContactsStep.tsx
 
 F43: Clickable target role suggestions - added SUGGESTED_ROLES array and clickable chips below Target Roles input
 Changed: src/components/wizard/ContextStep.tsx
+
+F44: Add Product/Service Focus field to filter companies by what they sell/carry
+Changed: src/types/index.ts, src/components/wizard/ContextStep.tsx, src/app/api/generate-list/route.ts
