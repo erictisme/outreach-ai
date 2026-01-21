@@ -2,3 +2,6 @@
 
 F31: Fixed extraction not populating fields - added validation in SetupStep.tsx and useEffect sync in ContextStep.tsx
 Files: src/components/wizard/SetupStep.tsx, src/components/wizard/ContextStep.tsx
+
+F32: Improved Step 2 segments UI (nicer cards with numbering) + added "Add Segment" in Step 3 with form and Supabase sync
+Files: src/components/wizard/ContextStep.tsx, src/components/wizard/CompaniesStep.tsx

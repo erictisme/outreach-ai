@@ -94,7 +94,7 @@
       "id": "F32",
       "name": "Add segments in Step 3 + improve Step 2 segments UI",
       "priority": 32,
-      "passes": false,
+      "passes": true,
       "description": "Allow adding segments in Companies step, improve ugly Target Segments display in Context step",
       "steps": [
         "In ContextStep.tsx: Redesign Target Segments as nicer cards with name + description",

@@ -56,6 +56,13 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
   const [generatedCompanies, setGeneratedCompanies] = useState<GeneratedCompany[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  // Add segment state
+  const [showAddSegment, setShowAddSegment] = useState(false)
+  const [newSegmentName, setNewSegmentName] = useState('')
+  const [newSegmentDescription, setNewSegmentDescription] = useState('')
+  const [newSegmentCount, setNewSegmentCount] = useState(5)
+  const [isSavingSegment, setIsSavingSegment] = useState(false)
+
   // Import flow state
   const [importText, setImportText] = useState('')
   const [parsedCompanies, setParsedCompanies] = useState<ParsedCompany[]>([])
@@ -75,14 +82,7 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
     )
   }
 
-  // No segments defined
-  if (segmentsWithCounts.length === 0) {
-    return (
-      <div className="text-sm text-gray-500 py-4 text-center">
-        No segments defined. Go back to Step 2 (Context) to add target segments.
-      </div>
-    )
-  }
+  // Note: We no longer return early for no segments - allow adding segments here
 
   const handleCountChange = (segmentId: string, delta: number) => {
     setSegmentsWithCounts((prev) =>
@@ -297,6 +297,73 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
 
   const handleImportClick = () => {
     setShowImport(true)
+  }
+
+  // Add new segment and sync to Supabase
+  const handleAddSegment = async () => {
+    if (!newSegmentName.trim()) return
+
+    setIsSavingSegment(true)
+    setError(null)
+
+    try {
+      const newSegment: SegmentWithCount = {
+        id: `seg_${Date.now()}`,
+        name: newSegmentName.trim(),
+        description: newSegmentDescription.trim(),
+        count: newSegmentCount,
+      }
+
+      // Add to local state
+      const updatedSegments = [...segmentsWithCounts, newSegment]
+      setSegmentsWithCounts(updatedSegments)
+
+      // Sync back to extractedContext in Supabase
+      const supabase = getSupabase()
+      const updatedContext: ProjectContext = {
+        ...extractedContext,
+        segments: updatedSegments.map(({ count: _count, ...seg }) => seg),
+      }
+
+      const updatedSchemaConfig = {
+        ...schemaConfig,
+        extractedContext: updatedContext,
+      }
+
+      const { data, error: updateError } = await supabase
+        .from('projects')
+        .update({
+          schema_config: updatedSchemaConfig,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id)
+        .select()
+        .single()
+
+      if (updateError) throw updateError
+
+      onUpdate(data)
+
+      // Reset form
+      setShowAddSegment(false)
+      setNewSegmentName('')
+      setNewSegmentDescription('')
+      setNewSegmentCount(5)
+
+      addToast(`Added segment "${newSegment.name}"`, 'success')
+    } catch (err) {
+      console.error('Error adding segment:', err)
+      setError(err instanceof Error ? err.message : 'Failed to add segment')
+    } finally {
+      setIsSavingSegment(false)
+    }
+  }
+
+  const handleCancelAddSegment = () => {
+    setShowAddSegment(false)
+    setNewSegmentName('')
+    setNewSegmentDescription('')
+    setNewSegmentCount(5)
   }
 
   // Parse pasted text into company objects
@@ -941,12 +1008,133 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
             </div>
           </div>
         ))}
+
+        {/* No segments placeholder */}
+        {segmentsWithCounts.length === 0 && !showAddSegment && (
+          <div className="p-4 border-2 border-dashed border-gray-200 rounded-lg text-center">
+            <p className="text-sm text-gray-500 mb-2">
+              No segments defined yet.
+            </p>
+            <button
+              onClick={() => setShowAddSegment(true)}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              + Add your first segment
+            </button>
+          </div>
+        )}
+
+        {/* Add Segment Form */}
+        {showAddSegment && (
+          <div className="p-4 border border-blue-200 rounded-lg bg-blue-50">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-gray-900">New Segment</h4>
+              <button
+                onClick={handleCancelAddSegment}
+                disabled={isSavingSegment}
+                className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={newSegmentName}
+                onChange={(e) => setNewSegmentName(e.target.value)}
+                disabled={isSavingSegment}
+                placeholder="Segment name (e.g., Distributors)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              />
+              <textarea
+                value={newSegmentDescription}
+                onChange={(e) => setNewSegmentDescription(e.target.value)}
+                disabled={isSavingSegment}
+                placeholder="Describe this segment (optional)"
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none disabled:bg-gray-100"
+              />
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Companies to generate:</label>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setNewSegmentCount(Math.max(1, newSegmentCount - 1))}
+                    disabled={newSegmentCount <= 1 || isSavingSegment}
+                    className={cn(
+                      'p-1.5 rounded-md border transition-colors',
+                      newSegmentCount <= 1 || isSavingSegment
+                        ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                        : 'border-gray-300 text-gray-600 hover:bg-gray-100'
+                    )}
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    type="text"
+                    value={newSegmentCount}
+                    onChange={(e) => {
+                      const num = parseInt(e.target.value, 10)
+                      if (!isNaN(num)) setNewSegmentCount(Math.max(1, Math.min(50, num)))
+                    }}
+                    disabled={isSavingSegment}
+                    className="w-10 text-center text-sm font-medium border border-gray-300 rounded-md py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  />
+                  <button
+                    onClick={() => setNewSegmentCount(Math.min(50, newSegmentCount + 1))}
+                    disabled={newSegmentCount >= 50 || isSavingSegment}
+                    className={cn(
+                      'p-1.5 rounded-md border transition-colors',
+                      newSegmentCount >= 50 || isSavingSegment
+                        ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                        : 'border-gray-300 text-gray-600 hover:bg-gray-100'
+                    )}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={handleAddSegment}
+                disabled={!newSegmentName.trim() || isSavingSegment}
+                className={cn(
+                  'w-full py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
+                  !newSegmentName.trim() || isSavingSegment
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                )}
+              >
+                {isSavingSegment ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  'Add Segment'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Add Segment Button (when segments exist) */}
+        {segmentsWithCounts.length > 0 && !showAddSegment && (
+          <button
+            onClick={() => setShowAddSegment(true)}
+            disabled={isGenerating}
+            className="w-full p-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            Add Segment
+          </button>
+        )}
       </div>
 
       {/* Total Count */}
-      <div className="text-sm text-gray-600 text-right">
-        Total: <span className="font-semibold">{totalCount}</span> companies
-      </div>
+      {segmentsWithCounts.length > 0 && (
+        <div className="text-sm text-gray-600 text-right">
+          Total: <span className="font-semibold">{totalCount}</span> companies
+        </div>
+      )}
 
       {/* Error message */}
       {error && (
@@ -959,11 +1147,11 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
       <div className="flex gap-2">
         <button
           onClick={handleGenerate}
-          disabled={isGenerating}
+          disabled={isGenerating || segmentsWithCounts.length === 0}
           className={cn(
             'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
-            isGenerating
-              ? 'bg-blue-400 text-white cursor-not-allowed'
+            isGenerating || segmentsWithCounts.length === 0
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           )}
         >
