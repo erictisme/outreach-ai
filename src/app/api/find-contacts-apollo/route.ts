@@ -67,15 +67,16 @@ export async function POST(request: NextRequest) {
       try {
         // Apollo People Search API
         // Docs: https://docs.apollo.io/reference/people-api-search
-        const response = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
+        // Using mixed_people/api_search endpoint (the non-api_search version is deprecated)
+        const response = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
-            'X-Api-Key': apolloApiKey,
+            'x-api-key': apolloApiKey,
           },
           body: JSON.stringify({
-            q_organization_domains: domain,
+            organization_domains: [domain],
             person_titles: targetTitles,
             page: 1,
             per_page: 5, // Limit to 5 people per company to save credits
@@ -88,6 +89,11 @@ export async function POST(request: NextRequest) {
 
           if (response.status === 401) {
             return NextResponse.json({ error: 'Invalid Apollo API key' }, { status: 401 })
+          }
+          if (response.status === 422) {
+            // Endpoint deprecated or invalid request format
+            console.error('Apollo API 422 error - check endpoint and request format:', errorText)
+            return NextResponse.json({ error: 'Apollo API request failed. The endpoint or request format may have changed.' }, { status: 422 })
           }
           if (response.status === 429) {
             // Rate limited, wait and continue

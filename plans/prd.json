@@ -142,7 +142,7 @@
       "id": "F35",
       "name": "Fix Apollo API deprecated endpoint",
       "priority": 35,
-      "passes": false,
+      "passes": true,
       "description": "Apollo returns 422 - endpoint deprecated, must use new mixed_people/api_search",
       "steps": [
         "Read Apollo docs: https://docs.apollo.io/reference/people-api-search",

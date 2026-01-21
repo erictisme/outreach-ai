@@ -11,3 +11,6 @@ Files: src/components/WizardPanel.tsx, src/app/project/[id]/page.tsx
 
 F34: Replaced card view with table for generated companies, added website/LinkedIn link columns
 Files: src/components/wizard/CompaniesStep.tsx, src/app/api/generate-list/route.ts
+
+F35: Fixed Apollo API deprecated endpoint - updated to mixed_people/api_search, fixed request params
+Files: src/app/api/find-contacts-apollo/route.ts
