@@ -26,3 +26,6 @@ Files: src/components/wizard/EmailsStep.tsx
 
 F39: Improved email display - added "To:" email address with copy button, body shows 6 lines with "Show more" toggle
 Files: src/components/wizard/EmailsStep.tsx
+
+F40: Fixed browser back button - added ?step URL param sync, back/forward navigates between steps
+Files: src/app/project/[id]/page.tsx

@@ -222,7 +222,7 @@
       "id": "F40",
       "name": "Fix browser back button navigation",
       "priority": 40,
-      "passes": false,
+      "passes": true,
       "description": "Back button should return to previous step, not Step 1",
       "steps": [
         "Add step tracking to URL: /project/[id]?step=3",

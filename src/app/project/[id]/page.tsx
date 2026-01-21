@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronDown, ChevronUp, ArrowLeft, Settings, Terminal, Table2, Wand2 } from 'lucide-react'
 import { getSupabase, Project } from '@/lib/supabase'
@@ -32,16 +32,45 @@ const STEP_MAP: Record<string, WizardStep> = {
   '5': 'emails',
 }
 
+// Map step number to WizardStep
+const STEP_NUMBER_TO_STEP: Record<string, WizardStep> = {
+  '1': 'setup',
+  '2': 'context',
+  '3': 'companies',
+  '4': 'contacts',
+  '5': 'emails',
+}
+
+// Map WizardStep to step number
+const STEP_TO_NUMBER: Record<WizardStep, string> = {
+  'setup': '1',
+  'context': '2',
+  'companies': '3',
+  'contacts': '4',
+  'emails': '5',
+}
+
 export default function ProjectPage() {
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const projectId = params.id as string
+
+  // Get initial step from URL or default to step 1
+  const getInitialStep = (): WizardStep => {
+    const stepParam = searchParams.get('step')
+    if (stepParam && STEP_NUMBER_TO_STEP[stepParam]) {
+      return STEP_NUMBER_TO_STEP[stepParam]
+    }
+    return 'setup'
+  }
 
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('wizard')
   const [isMobileWizardOpen, setIsMobileWizardOpen] = useState(false)
-  const [expandedStep, setExpandedStep] = useState<WizardStep>('setup')
+  const [expandedStep, setExpandedStep] = useState<WizardStep>(getInitialStep)
   const [completedSteps, _setCompletedSteps] = useState<WizardStep[]>([])
 
   // Load view preference from localStorage on mount
@@ -57,6 +86,28 @@ export default function ProjectPage() {
     setViewMode(mode)
     localStorage.setItem(VIEW_PREFERENCE_KEY, mode)
   }, [])
+
+  // Handle step change and update URL
+  const handleStepChange = useCallback((step: WizardStep) => {
+    setExpandedStep(step)
+    const stepNumber = STEP_TO_NUMBER[step]
+    const newUrl = `/project/${projectId}?step=${stepNumber}`
+    router.push(newUrl, { scroll: false })
+  }, [projectId, router])
+
+  // Sync step state when URL changes (browser back/forward)
+  useEffect(() => {
+    const stepParam = searchParams.get('step')
+    if (stepParam && STEP_NUMBER_TO_STEP[stepParam]) {
+      const urlStep = STEP_NUMBER_TO_STEP[stepParam]
+      if (urlStep !== expandedStep) {
+        setExpandedStep(urlStep)
+      }
+    } else if (!stepParam && expandedStep !== 'setup') {
+      // No step param means default to step 1
+      setExpandedStep('setup')
+    }
+  }, [searchParams, expandedStep])
 
   // Prompt inspector state
   const [isPromptInspectorOpen, setIsPromptInspectorOpen] = useState(false)
@@ -102,7 +153,7 @@ export default function ProjectPage() {
         metaKey: true,
         description: `Go to ${step} step`,
         action: () => {
-          setExpandedStep(step)
+          handleStepChange(step)
           // Switch to wizard view if in table view
           if (viewMode === 'table') {
             handleViewModeChange('wizard')
@@ -539,7 +590,7 @@ export default function ProjectPage() {
               <WizardPanel
                 project={project}
                 expandedStep={expandedStep}
-                onStepChange={setExpandedStep}
+                onStepChange={handleStepChange}
                 onProjectUpdate={setProject}
                 completedSteps={completedSteps}
               />
