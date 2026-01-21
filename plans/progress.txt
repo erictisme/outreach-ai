@@ -8,3 +8,6 @@ Files: src/components/wizard/ContextStep.tsx, src/components/wizard/CompaniesSte
 
 F33: Removed "Wizard" title, updated UI text to say "Steps" instead of "Wizard"
 Files: src/components/WizardPanel.tsx, src/app/project/[id]/page.tsx
+
+F34: Replaced card view with table for generated companies, added website/LinkedIn link columns
+Files: src/components/wizard/CompaniesStep.tsx, src/app/api/generate-list/route.ts

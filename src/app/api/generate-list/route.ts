@@ -4,7 +4,7 @@ import { ProjectContext, Company, Segment } from '@/types'
 import { extractDomain } from '@/lib/storage'
 
 // Helper to create a Company with all required fields
-function createCompany(obj: Record<string, string>): Company {
+function createCompany(obj: Record<string, string>): Company & { linkedinUrl?: string } {
   const website = obj.website || ''
   return {
     id: `company-${Date.now()}-${Math.random().toString(36).substring(7)}`,
@@ -20,6 +20,8 @@ function createCompany(obj: Record<string, string>): Company {
     verificationSource: 'web_search',
     verifiedAt: null,
     websiteAccessible: false,
+    // LinkedIn company page URL (optional)
+    linkedinUrl: obj.linkedinUrl || obj.linkedin_url || obj.linkedin || '',
   }
 }
 
@@ -73,12 +75,15 @@ Return as JSON array:
   {
     "name": "Company Name",
     "type": "Segment name (e.g., ${segments[0]?.name || 'Premium Distributors'})",
-    "website": "https://...",
+    "website": "https://company-website.com",
+    "linkedinUrl": "https://linkedin.com/company/company-name",
     "description": "1-2 sentences about what they do",
     "relevance": "High - specific reason why they're a good fit",
     "status": "not_contacted"
   }
 ]
+
+IMPORTANT: Include the company's LinkedIn page URL if known. Use the format https://linkedin.com/company/slug
 
 Only return valid JSON array, no other text or markdown.`
 

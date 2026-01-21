@@ -125,7 +125,7 @@
       "id": "F34",
       "name": "Company generation as table with links",
       "priority": 34,
-      "passes": false,
+      "passes": true,
       "description": "Show generated companies in table format with website/LinkedIn links for inspection",
       "steps": [
         "In CompaniesStep.tsx: Replace card view with table view for generated companies",

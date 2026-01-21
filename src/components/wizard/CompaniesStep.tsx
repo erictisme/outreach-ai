@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Minus, Plus, Sparkles, Upload, Check, Loader2, FileText, X } from 'lucide-react'
+import { Minus, Plus, Sparkles, Upload, Check, Loader2, FileText, X, ExternalLink } from 'lucide-react'
 import Papa from 'papaparse'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
@@ -25,6 +25,7 @@ interface ParsedCompany {
 // Generated company from API (before enrichment)
 interface GeneratedCompany extends Company {
   selected: boolean
+  linkedinUrl?: string
 }
 
 interface CompaniesStepProps {
@@ -861,49 +862,95 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
           </div>
         </div>
 
-        {/* Generated company cards */}
-        <div className="space-y-2 max-h-[300px] overflow-y-auto">
-          {generatedCompanies.map((company) => (
-            <button
-              key={company.id}
-              onClick={() => handleToggleSelect(company.id)}
-              className={cn(
-                'w-full p-3 border rounded-lg text-left transition-all',
-                company.selected
-                  ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              )}
-            >
-              <div className="flex items-start gap-3">
-                {/* Checkbox indicator */}
-                <div
-                  className={cn(
-                    'flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5',
-                    company.selected
-                      ? 'bg-blue-500 border-blue-500'
-                      : 'border-gray-300 bg-white'
-                  )}
-                >
-                  {company.selected && <Check className="w-3.5 h-3.5 text-white" />}
-                </div>
-
-                {/* Company info */}
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-gray-900 text-sm">
-                    {company.name}
-                  </h4>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {company.type}
-                  </p>
-                  {company.description && (
-                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                      {company.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </button>
-          ))}
+        {/* Generated companies table */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="max-h-[350px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr className="border-b border-gray-200">
+                  <th className="w-10 px-3 py-2 text-left">
+                    <input
+                      type="checkbox"
+                      checked={selectedCount === generatedCompanies.length && generatedCompanies.length > 0}
+                      onChange={(e) => e.target.checked ? handleSelectAll() : handleDeselectAll()}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Company</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Segment</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700 hidden sm:table-cell">Description</th>
+                  <th className="w-20 px-3 py-2 text-center font-medium text-gray-700">Links</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {generatedCompanies.map((company) => (
+                  <tr
+                    key={company.id}
+                    onClick={() => handleToggleSelect(company.id)}
+                    className={cn(
+                      'cursor-pointer transition-colors',
+                      company.selected
+                        ? 'bg-blue-50 hover:bg-blue-100'
+                        : 'bg-white hover:bg-gray-50'
+                    )}
+                  >
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={company.selected}
+                        onChange={() => handleToggleSelect(company.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-3 py-2 font-medium text-gray-900">
+                      {company.name}
+                    </td>
+                    <td className="px-3 py-2 text-gray-600">
+                      {company.type}
+                    </td>
+                    <td className="px-3 py-2 text-gray-500 hidden sm:table-cell">
+                      <span className="line-clamp-2" title={company.description}>
+                        {company.description || '-'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-center gap-2">
+                        {company.website ? (
+                          <a
+                            href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-blue-600 hover:text-blue-800"
+                            title={company.website}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
+                        {company.linkedinUrl ? (
+                          <a
+                            href={company.linkedinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-blue-700 hover:text-blue-900"
+                            title="LinkedIn"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                            </svg>
+                          </a>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Error message */}
