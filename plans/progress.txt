@@ -14,3 +14,6 @@ Files: src/components/wizard/CompaniesStep.tsx, src/app/api/generate-list/route.
 
 F35: Fixed Apollo API deprecated endpoint - updated to mixed_people/api_search, fixed request params
 Files: src/app/api/find-contacts-apollo/route.ts
+
+F36: Simplified Step 4 - single Find Contacts button, auto-detects Apollo, contacts persist to Supabase, table display
+Files: src/components/wizard/ContactsStep.tsx

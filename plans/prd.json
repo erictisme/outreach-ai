@@ -159,7 +159,7 @@
       "id": "F36",
       "name": "Simplify Step 4 - single Find Contacts button + persist",
       "priority": 36,
-      "passes": false,
+      "passes": true,
       "description": "One Find Contacts button (uses Apollo if key exists, else free AI), persist results",
       "steps": [
         "Remove separate Free/Paid buttons - single 'Find Contacts' button",
