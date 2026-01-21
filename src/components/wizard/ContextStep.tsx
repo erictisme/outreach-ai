@@ -10,6 +10,24 @@ import {
   SeniorityLevel,
   SENIORITY_OPTIONS,
 } from '@/types'
+
+// Suggested roles for quick selection
+const SUGGESTED_ROLES = [
+  'CEO',
+  'CFO',
+  'COO',
+  'VP Sales',
+  'Director',
+  'Buyer',
+  'Category Manager',
+  'Purchasing Manager',
+  'Partnership Manager',
+  'Business Development',
+  'Merchandiser',
+  'Store Manager',
+  'General Manager',
+  'Owner',
+]
 import { loggedFetch } from '@/lib/promptLogger'
 
 interface ContextStepProps {
@@ -344,6 +362,24 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
             <Plus className="w-4 h-4" />
           </button>
         </div>
+        {/* Suggested roles */}
+        {SUGGESTED_ROLES.filter((role) => !targetRoles.includes(role)).length > 0 && (
+          <div className="mt-2">
+            <span className="text-xs text-gray-500 mr-2">Suggestions:</span>
+            <div className="inline-flex flex-wrap gap-1.5 mt-1">
+              {SUGGESTED_ROLES.filter((role) => !targetRoles.includes(role)).map((role) => (
+                <button
+                  key={role}
+                  onClick={() => setTargetRoles([...targetRoles, role])}
+                  disabled={isLoading}
+                  className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 hover:text-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  + {role}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Segments */}

@@ -22,7 +22,7 @@
       "id": "F43",
       "name": "Clickable target role suggestions",
       "priority": 43,
-      "passes": false,
+      "passes": true,
       "description": "Target roles should show clickable suggestions that user can add",
       "steps": [
         "In ContextStep.tsx: Add suggested roles below the Target Roles input",

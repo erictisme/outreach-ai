@@ -2,3 +2,6 @@
 
 F42: Fix contact loading error - suppress empty {} error logs, extract meaningful error messages
 Changed: src/components/wizard/ContactsStep.tsx
+
+F43: Clickable target role suggestions - added SUGGESTED_ROLES array and clickable chips below Target Roles input
+Changed: src/components/wizard/ContextStep.tsx
