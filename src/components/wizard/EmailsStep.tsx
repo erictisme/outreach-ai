@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertTriangle, Mail, Save, RefreshCw, Copy, Check, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react'
+import { Loader2, AlertTriangle, Mail, RefreshCw, Copy, Check, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Company, ResearchedContact, ProjectContext, Person, EmailDraft } from '@/types'
@@ -32,8 +32,9 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
 
   // Master prompt state
   const [masterPrompt, setMasterPrompt] = useState<string>(schemaConfig.masterPrompt || '')
-  const [isSavingPrompt, setIsSavingPrompt] = useState(false)
-  const [promptSaved, setPromptSaved] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const savedIndicatorTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false)
@@ -61,17 +62,16 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
     return email && email.trim() !== ''
   })
 
-  // Save master prompt to Supabase
-  const handleSavePrompt = async () => {
-    setIsSavingPrompt(true)
-    setError(null)
+  // Autosave master prompt to Supabase
+  const savePromptToSupabase = useCallback(async (promptToSave: string) => {
+    setSaveStatus('saving')
 
     try {
       const supabase = getSupabase()
 
       const updatedSchemaConfig = {
         ...schemaConfig,
-        masterPrompt,
+        masterPrompt: promptToSave,
       }
 
       const { error: updateError } = await supabase
@@ -94,15 +94,61 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
       }
       onUpdate(updatedProject)
 
-      setPromptSaved(true)
-      setTimeout(() => setPromptSaved(false), 2000)
+      setSaveStatus('saved')
+
+      // Clear previous saved indicator timer
+      if (savedIndicatorTimerRef.current) {
+        clearTimeout(savedIndicatorTimerRef.current)
+      }
+
+      // Hide saved indicator after 2 seconds
+      savedIndicatorTimerRef.current = setTimeout(() => {
+        setSaveStatus('idle')
+      }, 2000)
     } catch (err) {
-      console.error('Save prompt error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to save prompt')
-    } finally {
-      setIsSavingPrompt(false)
+      console.error('Autosave prompt error:', err)
+      setSaveStatus('error')
+      addToast('Failed to save prompt', 'error')
     }
-  }
+  }, [schemaConfig, project, onUpdate, addToast])
+
+  // Debounced autosave effect
+  useEffect(() => {
+    // Don't save on initial mount - only save when user types
+    const initialPrompt = schemaConfig.masterPrompt || ''
+    if (masterPrompt === initialPrompt) {
+      return
+    }
+
+    // Clear any existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    // Set new debounce timer (1 second)
+    debounceTimerRef.current = setTimeout(() => {
+      savePromptToSupabase(masterPrompt)
+    }, 1000)
+
+    // Cleanup on unmount or when masterPrompt changes
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [masterPrompt, savePromptToSupabase, schemaConfig.masterPrompt])
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+      if (savedIndicatorTimerRef.current) {
+        clearTimeout(savedIndicatorTimerRef.current)
+      }
+    }
+  }, [])
 
   // Generate emails for all contacts
   const handleGenerateEmails = async () => {
@@ -335,33 +381,35 @@ export function EmailsStep({ project, onUpdate }: EmailsStepProps) {
           <p className="text-xs text-gray-500">
             Optional instructions that apply to all emails
           </p>
-          <button
-            onClick={handleSavePrompt}
-            disabled={isSavingPrompt}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-              promptSaved
-                ? 'bg-green-100 text-green-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            )}
-          >
-            {isSavingPrompt ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Saving...
-              </>
-            ) : promptSaved ? (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                Saved!
-              </>
-            ) : (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                Save Prompt
-              </>
-            )}
-          </button>
+          {saveStatus !== 'idle' && (
+            <span
+              className={cn(
+                'flex items-center gap-1 text-xs transition-opacity',
+                saveStatus === 'saving' && 'text-gray-500',
+                saveStatus === 'saved' && 'text-green-600',
+                saveStatus === 'error' && 'text-red-500'
+              )}
+            >
+              {saveStatus === 'saving' && (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Saving...
+                </>
+              )}
+              {saveStatus === 'saved' && (
+                <>
+                  <Check className="w-3 h-3" />
+                  Saved
+                </>
+              )}
+              {saveStatus === 'error' && (
+                <>
+                  <AlertTriangle className="w-3 h-3" />
+                  Error saving
+                </>
+              )}
+            </span>
+          )}
         </div>
       </div>
 

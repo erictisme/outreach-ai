@@ -190,7 +190,7 @@
       "id": "F38",
       "name": "Autosave master prompt in Step 5",
       "priority": 38,
-      "passes": false,
+      "passes": true,
       "description": "Remove Save Prompt button - autosave instead",
       "steps": [
         "In EmailsStep.tsx: Remove 'Save Prompt' button",

@@ -20,3 +20,6 @@ Files: src/components/wizard/ContactsStep.tsx
 
 F37: Renamed "Copy TSV" to "Copy Table" - updated button text and toast message
 Files: src/components/DataTable.tsx
+
+F38: Added debounced autosave for master prompt, removed manual Save button, shows Saving.../Saved indicator
+Files: src/components/wizard/EmailsStep.tsx
