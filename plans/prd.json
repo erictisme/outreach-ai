@@ -1,256 +1,122 @@
 {
   "project": "outreach-v2",
-  "description": "Table-centric B2B outreach tool. Main table (right) + collapsible wizard panel (left). One page per project.",
-  "architecture": "Two-column layout: WizardPanel (collapsible accordion) + DataTable (source of truth)",
-  "tech_stack": {
-    "framework": "Next.js 14 App Router",
-    "database": "Supabase (existing schema)",
-    "styling": "Tailwind CSS",
-    "state": "React useState + Supabase for persistence"
-  },
-  "existing_apis_to_use": [
-    "/api/extract",
-    "/api/generate-list",
-    "/api/enrich-companies",
-    "/api/find-contacts-apollo",
-    "/api/write-emails",
-    "/api/refine-email",
-    "/api/draft-response"
-  ],
+  "description": "B2B outreach tool - bug fixes round 4",
   "features": [
     {
-      "id": "F27",
-      "name": "Fix contact finding - too few results",
-      "priority": 27,
+      "id": "F42",
+      "name": "Fix contact loading error",
+      "priority": 42,
       "passes": true,
-      "description": "Debug and fix contact finding - currently only finding 1 contact from 25 companies",
+      "description": "Console error: Error loading contacts: {} - empty error object in ContactsStep.tsx",
       "steps": [
-        "Review /api/find-contacts-free implementation - check if it's actually searching",
-        "Add detailed logging to see what's being searched and returned",
-        "Check if target roles from context are being passed correctly",
-        "Ensure each company is being searched individually, not batched incorrectly",
-        "If using Gemini/AI search, ensure prompt asks for MULTIPLE contacts per company",
-        "Add fallback: if AI finds 0, try different search terms (company + 'leadership team')",
-        "Test with real companies to verify improvement",
-        "Target: at least 2-3 contacts per company on average"
+        "In ContactsStep.tsx line 66: check what loadError actually contains",
+        "The error object is empty {} - investigate why Supabase query fails silently",
+        "Check if project_id is being passed correctly to the query",
+        "Add proper error message extraction: loadError?.message || JSON.stringify(loadError)",
+        "Handle case where contacts table doesn't exist or has no rows gracefully",
+        "Test: load step 4, verify no console error"
       ],
-      "acceptance": "Contact finding returns multiple contacts per company, not 1 total from 25"
+      "acceptance": "No console error when loading contacts step"
     },
     {
-      "id": "F28",
-      "name": "Full screen wizard layout",
-      "priority": 28,
-      "passes": true,
-      "description": "Change from side-by-side to full screen wizard with table toggle",
+      "id": "F43",
+      "name": "Clickable target role suggestions",
+      "priority": 43,
+      "passes": false,
+      "description": "Target roles should show clickable suggestions that user can add",
       "steps": [
-        "Remove two-column layout from project page",
-        "Wizard steps take full screen width",
-        "Add 'View Table' toggle button in header (or floating button)",
-        "When toggled, show DataTable full screen (hide wizard)",
-        "Toggle button shows current view and allows switching back",
-        "Remember last view preference in localStorage",
-        "Smooth transition between views (fade or slide)",
-        "On mobile, same behavior (full screen for both)"
+        "In ContextStep.tsx: Add suggested roles below the Target Roles input",
+        "Show common roles as clickable chips: CEO, CFO, COO, VP Sales, Director, Buyer, Category Manager, Purchasing Manager, Partnership Manager, Business Development, Merchandiser",
+        "Click chip adds role to the list (if not already present)",
+        "Already-added roles show as disabled or hidden in suggestions",
+        "Make suggestions context-aware if possible (retail industry: Merchandiser, Store Manager)"
       ],
-      "acceptance": "Wizard is full screen by default, can toggle to full screen table"
+      "acceptance": "Can click suggested roles to add them quickly"
     },
     {
-      "id": "F29",
-      "name": "Full screen email conversations",
-      "priority": 29,
-      "passes": true,
-      "description": "Change conversation from modal to full screen page",
+      "id": "F44",
+      "name": "Add custom search criteria column",
+      "priority": 44,
+      "passes": false,
+      "description": "Allow adding criteria like 'products sold' to filter/describe companies",
       "steps": [
-        "Create src/app/project/[id]/conversation/[contactId]/page.tsx",
-        "Move ConversationModal content to this page",
-        "Full screen layout with contact info header",
-        "Thread view takes most of screen",
-        "Reply/generate section at bottom (sticky)",
-        "Back button returns to emails step or table",
-        "Update 'Enter Conversation' buttons to navigate to this page instead of opening modal",
-        "Keep conversation data synced with Supabase"
+        "In ContextStep.tsx: Add 'Product/Service Focus' text field",
+        "Example: 'sells porcelain plates', 'carries tableware', 'luxury homeware'",
+        "Pass this to /api/generate-list as product_focus parameter",
+        "Update generate-list prompt to prioritize companies matching this criteria",
+        "In company results, show relevance to product focus",
+        "Save to project.schema_config.productFocus"
       ],
-      "acceptance": "Email conversations are full screen pages, not modals"
+      "acceptance": "Can specify product criteria, companies are filtered accordingly"
     },
     {
-      "id": "F31",
-      "name": "Fix Step 1 extraction not populating fields",
-      "priority": 31,
-      "passes": true,
-      "description": "Save and Extract doesn't populate context fields - they remain empty",
+      "id": "F45",
+      "name": "Fix company LinkedIn links",
+      "priority": 45,
+      "passes": false,
+      "description": "LinkedIn links for companies are broken/missing",
       "steps": [
-        "Debug /api/extract to ensure it returns structured data correctly",
-        "Check SetupStep.tsx - ensure it receives extraction response",
-        "After extraction completes, auto-populate: Client Name, Product, Value Proposition, Target Market",
-        "Also populate: Target Seniority, Target Roles, Target Segments",
-        "Show loading spinner during extraction",
-        "On success, either auto-advance to Step 2 OR show populated fields",
-        "Save extracted data to project.schema_config in Supabase",
-        "Test: enter context text, click Extract, verify all fields populate"
+        "In /api/generate-list: Update prompt to return LinkedIn company URLs",
+        "Format: https://linkedin.com/company/[slug]",
+        "In CompaniesStep table: Ensure LinkedIn column renders as clickable link",
+        "If API doesn't return LinkedIn, try constructing from company name slug",
+        "Links should open in new tab with target=_blank",
+        "Show '-' only if truly unavailable"
       ],
-      "acceptance": "Extraction populates all context fields automatically"
+      "acceptance": "Company LinkedIn links work correctly"
     },
     {
-      "id": "F32",
-      "name": "Add segments in Step 3 + improve Step 2 segments UI",
-      "priority": 32,
-      "passes": true,
-      "description": "Allow adding segments in Companies step, improve ugly Target Segments display in Context step",
+      "id": "F46",
+      "name": "Fix Apollo API and contact data quality",
+      "priority": 46,
+      "passes": false,
+      "description": "Apollo API using wrong params, contacts show undefined names",
       "steps": [
-        "In ContextStep.tsx: Redesign Target Segments as nicer cards with name + description",
-        "Add edit/delete buttons on each segment card",
-        "In CompaniesStep.tsx: Add '+ Add Segment' button at bottom of segment list",
-        "New segment form: name input, description textarea, count input",
-        "New segments append to list and are included in company generation",
-        "Sync segment changes back to project context in Supabase"
+        "In /api/find-contacts-apollo: Fix API call to use CORRECT format:",
+        "  - Endpoint: POST https://api.apollo.io/api/v1/mixed_people/api_search",
+        "  - Use 'q_organization_domains': domain (STRING not array)",
+        "  - Use 'person_titles': ['CEO', 'Founder', 'Director', etc]",
+        "  - Headers: X-Api-Key (not in body)",
+        "Response has 'people' array with: first_name, last_name_obfuscated, title, has_email",
+        "To get emails: call /api/v1/people/match with first_name, last_name, organization_domain",
+        "In ContactsStep: combine first_name + last_name (not obfuscated) for display",
+        "Remove duplicates, validate names are complete"
       ],
-      "acceptance": "Can add segments in Step 3, Step 2 segments look clean"
+      "acceptance": "Apollo returns real contacts with proper names"
     },
     {
-      "id": "F33",
-      "name": "Rename Wizard to Steps",
-      "priority": 33,
-      "passes": true,
-      "description": "Stop calling it 'Wizard' - use 'Steps' or just step names",
+      "id": "F47",
+      "name": "Add checkbox selection to contacts before email enrichment",
+      "priority": 47,
+      "passes": false,
+      "description": "User must select which contacts to enrich with emails",
       "steps": [
-        "In WizardPanel.tsx: Remove 'Wizard Panel' title",
-        "Just show step indicators/names directly",
-        "Update any 'wizard' references in UI to 'steps'",
-        "Keep component filenames as-is (internal only)",
-        "Header should show current step name, not 'Wizard'"
+        "In ContactsStep.tsx: Add checkbox column to contacts table as FIRST column",
+        "Header checkbox for select all / deselect all",
+        "Track selected contact IDs in state",
+        "Show selection count: 'X of Y contacts selected'",
+        "'Find Emails' button only enriches SELECTED contacts",
+        "Show cost estimate: 'Enrich X contacts'",
+        "Disable Find Emails button if none selected"
       ],
-      "acceptance": "No 'Wizard' text visible in UI"
+      "acceptance": "Can select specific contacts, only selected get email enrichment"
     },
     {
-      "id": "F34",
-      "name": "Company generation as table with links",
-      "priority": 34,
-      "passes": true,
-      "description": "Show generated companies in table format with website/LinkedIn links for inspection",
-      "steps": [
-        "In CompaniesStep.tsx: Replace card view with table view for generated companies",
-        "Table columns: Checkbox (select), Company Name, Segment, Description (truncated), Website, LinkedIn",
-        "Website and LinkedIn columns show clickable links (open in new tab)",
-        "If no link available, show '-' or 'N/A'",
-        "Keep select all / deselect all functionality",
-        "Keep selection count display",
-        "Ensure /api/generate-list returns website URLs (may need to update prompt)"
-      ],
-      "acceptance": "Companies displayed as table with clickable website/LinkedIn links"
-    },
-    {
-      "id": "F35",
-      "name": "Fix Apollo API deprecated endpoint",
-      "priority": 35,
-      "passes": true,
-      "description": "Apollo returns 422 - endpoint deprecated, must use new mixed_people/api_search",
-      "steps": [
-        "Read Apollo docs: https://docs.apollo.io/reference/people-api-search",
-        "Update /api/find-contacts-apollo/route.ts to use new endpoint",
-        "New endpoint: POST https://api.apollo.io/api/v1/mixed_people/search",
-        "Update request body format per new API spec",
-        "Update response parsing for new format",
-        "Test with real company to verify contacts are returned",
-        "Add proper error handling for API errors"
-      ],
-      "acceptance": "Apollo API returns contacts without 422 error"
-    },
-    {
-      "id": "F36",
-      "name": "Simplify Step 4 - single Find Contacts button + persist",
-      "priority": 36,
-      "passes": true,
-      "description": "One Find Contacts button (uses Apollo if key exists, else free AI), persist results",
-      "steps": [
-        "Remove separate Free/Paid buttons - single 'Find Contacts' button",
-        "Logic: if Apollo API key exists, use Apollo; else use free AI research",
-        "Show which method will be used based on API key status",
-        "After finding contacts, IMMEDIATELY save to Supabase contacts table",
-        "When returning to Step 4, LOAD existing contacts from Supabase first",
-        "New searches APPEND to existing contacts (don't replace)",
-        "Add 'Clear All Contacts' button if user wants to start fresh",
-        "Display contacts in table format with: Name, Title, Company, Email (if available), LinkedIn"
-      ],
-      "acceptance": "Single Find button, contacts persist across navigation"
-    },
-    {
-      "id": "F37",
-      "name": "Rename Copy as TSV to Copy Table",
-      "priority": 37,
-      "passes": true,
-      "description": "TSV is jargon - rename to user-friendly 'Copy Table'",
-      "steps": [
-        "In DataTable.tsx: Change button text from 'Copy as TSV' to 'Copy Table'",
-        "Keep same functionality (tab-separated values for Excel paste)",
-        "Update any tooltips or labels that mention TSV"
-      ],
-      "acceptance": "Button says 'Copy Table' not 'Copy as TSV'"
-    },
-    {
-      "id": "F38",
-      "name": "Autosave master prompt in Step 5",
-      "priority": 38,
-      "passes": true,
-      "description": "Remove Save Prompt button - autosave instead",
-      "steps": [
-        "In EmailsStep.tsx: Remove 'Save Prompt' button",
-        "Add debounced autosave (1 second after typing stops)",
-        "Save to project.schema_config.masterPrompt in Supabase",
-        "Show subtle 'Saved' or checkmark indicator after save",
-        "Show 'Saving...' during save",
-        "Handle save errors gracefully with toast"
-      ],
-      "acceptance": "Master prompt autosaves, no manual save button needed"
-    },
-    {
-      "id": "F39",
-      "name": "Improve email display in Step 5",
-      "priority": 39,
-      "passes": true,
-      "description": "Show email content inline and include email address for copy",
-      "steps": [
-        "In EmailsStep.tsx: Show email body expanded by default (not collapsed)",
-        "Or show first 3-4 lines with 'Show more' to expand",
-        "Add contact's email address prominently above the email content",
-        "Format: 'To: gerald.goh@tangs.com.sg [Copy]' with copy button",
-        "Keep existing Subject [Copy] and Body [Copy] buttons",
-        "Make it easy to read and iterate on email content"
-      ],
-      "acceptance": "Emails are readable inline, email address is visible and copyable"
-    },
-    {
-      "id": "F40",
-      "name": "Fix browser back button navigation",
-      "priority": 40,
-      "passes": true,
-      "description": "Back button should return to previous step, not Step 1",
-      "steps": [
-        "Add step tracking to URL: /project/[id]?step=3",
-        "On page load, read ?step param and set initial step",
-        "When step changes, update URL with history.pushState or router.push",
-        "Browser back/forward should navigate between steps",
-        "If no ?step param, default to step 1",
-        "Ensure URL updates don't cause full page reload"
-      ],
-      "acceptance": "Browser back button navigates to previous wizard step"
-    },
-    {
-      "id": "F41",
-      "name": "Final verification and build",
-      "priority": 41,
-      "passes": true,
-      "description": "Verify all fixes work and build passes",
+      "id": "F48",
+      "name": "Final verification",
+      "priority": 48,
+      "passes": false,
+      "description": "Build passes, all fixes verified",
       "steps": [
         "Run pnpm build - must pass",
-        "Test Step 1 extraction populates fields",
-        "Test Step 2 segments look good",
-        "Test Step 3 segment add and company table with links",
-        "Test Step 4 contact persistence",
-        "Test Step 5 autosave and email display",
-        "Test browser back button between steps",
-        "Remove any debug console.logs"
+        "Test: no console error on contacts step",
+        "Test: role suggestions clickable",
+        "Test: product criteria field works",
+        "Test: company LinkedIn links work",
+        "Test: contact names are complete, no undefined",
+        "Test: contact selection works for email enrichment"
       ],
-      "acceptance": "All F31-F40 fixes verified, build passes"
+      "acceptance": "All F42-F47 verified working"
     }
   ]
 }

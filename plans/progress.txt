@@ -1,34 +1,4 @@
-# Ralph run Wed Jan 21 22:20:38 +08 2026
+# Ralph run Wed Jan 21 22:57:31 +08 2026
 
-F31: Fixed extraction not populating fields - added validation in SetupStep.tsx and useEffect sync in ContextStep.tsx
-Files: src/components/wizard/SetupStep.tsx, src/components/wizard/ContextStep.tsx
-
-F32: Improved Step 2 segments UI (nicer cards with numbering) + added "Add Segment" in Step 3 with form and Supabase sync
-Files: src/components/wizard/ContextStep.tsx, src/components/wizard/CompaniesStep.tsx
-
-F33: Removed "Wizard" title, updated UI text to say "Steps" instead of "Wizard"
-Files: src/components/WizardPanel.tsx, src/app/project/[id]/page.tsx
-
-F34: Replaced card view with table for generated companies, added website/LinkedIn link columns
-Files: src/components/wizard/CompaniesStep.tsx, src/app/api/generate-list/route.ts
-
-F35: Fixed Apollo API deprecated endpoint - updated to mixed_people/api_search, fixed request params
-Files: src/app/api/find-contacts-apollo/route.ts
-
-F36: Simplified Step 4 - single Find Contacts button, auto-detects Apollo, contacts persist to Supabase, table display
-Files: src/components/wizard/ContactsStep.tsx
-
-F37: Renamed "Copy TSV" to "Copy Table" - updated button text and toast message
-Files: src/components/DataTable.tsx
-
-F38: Added debounced autosave for master prompt, removed manual Save button, shows Saving.../Saved indicator
-Files: src/components/wizard/EmailsStep.tsx
-
-F39: Improved email display - added "To:" email address with copy button, body shows 6 lines with "Show more" toggle
-Files: src/components/wizard/EmailsStep.tsx
-
-F40: Fixed browser back button - added ?step URL param sync, back/forward navigates between steps
-Files: src/app/project/[id]/page.tsx
-
-F41: Final verification complete - pnpm build passes, no debug console.logs in components
-Files: plans/prd.json, plans/progress.txt
+F42: Fix contact loading error - suppress empty {} error logs, extract meaningful error messages
+Changed: src/components/wizard/ContactsStep.tsx

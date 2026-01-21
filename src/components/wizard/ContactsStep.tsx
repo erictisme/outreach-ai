@@ -63,7 +63,11 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
           .in('company_id', companies.map(c => c.id))
 
         if (loadError) {
-          console.error('Error loading contacts:', loadError)
+          // Extract meaningful error message - Supabase errors can be empty objects
+          const errorMessage = loadError.message || loadError.details || loadError.hint || JSON.stringify(loadError)
+          if (errorMessage && errorMessage !== '{}') {
+            console.error('Error loading contacts:', errorMessage)
+          }
           // Fall back to schema_config contacts
           setContacts(schemaConfig.contacts || [])
         } else if (dbContacts && dbContacts.length > 0) {
@@ -112,7 +116,10 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
           setContacts(schemaConfig.contacts || [])
         }
       } catch (err) {
-        console.error('Error loading contacts:', err)
+        // Only log if there's a meaningful error
+        if (err instanceof Error && err.message) {
+          console.error('Error loading contacts:', err.message)
+        }
         setContacts(schemaConfig.contacts || [])
       } finally {
         setIsLoadingContacts(false)
@@ -122,6 +129,8 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     if (companies.length > 0) {
       loadContacts()
     } else {
+      // No companies, nothing to load - just use schema_config fallback
+      setContacts(schemaConfig.contacts || [])
       setIsLoadingContacts(false)
     }
   }, [project.id]) // Only run on project change, not on every render
