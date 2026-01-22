@@ -146,6 +146,7 @@ export async function POST(request: NextRequest) {
 
           allPersons.push({
             id: `person-apollo-${person.id || Date.now()}-${Math.random().toString(36).substring(7)}`,
+            apolloId: person.id || null, // Store original Apollo ID for email enrichment
             company: company.name,
             companyId: company.id,
             name: fullName,

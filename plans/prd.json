@@ -1,122 +1,112 @@
 {
   "project": "outreach-v2",
-  "description": "B2B outreach tool - bug fixes round 4",
+  "description": "Contact flow fix - clear FREE vs PAID separation",
   "features": [
     {
-      "id": "F42",
-      "name": "Fix contact loading error",
-      "priority": 42,
+      "id": "F49",
+      "name": "Step 4 Phase A - Find Contacts UI",
+      "priority": 49,
       "passes": true,
-      "description": "Console error: Error loading contacts: {} - empty error object in ContactsStep.tsx",
+      "description": "ContactsStep shows selected companies + Find Contacts button (FREE)",
       "steps": [
-        "In ContactsStep.tsx line 66: check what loadError actually contains",
-        "The error object is empty {} - investigate why Supabase query fails silently",
-        "Check if project_id is being passed correctly to the query",
-        "Add proper error message extraction: loadError?.message || JSON.stringify(loadError)",
-        "Handle case where contacts table doesn't exist or has no rows gracefully",
-        "Test: load step 4, verify no console error"
+        "ContactsStep.tsx: On load, show list of companies selected in Step 3",
+        "Display selected companies in a compact list at top",
+        "'Find Contacts' button prominently displayed",
+        "When clicked, call /api/find-contacts-apollo for each company",
+        "Show loading state while searching",
+        "Display results in table: Name, Title, Company, LinkedIn",
+        "NO email column at this phase - emails come later",
+        "Persist found contacts to Supabase WITH apollo_id field"
       ],
-      "acceptance": "No console error when loading contacts step"
+      "acceptance": "Find Contacts shows contacts without emails"
     },
     {
-      "id": "F43",
-      "name": "Clickable target role suggestions",
-      "priority": 43,
-      "passes": true,
-      "description": "Target roles should show clickable suggestions that user can add",
+      "id": "F50",
+      "name": "Find Contacts API - FREE search",
+      "priority": 50,
+      "passes": false,
+      "description": "Fix /api/find-contacts-apollo to use correct FREE endpoint",
       "steps": [
-        "In ContextStep.tsx: Add suggested roles below the Target Roles input",
-        "Show common roles as clickable chips: CEO, CFO, COO, VP Sales, Director, Buyer, Category Manager, Purchasing Manager, Partnership Manager, Business Development, Merchandiser",
-        "Click chip adds role to the list (if not already present)",
-        "Already-added roles show as disabled or hidden in suggestions",
-        "Make suggestions context-aware if possible (retail industry: Merchandiser, Store Manager)"
+        "Endpoint: POST https://api.apollo.io/api/v1/mixed_people/api_search",
+        "Request body: { q_organization_domains: domain (STRING), person_titles: [...], page: 1, per_page: 10 }",
+        "Headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey }",
+        "Parse response.people array",
+        "Extract for each person: id (this is apollo_id!), first_name, last_name, title, linkedin_url",
+        "Handle last_name_obfuscated: use it if last_name is missing",
+        "Return contacts with apollo_id included",
+        "This endpoint is FREE - no credits used"
       ],
-      "acceptance": "Can click suggested roles to add them quickly"
+      "acceptance": "API returns contacts with apollo_id, no credits consumed"
     },
     {
-      "id": "F44",
-      "name": "Add custom search criteria column",
-      "priority": 44,
-      "passes": true,
-      "description": "Allow adding criteria like 'products sold' to filter/describe companies",
+      "id": "F51",
+      "name": "Step 4 Phase B - Email Enrichment UI",
+      "priority": 51,
+      "passes": false,
+      "description": "Select contacts, click Get Emails (PAID), shows cost warning",
       "steps": [
-        "In ContextStep.tsx: Add 'Product/Service Focus' text field",
-        "Example: 'sells porcelain plates', 'carries tableware', 'luxury homeware'",
-        "Pass this to /api/generate-list as product_focus parameter",
-        "Update generate-list prompt to prioritize companies matching this criteria",
-        "In company results, show relevance to product focus",
-        "Save to project.schema_config.productFocus"
-      ],
-      "acceptance": "Can specify product criteria, companies are filtered accordingly"
-    },
-    {
-      "id": "F45",
-      "name": "Fix company LinkedIn links",
-      "priority": 45,
-      "passes": true,
-      "description": "LinkedIn links for companies are broken/missing",
-      "steps": [
-        "In /api/generate-list: Update prompt to return LinkedIn company URLs",
-        "Format: https://linkedin.com/company/[slug]",
-        "In CompaniesStep table: Ensure LinkedIn column renders as clickable link",
-        "If API doesn't return LinkedIn, try constructing from company name slug",
-        "Links should open in new tab with target=_blank",
-        "Show '-' only if truly unavailable"
-      ],
-      "acceptance": "Company LinkedIn links work correctly"
-    },
-    {
-      "id": "F46",
-      "name": "Fix Apollo API and contact data quality",
-      "priority": 46,
-      "passes": true,
-      "description": "Apollo API using wrong params, contacts show undefined names",
-      "steps": [
-        "In /api/find-contacts-apollo: Fix API call to use CORRECT format:",
-        "  - Endpoint: POST https://api.apollo.io/api/v1/mixed_people/api_search",
-        "  - Use 'q_organization_domains': domain (STRING not array)",
-        "  - Use 'person_titles': ['CEO', 'Founder', 'Director', etc]",
-        "  - Headers: X-Api-Key (not in body)",
-        "Response has 'people' array with: first_name, last_name_obfuscated, title, has_email",
-        "To get emails: call /api/v1/people/match with first_name, last_name, organization_domain",
-        "In ContactsStep: combine first_name + last_name (not obfuscated) for display",
-        "Remove duplicates, validate names are complete"
-      ],
-      "acceptance": "Apollo returns real contacts with proper names"
-    },
-    {
-      "id": "F47",
-      "name": "Add checkbox selection to contacts before email enrichment",
-      "priority": 47,
-      "passes": true,
-      "description": "User must select which contacts to enrich with emails",
-      "steps": [
-        "In ContactsStep.tsx: Add checkbox column to contacts table as FIRST column",
+        "After contacts displayed, show checkbox column as FIRST column",
         "Header checkbox for select all / deselect all",
-        "Track selected contact IDs in state",
-        "Show selection count: 'X of Y contacts selected'",
-        "'Find Emails' button only enriches SELECTED contacts",
-        "Show cost estimate: 'Enrich X contacts'",
-        "Disable Find Emails button if none selected"
+        "Track selectedContactIds in state",
+        "Show selection count: 'X of Y selected'",
+        "'Get Emails (X selected)' button - only enabled when contacts selected",
+        "On click, show confirmation modal: 'This will use approximately X credits'",
+        "On confirm, call /api/enrich-contacts-email with selected apollo_ids",
+        "After enrichment, update contacts table to show email column"
       ],
-      "acceptance": "Can select specific contacts, only selected get email enrichment"
+      "acceptance": "Can select contacts and trigger paid email enrichment"
     },
     {
-      "id": "F48",
-      "name": "Final verification",
-      "priority": 48,
-      "passes": true,
-      "description": "Build passes, all fixes verified",
+      "id": "F52",
+      "name": "Email Enrichment API - PAID bulk_match",
+      "priority": 52,
+      "passes": false,
+      "description": "New /api/enrich-contacts-email using Apollo bulk_match",
       "steps": [
-        "Run pnpm build - must pass",
-        "Test: no console error on contacts step",
-        "Test: role suggestions clickable",
-        "Test: product criteria field works",
-        "Test: company LinkedIn links work",
-        "Test: contact names are complete, no undefined",
-        "Test: contact selection works for email enrichment"
+        "Create or update /api/enrich-contacts-email/route.ts",
+        "Accept: { contactIds: string[], apolloIds: string[], apiKey: string }",
+        "Endpoint: POST https://api.apollo.io/api/v1/people/bulk_match",
+        "Request body: { details: apolloIds.map(id => ({id})), reveal_personal_emails: false }",
+        "Headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey }",
+        "Parse response.matches array",
+        "Extract email from each match",
+        "Return map of apolloId -> email",
+        "This endpoint COSTS CREDITS"
       ],
-      "acceptance": "All F42-F47 verified working"
+      "acceptance": "API returns emails for given apollo_ids"
+    },
+    {
+      "id": "F53",
+      "name": "Update Contact type with apollo_id",
+      "priority": 53,
+      "passes": false,
+      "description": "Ensure Contact type and Supabase schema support apollo_id",
+      "steps": [
+        "In src/types/index.ts: Add apollo_id?: string to Contact/Person type",
+        "Check Supabase contacts table - add apollo_id column if missing",
+        "When saving contacts, include apollo_id",
+        "When loading contacts, load apollo_id",
+        "When enriching, use apollo_id to call bulk_match"
+      ],
+      "acceptance": "apollo_id stored and retrieved correctly"
+    },
+    {
+      "id": "F54",
+      "name": "Final verification - two-phase contact flow",
+      "priority": 54,
+      "passes": false,
+      "description": "Test complete flow: Find (free) → Select → Enrich (paid)",
+      "steps": [
+        "pnpm build passes",
+        "Step 3: Select companies, go to Step 4",
+        "Step 4: Click Find Contacts → contacts appear (no emails)",
+        "Select some contacts with checkboxes",
+        "Click 'Get Emails' → cost warning modal",
+        "Confirm → emails appear in table",
+        "Verify apollo_id stored in Supabase",
+        "Refresh page → data persists"
+      ],
+      "acceptance": "Full two-phase contact flow works"
     }
   ]
 }

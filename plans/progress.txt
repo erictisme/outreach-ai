@@ -1,22 +1,4 @@
-# Ralph run Wed Jan 21 22:57:31 +08 2026
+# Ralph run Thu Jan 22 08:17:58 +08 2026
 
-F42: Fix contact loading error - suppress empty {} error logs, extract meaningful error messages
-Changed: src/components/wizard/ContactsStep.tsx
-
-F43: Clickable target role suggestions - added SUGGESTED_ROLES array and clickable chips below Target Roles input
-Changed: src/components/wizard/ContextStep.tsx
-
-F44: Add Product/Service Focus field to filter companies by what they sell/carry
-Changed: src/types/index.ts, src/components/wizard/ContextStep.tsx, src/app/api/generate-list/route.ts
-
-F45: Fix company LinkedIn links - construct URL from company name slug, show dash when unavailable
-Changed: src/app/api/generate-list/route.ts, src/components/wizard/CompaniesStep.tsx
-
-F46: Fix Apollo API - use q_organization_domains (string), proper name handling, deduplication
-Changed: src/app/api/find-contacts-apollo/route.ts
-
-F47: Add checkbox selection for contacts before email enrichment - header checkbox, row checkboxes, selection count, Find Emails button
-Changed: src/components/wizard/ContactsStep.tsx
-
-F48: Final verification - build passes, all F42-F47 code verified working
-Changed: plans/prd.json (marked passes: true)
+F49: Step 4 Phase A - Find Contacts UI (DONE)
+Files: src/types/index.ts, src/app/api/find-contacts-apollo/route.ts, src/components/wizard/ContactsStep.tsx - Added apolloId field, removed email column from table

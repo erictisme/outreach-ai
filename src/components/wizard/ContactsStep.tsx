@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Check, Loader2, Search, Linkedin, AlertTriangle, Mail, CheckCircle, Trash2, ExternalLink, Key } from 'lucide-react'
+import { Check, Loader2, Search, Linkedin, Mail, CheckCircle, Trash2, ExternalLink, Key } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { Company, ResearchedContact, ProjectContext, Person } from '@/types'
@@ -79,6 +79,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
             const customFields = dbContact.custom_fields || {}
             return {
               id: dbContact.id,
+              apolloId: customFields.apolloId || null, // Load Apollo ID for email enrichment
               company: customFields.companyName || '',
               companyId: dbContact.company_id,
               name: dbContact.name,
@@ -253,6 +254,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
         // Convert Person results to ResearchedContact format
         newContacts = apolloPersons.map((p) => ({
           id: p.id,
+          apolloId: p.apolloId || null, // Preserve Apollo ID for email enrichment
           company: p.company,
           companyId: p.companyId,
           name: p.name,
@@ -315,6 +317,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
             relevanceScore: contact.relevanceScore,
             reasoning: contact.reasoning,
             companyName: contact.company,
+            apolloId: contact.apolloId || null, // Store Apollo ID for email enrichment
           },
         })
       }
@@ -546,35 +549,26 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Title</th>
                   <th className="px-3 py-2 font-medium">Company</th>
-                  <th className="px-3 py-2 font-medium">Email</th>
                   <th className="px-3 py-2 font-medium">LinkedIn</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {contacts.map((contact) => {
-                  const contactEmail = (contact as ResearchedContact & { email?: string }).email
-                  const needsEmail = !contactEmail
                   const isSelected = selectedContactIds.has(contact.id)
                   return (
                     <tr key={contact.id} className={cn('hover:bg-gray-50', isSelected && 'bg-blue-50')}>
                       <td className="px-3 py-2">
-                        {needsEmail ? (
-                          <button
-                            onClick={() => handleToggleContact(contact.id)}
-                            className={cn(
-                              'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
-                              isSelected
-                                ? 'bg-blue-500 border-blue-500'
-                                : 'border-gray-300 bg-white hover:border-gray-400'
-                            )}
-                          >
-                            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                          </button>
-                        ) : (
-                          <div className="w-5 h-5 flex items-center justify-center text-green-500">
-                            <CheckCircle className="w-4 h-4" />
-                          </div>
-                        )}
+                        <button
+                          onClick={() => handleToggleContact(contact.id)}
+                          className={cn(
+                            'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
+                            isSelected
+                              ? 'bg-blue-500 border-blue-500'
+                              : 'border-gray-300 bg-white hover:border-gray-400'
+                          )}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                        </button>
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
@@ -592,19 +586,6 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
                       </td>
                       <td className="px-3 py-2 text-gray-600">{contact.title}</td>
                       <td className="px-3 py-2 text-gray-600">{contact.company}</td>
-                      <td className="px-3 py-2">
-                        {contactEmail ? (
-                          <span className="text-green-600 flex items-center gap-1">
-                            <CheckCircle className="w-3 h-3" />
-                            {contactEmail}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" />
-                            No email
-                          </span>
-                        )}
-                      </td>
                       <td className="px-3 py-2">
                         {contact.linkedinUrl ? (
                           <a

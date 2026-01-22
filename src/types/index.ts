@@ -33,6 +33,7 @@ export const SENIORITY_OPTIONS: { value: SeniorityLevel; label: string; descript
 // Researched contact (from web search, before getting email)
 export interface ResearchedContact {
   id: string
+  apolloId?: string | null // Original Apollo ID for email enrichment
   company: string
   companyId: string
   name: string
@@ -101,6 +102,7 @@ export interface Company {
 // Contact/person at a company
 export interface Person {
   id: string // Unique ID
+  apolloId?: string | null // Original Apollo ID for email enrichment
   company: string
   companyId: string // Link to company
   name: string
@@ -120,7 +122,7 @@ export interface Person {
   emailSource: string // "Apollo API" | "Pattern: firstname.lastname" | etc
   emailVerified: boolean
 
-  [key: string]: string | number | boolean | undefined // Allow custom fields
+  [key: string]: string | number | boolean | undefined | null // Allow custom fields
 }
 
 // Email version for history tracking
