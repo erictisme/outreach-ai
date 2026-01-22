@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Company, Person, ProjectContext } from '@/types'
 
+// Apollo mixed_people/api_search response structure
+// This is the FREE endpoint - no credits consumed
 interface ApolloPersonResult {
-  id: string
+  id: string                     // This is the apollo_id - required for email enrichment
   first_name: string
-  last_name: string
-  last_name_obfuscated?: string  // Apollo may return obfuscated last name
-  name: string
+  last_name?: string
+  last_name_obfuscated?: string  // Use this if last_name is missing
+  name?: string
   title: string
-  email: string
-  email_status: 'verified' | 'guessed' | 'unavailable' | null
-  has_email: boolean
   linkedin_url: string
-  organization: {
+  organization?: {
     name: string
     website_url: string
   }
@@ -20,7 +19,7 @@ interface ApolloPersonResult {
 
 interface ApolloSearchResponse {
   people: ApolloPersonResult[]
-  pagination: {
+  pagination?: {
     page: number
     per_page: number
     total_entries: number
@@ -56,7 +55,6 @@ export async function POST(request: NextRequest) {
     })
 
     const allPersons: Person[] = []
-    let creditsUsed = 0
 
     // Process companies in batches to avoid rate limits
     for (const company of companies) {
@@ -67,22 +65,22 @@ export async function POST(request: NextRequest) {
       ).hostname.replace('www.', '')
 
       try {
-        // Apollo People Search API
+        // Apollo People Search API - FREE endpoint (no credits consumed)
         // Docs: https://docs.apollo.io/reference/people-api-search
         // Using mixed_people/api_search endpoint (the non-api_search version is deprecated)
         // IMPORTANT: q_organization_domains takes a STRING (single domain), not an array
+        // NOTE: This returns contacts WITHOUT emails. Use bulk_match (PAID) to get emails.
         const response = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
-            'X-Api-Key': apolloApiKey,  // Use X-Api-Key header (capitalized)
+            'X-Api-Key': apolloApiKey,
           },
           body: JSON.stringify({
             q_organization_domains: domain,  // STRING, not array
             person_titles: targetTitles,
             page: 1,
-            per_page: 5, // Limit to 5 people per company to save credits
+            per_page: 10, // Up to 10 contacts per company (FREE)
           }),
         })
 
@@ -107,18 +105,20 @@ export async function POST(request: NextRequest) {
         }
 
         const data: ApolloSearchResponse = await response.json()
-        creditsUsed += 1 // Each search costs credits
+        // NOTE: This endpoint is FREE - no credits consumed
 
         // Convert Apollo results to our Person type
         for (const person of data.people || []) {
           // Skip contacts without a usable name
           if (!person.first_name && !person.name) continue
 
-          // Build full name: prefer first_name + last_name (not obfuscated)
+          // Build full name: prefer first_name + last_name
+          // Use last_name_obfuscated if last_name is missing
           // Fall back to person.name if available, then just first_name
           let fullName = ''
-          if (person.first_name && person.last_name) {
-            fullName = `${person.first_name} ${person.last_name}`.trim()
+          const lastName = person.last_name || person.last_name_obfuscated || ''
+          if (person.first_name && lastName) {
+            fullName = `${person.first_name} ${lastName}`.trim()
           } else if (person.name) {
             fullName = person.name
           } else if (person.first_name) {
@@ -128,36 +128,23 @@ export async function POST(request: NextRequest) {
           // Skip if we couldn't build a valid name
           if (!fullName || fullName === 'undefined' || fullName === 'undefined undefined') continue
 
-          // Determine email certainty based on Apollo's status
-          let emailCertainty = 0
-          let emailSource = ''
-          if (person.email) {
-            if (person.email_status === 'verified') {
-              emailCertainty = 100
-              emailSource = 'Apollo verified'
-            } else if (person.email_status === 'guessed') {
-              emailCertainty = 75
-              emailSource = 'Apollo pattern'
-            } else {
-              emailCertainty = 60
-              emailSource = 'Apollo'
-            }
-          }
+          // Skip contacts without apollo_id (required for email enrichment)
+          if (!person.id) continue
 
           allPersons.push({
-            id: `person-apollo-${person.id || Date.now()}-${Math.random().toString(36).substring(7)}`,
-            apolloId: person.id || null, // Store original Apollo ID for email enrichment
+            id: `person-apollo-${person.id}-${Math.random().toString(36).substring(7)}`,
+            apolloId: person.id, // Store original Apollo ID for email enrichment (required!)
             company: company.name,
             companyId: company.id,
             name: fullName,
             title: person.title || '',
-            email: person.email || '',
+            email: '', // Email comes from PAID bulk_match endpoint later
             linkedin: person.linkedin_url || '',
             source: 'apollo',
-            verificationStatus: person.email_status === 'verified' ? 'verified' : 'unverified',
-            emailCertainty,
-            emailSource,
-            emailVerified: person.email_status === 'verified',
+            verificationStatus: 'unverified',
+            emailCertainty: 0,
+            emailSource: '',
+            emailVerified: false,
           })
         }
 
@@ -184,7 +171,7 @@ export async function POST(request: NextRequest) {
       summary: {
         companiesProcessed: companies.length,
         contactsFound: uniquePersons.length,
-        creditsUsed,
+        creditsUsed: 0, // This endpoint is FREE - no credits consumed
       },
     })
   } catch (error) {
