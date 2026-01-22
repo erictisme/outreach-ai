@@ -431,32 +431,27 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     }
 
     try {
-      // Get selected contacts that need emails
+      // Get selected contacts that need emails and have apolloId
       const selectedContacts = contacts.filter(
-        (c) => selectedContactIds.has(c.id) && !c.email
+        (c) => selectedContactIds.has(c.id) && !c.email && c.apolloId
       )
 
       if (selectedContacts.length === 0) {
-        addToast('No contacts selected for enrichment', 'info')
+        addToast('No contacts with Apollo IDs selected for enrichment', 'info')
         setIsEnrichingEmails(false)
         return
       }
 
-      // Build company domain mapping
-      const companyDomains: Record<string, string> = {}
-      for (const contact of selectedContacts) {
-        const company = companies.find((c) => c.id === contact.companyId || c.name === contact.company)
-        if (company?.domain) {
-          companyDomains[contact.companyId] = company.domain
-        }
-      }
+      // Build parallel arrays of contactIds and apolloIds
+      const contactIds = selectedContacts.map((c) => c.id)
+      const apolloIds = selectedContacts.map((c) => c.apolloId as string)
 
       const response = await loggedFetch('/api/enrich-contacts-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contacts: selectedContacts,
-          companyDomains,
+          contactIds,
+          apolloIds,
           apiKey: apolloKey,
         }),
       })
@@ -467,20 +462,12 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
       }
 
       const data = await response.json()
-      const enrichedPersons = data.persons || []
+      const contactEmailMap = data.contactEmails || {}
       const summary = data.summary || {}
 
       // Update contacts with enriched emails
-      const enrichedMap = new Map<string, string>()
-      for (const p of enrichedPersons as { id: string; email?: string }[]) {
-        if (p.email) {
-          enrichedMap.set(p.id.replace('person-', 'free-'), p.email)
-        }
-      }
-
       const updatedContacts: ResearchedContact[] = contacts.map((c) => {
-        // Try both possible ID formats
-        const enrichedEmail = enrichedMap.get(c.id) || enrichedMap.get(c.id.replace('person-apollo-', 'free-'))
+        const enrichedEmail = contactEmailMap[c.id]
         if (enrichedEmail) {
           return { ...c, email: enrichedEmail }
         }

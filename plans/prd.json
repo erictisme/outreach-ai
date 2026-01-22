@@ -60,7 +60,7 @@
       "id": "F52",
       "name": "Email Enrichment API - PAID bulk_match",
       "priority": 52,
-      "passes": false,
+      "passes": true,
       "description": "New /api/enrich-contacts-email using Apollo bulk_match",
       "steps": [
         "Create or update /api/enrich-contacts-email/route.ts",

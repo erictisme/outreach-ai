@@ -1,39 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ResearchedContact, Person } from '@/types'
 
-interface ApolloPersonResult {
+// Apollo bulk_match response structure
+// This is the PAID endpoint - costs 1 credit per contact
+interface ApolloBulkMatchPerson {
   id: string
   first_name: string
   last_name: string
   name: string
   title: string
-  email: string
+  email: string | null
   email_status: 'verified' | 'guessed' | 'unavailable' | null
-  linkedin_url: string
-  organization: {
+  linkedin_url: string | null
+  organization?: {
     name: string
     website_url: string
   }
 }
 
-interface ApolloSearchResponse {
-  people: ApolloPersonResult[]
-  pagination: {
-    page: number
-    per_page: number
-    total_entries: number
-    total_pages: number
-  }
+interface ApolloBulkMatchResponse {
+  matches: ApolloBulkMatchPerson[]
 }
 
-// Apollo pricing estimate (credits per contact lookup)
+// Apollo pricing: 1 credit per contact lookup via bulk_match
 export const APOLLO_CREDIT_COST_PER_CONTACT = 1
 
 export async function POST(request: NextRequest) {
   try {
-    const { contacts, companyDomains, apiKey } = await request.json() as {
-      contacts: ResearchedContact[]
-      companyDomains: Record<string, string> // companyId -> domain mapping
+    const { contactIds, apolloIds, apiKey } = await request.json() as {
+      contactIds: string[]   // Our internal contact IDs
+      apolloIds: string[]    // Apollo person IDs for bulk_match
       apiKey?: string
     }
 
@@ -46,188 +41,94 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!contacts || contacts.length === 0) {
+    if (!apolloIds || apolloIds.length === 0) {
       return NextResponse.json({
-        persons: [],
-        summary: { contactsEnriched: 0, creditsUsed: 0 }
+        emails: {},
+        summary: { contactsProcessed: 0, emailsFound: 0, creditsUsed: 0 }
       })
     }
 
-    const enrichedPersons: Person[] = []
-    let creditsUsed = 0
-    let successCount = 0
-    let failCount = 0
+    // Filter out any null/undefined apolloIds
+    const validApolloIds = apolloIds.filter((id): id is string => !!id)
 
-    for (const contact of contacts) {
-      const domain = companyDomains[contact.companyId]
+    if (validApolloIds.length === 0) {
+      return NextResponse.json({
+        emails: {},
+        summary: { contactsProcessed: 0, emailsFound: 0, creditsUsed: 0 }
+      })
+    }
 
-      if (!domain) {
-        // If no domain, just convert to Person without email
-        enrichedPersons.push({
-          id: contact.id.replace('free-', 'person-'),
-          company: contact.company,
-          companyId: contact.companyId,
-          name: contact.name,
-          title: contact.title,
-          email: '',
-          linkedin: contact.linkedinUrl || '',
-          seniority: contact.seniority,
-          source: 'web_research',
-          verificationStatus: 'unverified',
-          emailCertainty: 0,
-          emailSource: 'Not found',
-          emailVerified: false,
-        })
-        failCount++
-        continue
+    // Apollo People Bulk Match API - PAID endpoint (1 credit per contact)
+    // Docs: https://docs.apollo.io/reference/people-api-bulk-match
+    // This endpoint reveals emails for contacts we already have Apollo IDs for
+    const response = await fetch('https://api.apollo.io/api/v1/people/bulk_match', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': apolloApiKey,
+      },
+      body: JSON.stringify({
+        details: validApolloIds.map(id => ({ id })),
+        reveal_personal_emails: false, // Only work emails
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Apollo bulk_match API error:', response.status, errorText)
+
+      if (response.status === 401) {
+        return NextResponse.json({ error: 'Invalid Apollo API key' }, { status: 401 })
       }
+      if (response.status === 422) {
+        console.error('Apollo API 422 error - check endpoint and request format:', errorText)
+        return NextResponse.json(
+          { error: 'Apollo API request failed. The endpoint or request format may have changed.' },
+          { status: 422 }
+        )
+      }
+      if (response.status === 429) {
+        return NextResponse.json(
+          { error: 'Apollo API rate limit exceeded. Please try again later.' },
+          { status: 429 }
+        )
+      }
+      return NextResponse.json(
+        { error: `Apollo API error: ${response.status}` },
+        { status: response.status }
+      )
+    }
 
-      try {
-        // Use Apollo People Search to find the specific person
-        // Search by name + organization domain
-        const response = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
-            'X-Api-Key': apolloApiKey,
-          },
-          body: JSON.stringify({
-            q_organization_domains: domain,
-            q_person_name: contact.name,
-            page: 1,
-            per_page: 3, // Get top 3 matches to find the right person
-          }),
-        })
+    const data: ApolloBulkMatchResponse = await response.json()
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error(`Apollo API error for ${contact.name}:`, response.status, errorText)
+    // Build apolloId -> email map from response
+    const emailMap: Record<string, string> = {}
+    let emailsFound = 0
 
-          if (response.status === 401) {
-            return NextResponse.json({ error: 'Invalid Apollo API key' }, { status: 401 })
-          }
-          if (response.status === 429) {
-            // Rate limited, wait and continue
-            await new Promise(resolve => setTimeout(resolve, 1000))
-          }
+    for (const match of data.matches || []) {
+      if (match && match.id && match.email) {
+        emailMap[match.id] = match.email
+        emailsFound++
+      }
+    }
 
-          // Add contact without email
-          enrichedPersons.push({
-            id: contact.id.replace('free-', 'person-'),
-            company: contact.company,
-            companyId: contact.companyId,
-            name: contact.name,
-            title: contact.title,
-            email: '',
-            linkedin: contact.linkedinUrl || '',
-            seniority: contact.seniority,
-            source: 'web_research',
-            verificationStatus: 'failed',
-            emailCertainty: 0,
-            emailSource: 'Apollo lookup failed',
-            emailVerified: false,
-          })
-          failCount++
-          continue
-        }
-
-        const data: ApolloSearchResponse = await response.json()
-        creditsUsed += 1 // Each search costs credits
-
-        // Find best match from results
-        const matchedPerson = data.people?.find(p => {
-          const apolloName = (p.name || `${p.first_name} ${p.last_name}`).toLowerCase().trim()
-          const contactName = contact.name.toLowerCase().trim()
-          // Fuzzy match: check if names are similar
-          return apolloName.includes(contactName) || contactName.includes(apolloName) ||
-            apolloName.split(' ')[0] === contactName.split(' ')[0] // Same first name
-        }) || data.people?.[0] // Fall back to first result if no exact match
-
-        if (matchedPerson && matchedPerson.email) {
-          // Determine email certainty based on Apollo's status
-          let emailCertainty = 0
-          let emailSource = ''
-          if (matchedPerson.email_status === 'verified') {
-            emailCertainty = 100
-            emailSource = 'Apollo verified'
-          } else if (matchedPerson.email_status === 'guessed') {
-            emailCertainty = 75
-            emailSource = 'Apollo pattern'
-          } else {
-            emailCertainty = 60
-            emailSource = 'Apollo'
-          }
-
-          enrichedPersons.push({
-            id: contact.id.replace('free-', 'person-'),
-            company: contact.company,
-            companyId: contact.companyId,
-            name: contact.name,
-            title: contact.title,
-            email: matchedPerson.email,
-            linkedin: matchedPerson.linkedin_url || contact.linkedinUrl || '',
-            seniority: contact.seniority,
-            source: 'apollo',
-            verificationStatus: matchedPerson.email_status === 'verified' ? 'verified' : 'unverified',
-            emailCertainty,
-            emailSource,
-            emailVerified: matchedPerson.email_status === 'verified',
-          })
-          successCount++
-        } else {
-          // No email found
-          enrichedPersons.push({
-            id: contact.id.replace('free-', 'person-'),
-            company: contact.company,
-            companyId: contact.companyId,
-            name: contact.name,
-            title: contact.title,
-            email: '',
-            linkedin: contact.linkedinUrl || '',
-            seniority: contact.seniority,
-            source: 'web_research',
-            verificationStatus: 'unverified',
-            emailCertainty: 0,
-            emailSource: 'Not found in Apollo',
-            emailVerified: false,
-          })
-          failCount++
-        }
-
-        // Small delay between requests to be nice to the API
-        await new Promise(resolve => setTimeout(resolve, 200))
-
-      } catch (err) {
-        console.error(`Error enriching contact ${contact.name}:`, err)
-
-        // Add contact without email on error
-        enrichedPersons.push({
-          id: contact.id.replace('free-', 'person-'),
-          company: contact.company,
-          companyId: contact.companyId,
-          name: contact.name,
-          title: contact.title,
-          email: '',
-          linkedin: contact.linkedinUrl || '',
-          seniority: contact.seniority,
-          source: 'web_research',
-          verificationStatus: 'failed',
-          emailCertainty: 0,
-          emailSource: 'Lookup error',
-          emailVerified: false,
-        })
-        failCount++
+    // Also build contactId -> email map by matching indices
+    // contactIds and apolloIds should be parallel arrays
+    const contactEmailMap: Record<string, string> = {}
+    for (let i = 0; i < contactIds.length; i++) {
+      const apolloId = apolloIds[i]
+      if (apolloId && emailMap[apolloId]) {
+        contactEmailMap[contactIds[i]] = emailMap[apolloId]
       }
     }
 
     return NextResponse.json({
-      persons: enrichedPersons,
+      emails: emailMap,           // apolloId -> email
+      contactEmails: contactEmailMap, // contactId -> email (for convenience)
       summary: {
-        contactsEnriched: contacts.length,
-        emailsFound: successCount,
-        emailsNotFound: failCount,
-        creditsUsed,
+        contactsProcessed: validApolloIds.length,
+        emailsFound,
+        creditsUsed: validApolloIds.length, // 1 credit per contact in bulk_match
       },
     })
   } catch (error) {
