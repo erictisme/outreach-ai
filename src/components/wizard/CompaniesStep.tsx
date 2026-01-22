@@ -12,7 +12,8 @@ import { loggedFetch } from '@/lib/promptLogger'
 interface SchemaConfig {
   extractedContext?: ProjectContext
   companies?: Company[]
-  contextUpdatedAt?: string  // ISO timestamp when context/segments were last saved
+  contextUpdatedAt?: string  // ISO timestamp when context was last saved
+  segmentsUpdatedAt?: string  // ISO timestamp when segments were last saved
   companiesGeneratedAt?: string  // ISO timestamp when companies were last generated
 }
 
@@ -85,13 +86,14 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
   const existingCompanies = schemaConfig.companies || []
   const hasExistingCompanies = existingCompanies.length > 0
   const contextUpdatedAt = schemaConfig.contextUpdatedAt
+  const segmentsUpdatedAt = schemaConfig.segmentsUpdatedAt
   const companiesGeneratedAt = schemaConfig.companiesGeneratedAt
 
-  // Show warning if: has companies, context was updated after companies were generated, and not dismissed
+  // Show warning if: has companies, context OR segments were updated after companies were generated, and not dismissed
   const contextChanged = hasExistingCompanies &&
-    contextUpdatedAt &&
     companiesGeneratedAt &&
-    new Date(contextUpdatedAt) > new Date(companiesGeneratedAt)
+    ((contextUpdatedAt && new Date(contextUpdatedAt) > new Date(companiesGeneratedAt)) ||
+     (segmentsUpdatedAt && new Date(segmentsUpdatedAt) > new Date(companiesGeneratedAt)))
 
   const showContextWarning = contextChanged && !warningDismissed
 

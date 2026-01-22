@@ -8,3 +8,6 @@ Files: ContextStep.tsx, SegmentsStep.tsx, CompaniesStep.tsx (contextUpdatedAt/co
 
 F57: ContextStep.tsx - Save context info separately - DONE
 Files: ContextStep.tsx (added showSaved state, 'Saved!' confirmation with green button and checkmark before auto-advancing)
+
+F58: SegmentsStep.tsx - Dedicated segments editing step - DONE
+Files: SegmentsStep.tsx (added showSaved state, 'Saved!' confirmation, segmentsUpdatedAt timestamp), CompaniesStep.tsx (checks segmentsUpdatedAt for regeneration warning)

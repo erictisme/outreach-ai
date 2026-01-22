@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, Plus, X } from 'lucide-react'
+import { Loader2, Plus, X, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { ProjectContext, Segment } from '@/types'
 
 interface SchemaConfig {
   extractedContext?: ProjectContext
-  contextUpdatedAt?: string  // ISO timestamp when context/segments were last saved
+  contextUpdatedAt?: string  // ISO timestamp when context was last saved
+  segmentsUpdatedAt?: string  // ISO timestamp when segments were last saved
   companiesGeneratedAt?: string  // ISO timestamp when companies were last generated
 }
 
@@ -30,6 +31,7 @@ export function SegmentsStep({ project, onUpdate, onComplete }: SegmentsStepProp
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showSaved, setShowSaved] = useState(false)
 
   // Track if this is the initial mount to avoid resetting user edits
   const initialContextRef = useRef<ProjectContext | undefined>(extractedContext)
@@ -89,7 +91,7 @@ export function SegmentsStep({ project, onUpdate, onComplete }: SegmentsStepProp
       const newSchemaConfig = {
         ...schemaConfig,
         extractedContext: updatedContext,
-        contextUpdatedAt: new Date().toISOString(),
+        segmentsUpdatedAt: new Date().toISOString(),
       }
 
       const { data, error: updateError } = await supabase
@@ -105,7 +107,13 @@ export function SegmentsStep({ project, onUpdate, onComplete }: SegmentsStepProp
       if (updateError) throw updateError
 
       onUpdate(data)
-      onComplete()
+
+      // Show saved confirmation briefly before advancing
+      setShowSaved(true)
+      setTimeout(() => {
+        setShowSaved(false)
+        onComplete()
+      }, 800)
     } catch (err) {
       console.error('Error saving segments:', err)
       setError(err instanceof Error ? err.message : 'Failed to save')
@@ -199,16 +207,19 @@ export function SegmentsStep({ project, onUpdate, onComplete }: SegmentsStepProp
       {/* Action Buttons */}
       <button
         onClick={handleSave}
-        disabled={saving}
+        disabled={saving || showSaved}
         className={cn(
           'w-full py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
-          saving
+          showSaved
+            ? 'bg-green-500 text-white'
+            : saving
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
             : 'bg-blue-600 text-white hover:bg-blue-700'
         )}
       >
         {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-        {saving ? 'Saving...' : 'Save & Continue'}
+        {showSaved && <Check className="w-4 h-4" />}
+        {showSaved ? 'Saved!' : saving ? 'Saving...' : 'Save & Continue'}
       </button>
     </div>
   )

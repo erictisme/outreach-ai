@@ -54,7 +54,7 @@
       "id": "F58",
       "name": "New SegmentsStep.tsx component",
       "priority": 58,
-      "passes": false,
+      "passes": true,
       "description": "Dedicated step for managing target segments",
       "steps": [
         "Create src/components/wizard/SegmentsStep.tsx",
