@@ -23,31 +23,36 @@ type ViewMode = 'wizard' | 'table'
 // localStorage key for view preference
 const VIEW_PREFERENCE_KEY = 'outreach-view-preference'
 
-// Step mapping for keyboard navigation
+// Step mapping for keyboard navigation (Cmd+1 through Cmd+6)
 const STEP_MAP: Record<string, WizardStep> = {
   '1': 'setup',
   '2': 'context',
-  '3': 'companies',
-  '4': 'contacts',
-  '5': 'emails',
+  '3': 'segments',
+  '4': 'companies',
+  '5': 'contacts',
+  '6': 'emails',
 }
 
-// Map step number to WizardStep
+// Map step number to WizardStep (URL param)
 const STEP_NUMBER_TO_STEP: Record<string, WizardStep> = {
   '1': 'setup',
   '2': 'context',
-  '3': 'companies',
-  '4': 'contacts',
-  '5': 'emails',
+  '2a': 'context',
+  '2b': 'segments',
+  '3': 'segments',
+  '4': 'companies',
+  '5': 'contacts',
+  '6': 'emails',
 }
 
-// Map WizardStep to step number
+// Map WizardStep to step number (for URL)
 const STEP_TO_NUMBER: Record<WizardStep, string> = {
   'setup': '1',
-  'context': '2',
-  'companies': '3',
-  'contacts': '4',
-  'emails': '5',
+  'context': '2a',
+  'segments': '2b',
+  'companies': '4',
+  'contacts': '5',
+  'emails': '6',
 }
 
 export default function ProjectPage() {
@@ -209,9 +214,10 @@ export default function ProjectPage() {
     { keys: { key: 't', metaKey: true }, description: 'Toggle Steps/Table view' },
     { keys: { key: '1', metaKey: true }, description: 'Go to Setup' },
     { keys: { key: '2', metaKey: true }, description: 'Go to Context' },
-    { keys: { key: '3', metaKey: true }, description: 'Go to Companies' },
-    { keys: { key: '4', metaKey: true }, description: 'Go to Contacts' },
-    { keys: { key: '5', metaKey: true }, description: 'Go to Emails' },
+    { keys: { key: '3', metaKey: true }, description: 'Go to Segments' },
+    { keys: { key: '4', metaKey: true }, description: 'Go to Companies' },
+    { keys: { key: '5', metaKey: true }, description: 'Go to Contacts' },
+    { keys: { key: '6', metaKey: true }, description: 'Go to Emails' },
     { keys: { key: 'ArrowDown' }, description: 'Navigate down in table' },
     { keys: { key: 'ArrowUp' }, description: 'Navigate up in table' },
     { keys: { key: '?', shiftKey: true }, description: 'Show shortcuts help' },

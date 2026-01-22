@@ -1,112 +1,106 @@
 {
   "project": "outreach-v2",
-  "description": "Contact flow fix - clear FREE vs PAID separation",
+  "description": "Split Step 2 for better regeneration flow",
   "features": [
     {
-      "id": "F49",
-      "name": "Step 4 Phase A - Find Contacts UI",
-      "priority": 49,
+      "id": "F55",
+      "name": "Split Step 2 into 2a (Context Info) and 2b (Segments)",
+      "priority": 55,
       "passes": true,
-      "description": "ContactsStep shows selected companies + Find Contacts button (FREE)",
+      "description": "Separate context info from segments so changes trigger proper regeneration",
       "steps": [
-        "ContactsStep.tsx: On load, show list of companies selected in Step 3",
-        "Display selected companies in a compact list at top",
-        "'Find Contacts' button prominently displayed",
-        "When clicked, call /api/find-contacts-apollo for each company",
-        "Show loading state while searching",
-        "Display results in table: Name, Title, Company, LinkedIn",
-        "NO email column at this phase - emails come later",
-        "Persist found contacts to Supabase WITH apollo_id field"
+        "Step 2a: Context Info - Client Name, Product, Value Proposition, Target Market, Target Seniority, Target Roles",
+        "Step 2b: Segments - Target Segments with add/edit/delete",
+        "In WizardPanel.tsx: Update step list to show 2a and 2b (or just show as sub-steps)",
+        "Option A: Make them separate accordion sections (Setup, Context, Segments, Companies...)",
+        "Option B: Keep as one step but with clear 'Save & Continue to Segments' button",
+        "Ensure Step 3 (Companies) knows when to regenerate based on context/segment changes"
       ],
-      "acceptance": "Find Contacts shows contacts without emails"
+      "acceptance": "Step 2 split allows saving context before editing segments"
     },
     {
-      "id": "F50",
-      "name": "Find Contacts API - FREE search",
-      "priority": 50,
-      "passes": true,
-      "description": "Fix /api/find-contacts-apollo to use correct FREE endpoint",
+      "id": "F56",
+      "name": "Track context changes for Step 3 regeneration",
+      "priority": 56,
+      "passes": false,
+      "description": "When context or segments change, Step 3 should prompt to regenerate companies",
       "steps": [
-        "Endpoint: POST https://api.apollo.io/api/v1/mixed_people/api_search",
-        "Request body: { q_organization_domains: domain (STRING), person_titles: [...], page: 1, per_page: 10 }",
-        "Headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey }",
-        "Parse response.people array",
-        "Extract for each person: id (this is apollo_id!), first_name, last_name, title, linkedin_url",
-        "Handle last_name_obfuscated: use it if last_name is missing",
-        "Return contacts with apollo_id included",
-        "This endpoint is FREE - no credits used"
+        "Store lastGeneratedAt timestamp when companies generated",
+        "Store contextHash or contextUpdatedAt when Step 2 info saved",
+        "In CompaniesStep: Compare timestamps",
+        "If context changed after last generation, show warning: 'Context has changed. Regenerate companies?'",
+        "Add 'Regenerate Companies' button that clears old and generates new",
+        "Keep 'Keep Existing' option for user who wants to keep current companies"
       ],
-      "acceptance": "API returns contacts with apollo_id, no credits consumed"
+      "acceptance": "Step 3 detects context changes and prompts for regeneration"
     },
     {
-      "id": "F51",
-      "name": "Step 4 Phase B - Email Enrichment UI",
-      "priority": 51,
-      "passes": true,
-      "description": "Select contacts, click Get Emails (PAID), shows cost warning",
+      "id": "F57",
+      "name": "ContextStep.tsx - Save context info separately",
+      "priority": 57,
+      "passes": false,
+      "description": "Context step saves basic info with explicit Save button",
       "steps": [
-        "After contacts displayed, show checkbox column as FIRST column",
-        "Header checkbox for select all / deselect all",
-        "Track selectedContactIds in state",
-        "Show selection count: 'X of Y selected'",
-        "'Get Emails (X selected)' button - only enabled when contacts selected",
-        "On click, show confirmation modal: 'This will use approximately X credits'",
-        "On confirm, call /api/enrich-contacts-email with selected apollo_ids",
-        "After enrichment, update contacts table to show email column"
+        "ContextStep shows: Client Name, Product, Value Proposition, Target Market, Target Seniority, Target Roles",
+        "'Save Context' button saves to project.schema_config",
+        "Update project.schema_config.contextUpdatedAt timestamp on save",
+        "Show 'Saved!' confirmation",
+        "After saving, either auto-advance to Segments or show 'Continue to Segments' button",
+        "Remove segments editing from this component"
       ],
-      "acceptance": "Can select contacts and trigger paid email enrichment"
+      "acceptance": "Context info saves separately with timestamp"
     },
     {
-      "id": "F52",
-      "name": "Email Enrichment API - PAID bulk_match",
-      "priority": 52,
-      "passes": true,
-      "description": "New /api/enrich-contacts-email using Apollo bulk_match",
+      "id": "F58",
+      "name": "New SegmentsStep.tsx component",
+      "priority": 58,
+      "passes": false,
+      "description": "Dedicated step for managing target segments",
       "steps": [
-        "Create or update /api/enrich-contacts-email/route.ts",
-        "Accept: { contactIds: string[], apolloIds: string[], apiKey: string }",
-        "Endpoint: POST https://api.apollo.io/api/v1/people/bulk_match",
-        "Request body: { details: apolloIds.map(id => ({id})), reveal_personal_emails: false }",
-        "Headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey }",
-        "Parse response.matches array",
-        "Extract email from each match",
-        "Return map of apolloId -> email",
-        "This endpoint COSTS CREDITS"
+        "Create src/components/wizard/SegmentsStep.tsx",
+        "Display existing segments as cards/list",
+        "Add segment: name, description, example companies",
+        "Edit segment inline",
+        "Delete segment with confirmation",
+        "'Save Segments' button updates project.schema_config.segments",
+        "Update segmentsUpdatedAt timestamp",
+        "'Continue to Companies' button advances to Step 3"
       ],
-      "acceptance": "API returns emails for given apollo_ids"
+      "acceptance": "Segments have dedicated editing step"
     },
     {
-      "id": "F53",
-      "name": "Update Contact type with apollo_id",
-      "priority": 53,
-      "passes": true,
-      "description": "Ensure Contact type and Supabase schema support apollo_id",
+      "id": "F59",
+      "name": "Update WizardPanel with new step structure",
+      "priority": 59,
+      "passes": false,
+      "description": "WizardPanel shows 6 steps: Setup, Context, Segments, Companies, Contacts, Emails",
       "steps": [
-        "In src/types/index.ts: Add apollo_id?: string to Contact/Person type",
-        "Check Supabase contacts table - add apollo_id column if missing",
-        "When saving contacts, include apollo_id",
-        "When loading contacts, load apollo_id",
-        "When enriching, use apollo_id to call bulk_match"
+        "In WizardPanel.tsx: Update STEPS array to include Segments step",
+        "Step order: 1-Setup, 2-Context, 3-Segments, 4-Companies, 5-Contacts, 6-Emails",
+        "Import and render SegmentsStep component",
+        "Update step navigation logic",
+        "Update completion indicators",
+        "Update URL ?step param handling for new step count"
       ],
-      "acceptance": "apollo_id stored and retrieved correctly"
+      "acceptance": "Wizard shows 6 steps with Segments as step 3"
     },
     {
-      "id": "F54",
-      "name": "Final verification - two-phase contact flow",
-      "priority": 54,
-      "passes": true,
-      "description": "Test complete flow: Find (free) → Select → Enrich (paid)",
+      "id": "F60",
+      "name": "Final verification - step split",
+      "priority": 60,
+      "passes": false,
+      "description": "Test the new step flow",
       "steps": [
         "pnpm build passes",
-        "Step 3: Select companies, go to Step 4",
-        "Step 4: Click Find Contacts → contacts appear (no emails)",
-        "Select some contacts with checkboxes",
-        "Click 'Get Emails' → cost warning modal",
-        "Confirm → emails appear in table",
-        "Verify apollo_id stored in Supabase",
-        "Refresh page → data persists"
+        "Step 1 (Setup): Enter context, extract",
+        "Step 2 (Context): Edit/save context info",
+        "Step 3 (Segments): Edit/save segments",
+        "Step 4 (Companies): See regeneration warning if context changed",
+        "Step 5 (Contacts): Find contacts",
+        "Step 6 (Emails): Generate emails",
+        "Back button works correctly between all steps"
       ],
-      "acceptance": "Full two-phase contact flow works"
+      "acceptance": "6-step flow works with proper regeneration prompts"
     }
   ]
 }

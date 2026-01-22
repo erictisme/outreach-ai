@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import {
   ProjectContext,
-  Segment,
   SeniorityLevel,
   SENIORITY_OPTIONS,
 } from '@/types'
@@ -58,9 +57,6 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
   const [targetRoles, setTargetRoles] = useState<string[]>(
     extractedContext?.targetRoles || []
   )
-  const [segments, setSegments] = useState<Segment[]>(
-    extractedContext?.segments || []
-  )
   const [productFocus, setProductFocus] = useState(extractedContext?.productFocus || '')
   const [newRole, setNewRole] = useState('')
 
@@ -82,7 +78,6 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
       setTargetMarket(extractedContext.targetMarket || '')
       setTargetSeniority(extractedContext.targetSeniority || 'any')
       setTargetRoles(extractedContext.targetRoles || [])
-      setSegments(extractedContext.segments || [])
       setProductFocus(extractedContext.productFocus || '')
       initialContextRef.current = extractedContext
     }
@@ -116,27 +111,6 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
     }
   }
 
-  const handleSegmentChange = (id: string, field: 'name' | 'description', value: string) => {
-    setSegments(
-      segments.map((seg) =>
-        seg.id === id ? { ...seg, [field]: value } : seg
-      )
-    )
-  }
-
-  const handleRemoveSegment = (id: string) => {
-    setSegments(segments.filter((seg) => seg.id !== id))
-  }
-
-  const handleAddSegment = () => {
-    const newSegment: Segment = {
-      id: `seg_${Date.now()}`,
-      name: '',
-      description: '',
-    }
-    setSegments([...segments, newSegment])
-  }
-
   const handleSave = async () => {
     setSaving(true)
     setError(null)
@@ -152,7 +126,6 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
         targetMarket,
         targetSeniority,
         targetRoles,
-        segments: segments.filter((s) => s.name.trim()), // Remove empty segments
         productFocus: productFocus.trim() || undefined,
       }
 
@@ -208,14 +181,13 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
 
       const { context: newExtractedContext } = await extractResponse.json()
 
-      // Update state with new extracted values
+      // Update state with new extracted values (except segments - handled in SegmentsStep)
       setClientName(newExtractedContext.clientName || '')
       setProduct(newExtractedContext.product || '')
       setValueProposition(newExtractedContext.valueProposition || '')
       setTargetMarket(newExtractedContext.targetMarket || '')
       setTargetSeniority(newExtractedContext.targetSeniority || 'any')
       setTargetRoles(newExtractedContext.targetRoles || [])
-      setSegments(newExtractedContext.segments || [])
       setProductFocus(newExtractedContext.productFocus || '')
 
       // Save to Supabase
@@ -402,76 +374,6 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
             </div>
           </div>
         )}
-      </div>
-
-      {/* Segments */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Target Segments
-          </label>
-          <button
-            onClick={handleAddSegment}
-            disabled={isLoading}
-            className="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 flex items-center gap-1"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Segment
-          </button>
-        </div>
-        <div className="space-y-3">
-          {segments.map((segment, index) => (
-            <div
-              key={segment.id}
-              className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-medium flex items-center justify-center">
-                      {index + 1}
-                    </span>
-                    <input
-                      type="text"
-                      value={segment.name}
-                      onChange={(e) =>
-                        handleSegmentChange(segment.id, 'name', e.target.value)
-                      }
-                      disabled={isLoading}
-                      placeholder="Segment name"
-                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                    />
-                  </div>
-                  <textarea
-                    value={segment.description}
-                    onChange={(e) =>
-                      handleSegmentChange(segment.id, 'description', e.target.value)
-                    }
-                    disabled={isLoading}
-                    placeholder="Describe this segment (e.g., companies that...)"
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none disabled:bg-gray-100"
-                  />
-                </div>
-                <button
-                  onClick={() => handleRemoveSegment(segment.id)}
-                  disabled={isLoading}
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
-                  title="Remove segment"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-          {segments.length === 0 && (
-            <div className="p-4 border-2 border-dashed border-gray-200 rounded-lg text-center">
-              <p className="text-sm text-gray-500">
-                No segments defined yet. Add segments to organize your target companies.
-              </p>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Error Message */}

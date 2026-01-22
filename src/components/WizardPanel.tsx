@@ -5,24 +5,26 @@ import { ChevronDown, Check } from 'lucide-react'
 import { Project } from '@/lib/supabase'
 import { SetupStep } from '@/components/wizard/SetupStep'
 import { ContextStep } from '@/components/wizard/ContextStep'
+import { SegmentsStep } from '@/components/wizard/SegmentsStep'
 import { CompaniesStep } from '@/components/wizard/CompaniesStep'
 import { ContactsStep } from '@/components/wizard/ContactsStep'
 import { EmailsStep } from '@/components/wizard/EmailsStep'
 
-export type WizardStep = 'setup' | 'context' | 'companies' | 'contacts' | 'emails'
+export type WizardStep = 'setup' | 'context' | 'segments' | 'companies' | 'contacts' | 'emails'
 
 interface StepConfig {
   id: WizardStep
-  number: number
+  number: string
   title: string
 }
 
 const STEPS: StepConfig[] = [
-  { id: 'setup', number: 1, title: 'Setup' },
-  { id: 'context', number: 2, title: 'Context' },
-  { id: 'companies', number: 3, title: 'Companies' },
-  { id: 'contacts', number: 4, title: 'Contacts' },
-  { id: 'emails', number: 5, title: 'Emails' },
+  { id: 'setup', number: '1', title: 'Setup' },
+  { id: 'context', number: '2a', title: 'Context' },
+  { id: 'segments', number: '2b', title: 'Segments' },
+  { id: 'companies', number: '3', title: 'Companies' },
+  { id: 'contacts', number: '4', title: 'Contacts' },
+  { id: 'emails', number: '5', title: 'Emails' },
 ]
 
 interface WizardPanelProps {
@@ -124,7 +126,7 @@ export function WizardPanel({
 }
 
 function getNextStep(current: WizardStep): WizardStep {
-  const stepOrder: WizardStep[] = ['setup', 'context', 'companies', 'contacts', 'emails']
+  const stepOrder: WizardStep[] = ['setup', 'context', 'segments', 'companies', 'contacts', 'emails']
   const currentIndex = stepOrder.indexOf(current)
   return stepOrder[Math.min(currentIndex + 1, stepOrder.length - 1)]
 }
@@ -149,6 +151,14 @@ function StepContent({ step, project, onProjectUpdate, onStepComplete }: StepCon
     case 'context':
       return (
         <ContextStep
+          project={project}
+          onUpdate={onProjectUpdate}
+          onComplete={onStepComplete}
+        />
+      )
+    case 'segments':
+      return (
+        <SegmentsStep
           project={project}
           onUpdate={onProjectUpdate}
           onComplete={onStepComplete}
