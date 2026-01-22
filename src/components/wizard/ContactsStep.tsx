@@ -43,6 +43,8 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showEmailEnrichModal, setShowEmailEnrichModal] = useState(false)
+  const [isEnrichingEmails, setIsEnrichingEmails] = useState(false)
 
   // Track selected contact IDs for email enrichment
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set())
@@ -415,6 +417,126 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
     }
   }
 
+  // Handle email enrichment for selected contacts
+  const handleEnrichEmails = async () => {
+    setShowEmailEnrichModal(false)
+    setIsEnrichingEmails(true)
+    setError(null)
+
+    const apolloKey = getApiKey('apollo')
+    if (!apolloKey) {
+      setShowApiKeyModal(true)
+      setIsEnrichingEmails(false)
+      return
+    }
+
+    try {
+      // Get selected contacts that need emails
+      const selectedContacts = contacts.filter(
+        (c) => selectedContactIds.has(c.id) && !c.email
+      )
+
+      if (selectedContacts.length === 0) {
+        addToast('No contacts selected for enrichment', 'info')
+        setIsEnrichingEmails(false)
+        return
+      }
+
+      // Build company domain mapping
+      const companyDomains: Record<string, string> = {}
+      for (const contact of selectedContacts) {
+        const company = companies.find((c) => c.id === contact.companyId || c.name === contact.company)
+        if (company?.domain) {
+          companyDomains[contact.companyId] = company.domain
+        }
+      }
+
+      const response = await loggedFetch('/api/enrich-contacts-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contacts: selectedContacts,
+          companyDomains,
+          apiKey: apolloKey,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to enrich emails')
+      }
+
+      const data = await response.json()
+      const enrichedPersons = data.persons || []
+      const summary = data.summary || {}
+
+      // Update contacts with enriched emails
+      const enrichedMap = new Map<string, string>()
+      for (const p of enrichedPersons as { id: string; email?: string }[]) {
+        if (p.email) {
+          enrichedMap.set(p.id.replace('person-', 'free-'), p.email)
+        }
+      }
+
+      const updatedContacts: ResearchedContact[] = contacts.map((c) => {
+        // Try both possible ID formats
+        const enrichedEmail = enrichedMap.get(c.id) || enrichedMap.get(c.id.replace('person-apollo-', 'free-'))
+        if (enrichedEmail) {
+          return { ...c, email: enrichedEmail }
+        }
+        return c
+      })
+
+      // Save to Supabase
+      const supabase = getSupabase()
+
+      for (const contact of updatedContacts) {
+        if (contact.email) {
+          await supabase
+            .from('contacts')
+            .update({ email: contact.email })
+            .eq('id', contact.id)
+        }
+      }
+
+      // Update project schema_config
+      const updatedSchemaConfig = {
+        ...schemaConfig,
+        contacts: updatedContacts,
+      }
+
+      await supabase
+        .from('projects')
+        .update({
+          schema_config: updatedSchemaConfig,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id)
+
+      // Update local state
+      setContacts(updatedContacts)
+      setSelectedContactIds(new Set()) // Clear selection after enrichment
+
+      const updatedProject: Project = {
+        ...project,
+        schema_config: updatedSchemaConfig,
+        updated_at: new Date().toISOString(),
+      }
+      onUpdate(updatedProject)
+
+      addToast(
+        `Found ${summary.emailsFound || 0} emails (${summary.creditsUsed || 0} credits used)`,
+        'success'
+      )
+    } catch (err) {
+      console.error('Email enrichment error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to enrich emails')
+      addToast('Failed to enrich emails', 'error')
+    } finally {
+      setIsEnrichingEmails(false)
+    }
+  }
+
   // Compute contacts statistics
   const contactsWithEmails = contacts.filter((c) => (c as ResearchedContact & { email?: string }).email)
   const contactsMissingEmails = contacts.length - contactsWithEmails.length
@@ -492,20 +614,26 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
                 </div>
               </div>
               <button
-                onClick={() => {
-                  // TODO: Implement email enrichment for selected contacts
-                  addToast(`Email enrichment for ${selectedContactCount} contacts - coming soon!`, 'info')
-                }}
-                disabled={selectedContactCount === 0 || isSearching}
+                onClick={() => setShowEmailEnrichModal(true)}
+                disabled={selectedContactCount === 0 || isSearching || isEnrichingEmails}
                 className={cn(
                   'py-1.5 px-4 rounded-md text-sm font-medium transition-colors flex items-center gap-2',
-                  selectedContactCount === 0 || isSearching
+                  selectedContactCount === 0 || isSearching || isEnrichingEmails
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-amber-600 text-white hover:bg-amber-700'
                 )}
               >
-                <Mail className="w-4 h-4" />
-                Find Emails ({selectedContactCount})
+                {isEnrichingEmails ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Enriching...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    Get Emails ({selectedContactCount})
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -549,6 +677,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Title</th>
                   <th className="px-3 py-2 font-medium">Company</th>
+                  <th className="px-3 py-2 font-medium">Email</th>
                   <th className="px-3 py-2 font-medium">LinkedIn</th>
                 </tr>
               </thead>
@@ -586,6 +715,19 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
                       </td>
                       <td className="px-3 py-2 text-gray-600">{contact.title}</td>
                       <td className="px-3 py-2 text-gray-600">{contact.company}</td>
+                      <td className="px-3 py-2">
+                        {contact.email ? (
+                          <a
+                            href={`mailto:${contact.email}`}
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                            <span className="truncate max-w-[120px]">{contact.email}</span>
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2">
                         {contact.linkedinUrl ? (
                           <a
@@ -848,6 +990,48 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
                 className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
                 Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email enrichment confirmation modal */}
+      {showEmailEnrichModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEmailEnrichModal(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Mail className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Get Emails (PAID)</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  This will look up email addresses for {selectedContactCount} selected contacts using Apollo.
+                </p>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-amber-800">
+                <strong>Estimated cost:</strong> ~{selectedContactCount} Apollo credits
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                1 credit per contact lookup
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEmailEnrichModal(false)}
+                className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEnrichEmails}
+                className="flex-1 py-2 px-4 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+              >
+                Get Emails
               </button>
             </div>
           </div>

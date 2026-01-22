@@ -42,7 +42,7 @@
       "id": "F51",
       "name": "Step 4 Phase B - Email Enrichment UI",
       "priority": 51,
-      "passes": false,
+      "passes": true,
       "description": "Select contacts, click Get Emails (PAID), shows cost warning",
       "steps": [
         "After contacts displayed, show checkbox column as FIRST column",

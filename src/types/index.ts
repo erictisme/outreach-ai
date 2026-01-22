@@ -39,6 +39,7 @@ export interface ResearchedContact {
   name: string
   title: string
   linkedinUrl: string
+  email?: string // Email address (populated after enrichment)
   seniority: 'Executive' | 'Director' | 'Manager' | 'Staff' | 'Unknown'
   relevanceScore: number // 1-10
   reasoning: string // Why this person is relevant

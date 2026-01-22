@@ -5,3 +5,6 @@ Files: src/types/index.ts, src/app/api/find-contacts-apollo/route.ts, src/compon
 
 F50: Find Contacts API - FREE search (DONE)
 Files: src/app/api/find-contacts-apollo/route.ts - Fixed FREE endpoint: per_page=10, handle last_name_obfuscated, no email extraction, creditsUsed=0
+
+F51: Step 4 Phase B - Email Enrichment UI (DONE)
+Files: src/components/wizard/ContactsStep.tsx, src/types/index.ts - Added Get Emails button with modal, email column, enrichment handler
