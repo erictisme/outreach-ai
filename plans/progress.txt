@@ -5,3 +5,6 @@ Files: WizardPanel.tsx, ContextStep.tsx, SegmentsStep.tsx (new), page.tsx
 
 F56: Track context changes for Step 3 regeneration - DONE
 Files: ContextStep.tsx, SegmentsStep.tsx, CompaniesStep.tsx (contextUpdatedAt/companiesGeneratedAt timestamps, warning UI)
+
+F57: ContextStep.tsx - Save context info separately - DONE
+Files: ContextStep.tsx (added showSaved state, 'Saved!' confirmation with green button and checkmark before auto-advancing)

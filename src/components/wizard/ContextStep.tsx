@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, Plus, X, RefreshCw } from 'lucide-react'
+import { Loader2, Plus, X, RefreshCw, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import {
@@ -67,6 +67,7 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
   const [saving, setSaving] = useState(false)
   const [reextracting, setReextracting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showSaved, setShowSaved] = useState(false)
 
   // Track if this is the initial mount to avoid resetting user edits
   const initialContextRef = useRef<ProjectContext | undefined>(extractedContext)
@@ -153,7 +154,13 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
       if (updateError) throw updateError
 
       onUpdate(data)
-      onComplete()
+
+      // Show saved confirmation briefly before advancing
+      setShowSaved(true)
+      setTimeout(() => {
+        setShowSaved(false)
+        onComplete()
+      }, 800)
     } catch (err) {
       console.error('Error saving context:', err)
       setError(err instanceof Error ? err.message : 'Failed to save')
@@ -406,16 +413,19 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
         </button>
         <button
           onClick={handleSave}
-          disabled={isLoading || !clientName.trim()}
+          disabled={isLoading || !clientName.trim() || showSaved}
           className={cn(
             'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2',
-            isLoading || !clientName.trim()
+            showSaved
+              ? 'bg-green-500 text-white'
+              : isLoading || !clientName.trim()
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           )}
         >
           {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-          {saving ? 'Saving...' : 'Save & Continue'}
+          {showSaved && <Check className="w-4 h-4" />}
+          {showSaved ? 'Saved!' : saving ? 'Saving...' : 'Save & Continue'}
         </button>
       </div>
     </div>

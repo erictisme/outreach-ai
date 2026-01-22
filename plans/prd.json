@@ -38,7 +38,7 @@
       "id": "F57",
       "name": "ContextStep.tsx - Save context info separately",
       "priority": 57,
-      "passes": false,
+      "passes": true,
       "description": "Context step saves basic info with explicit Save button",
       "steps": [
         "ContextStep shows: Client Name, Product, Value Proposition, Target Market, Target Seniority, Target Roles",
