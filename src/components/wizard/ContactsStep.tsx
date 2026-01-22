@@ -81,7 +81,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
             const customFields = dbContact.custom_fields || {}
             return {
               id: dbContact.id,
-              apolloId: customFields.apolloId || null, // Load Apollo ID for email enrichment
+              apolloId: dbContact.apollo_id || customFields.apolloId || null, // Load Apollo ID (prefer dedicated column)
               company: customFields.companyName || '',
               companyId: dbContact.company_id,
               name: dbContact.name,
@@ -312,6 +312,7 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
           title: contact.title,
           email: contactEmail || null,
           linkedin_url: contact.linkedinUrl || null,
+          apollo_id: contact.apolloId || null, // Store Apollo ID in dedicated column
           source,
           verified: contact.verified || false,
           custom_fields: {
@@ -319,7 +320,6 @@ export function ContactsStep({ project, onUpdate, onComplete }: ContactsStepProp
             relevanceScore: contact.relevanceScore,
             reasoning: contact.reasoning,
             companyName: contact.company,
-            apolloId: contact.apolloId || null, // Store Apollo ID for email enrichment
           },
         })
       }

@@ -11,3 +11,6 @@ Files: src/components/wizard/ContactsStep.tsx, src/types/index.ts - Added Get Em
 
 F52: Email Enrichment API - PAID bulk_match (DONE)
 Files: src/app/api/enrich-contacts-email/route.ts, src/components/wizard/ContactsStep.tsx - Updated API to use Apollo bulk_match endpoint with apolloIds
+
+F53: Update Contact type with apollo_id (DONE)
+Files: supabase/migrations/004_apollo_id.sql, src/components/wizard/ContactsStep.tsx - Added dedicated apollo_id column to contacts table, updated load/save logic

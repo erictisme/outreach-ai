@@ -79,7 +79,7 @@
       "id": "F53",
       "name": "Update Contact type with apollo_id",
       "priority": 53,
-      "passes": false,
+      "passes": true,
       "description": "Ensure Contact type and Supabase schema support apollo_id",
       "steps": [
         "In src/types/index.ts: Add apollo_id?: string to Contact/Person type",
