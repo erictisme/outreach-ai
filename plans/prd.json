@@ -72,7 +72,7 @@
       "id": "F59",
       "name": "Update WizardPanel with new step structure",
       "priority": 59,
-      "passes": false,
+      "passes": true,
       "description": "WizardPanel shows 6 steps: Setup, Context, Segments, Companies, Contacts, Emails",
       "steps": [
         "In WizardPanel.tsx: Update STEPS array to include Segments step",

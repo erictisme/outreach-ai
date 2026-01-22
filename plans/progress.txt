@@ -11,3 +11,6 @@ Files: ContextStep.tsx (added showSaved state, 'Saved!' confirmation with green 
 
 F58: SegmentsStep.tsx - Dedicated segments editing step - DONE
 Files: SegmentsStep.tsx (added showSaved state, 'Saved!' confirmation, segmentsUpdatedAt timestamp), CompaniesStep.tsx (checks segmentsUpdatedAt for regeneration warning)
+
+F59: Update WizardPanel with new step structure - DONE
+Files: WizardPanel.tsx (STEPS 1-6 numbering), page.tsx (STEP_NUMBER_TO_STEP/STEP_TO_NUMBER updated)

@@ -20,11 +20,11 @@ interface StepConfig {
 
 const STEPS: StepConfig[] = [
   { id: 'setup', number: '1', title: 'Setup' },
-  { id: 'context', number: '2a', title: 'Context' },
-  { id: 'segments', number: '2b', title: 'Segments' },
-  { id: 'companies', number: '3', title: 'Companies' },
-  { id: 'contacts', number: '4', title: 'Contacts' },
-  { id: 'emails', number: '5', title: 'Emails' },
+  { id: 'context', number: '2', title: 'Context' },
+  { id: 'segments', number: '3', title: 'Segments' },
+  { id: 'companies', number: '4', title: 'Companies' },
+  { id: 'contacts', number: '5', title: 'Contacts' },
+  { id: 'emails', number: '6', title: 'Emails' },
 ]
 
 interface WizardPanelProps {

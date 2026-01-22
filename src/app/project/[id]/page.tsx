@@ -37,8 +37,6 @@ const STEP_MAP: Record<string, WizardStep> = {
 const STEP_NUMBER_TO_STEP: Record<string, WizardStep> = {
   '1': 'setup',
   '2': 'context',
-  '2a': 'context',
-  '2b': 'segments',
   '3': 'segments',
   '4': 'companies',
   '5': 'contacts',
@@ -48,8 +46,8 @@ const STEP_NUMBER_TO_STEP: Record<string, WizardStep> = {
 // Map WizardStep to step number (for URL)
 const STEP_TO_NUMBER: Record<WizardStep, string> = {
   'setup': '1',
-  'context': '2a',
-  'segments': '2b',
+  'context': '2',
+  'segments': '3',
   'companies': '4',
   'contacts': '5',
   'emails': '6',
