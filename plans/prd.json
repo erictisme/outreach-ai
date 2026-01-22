@@ -22,7 +22,7 @@
       "id": "F56",
       "name": "Track context changes for Step 3 regeneration",
       "priority": 56,
-      "passes": false,
+      "passes": true,
       "description": "When context or segments change, Step 3 should prompt to regenerate companies",
       "steps": [
         "Store lastGeneratedAt timestamp when companies generated",

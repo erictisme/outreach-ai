@@ -29,6 +29,14 @@ const SUGGESTED_ROLES = [
 ]
 import { loggedFetch } from '@/lib/promptLogger'
 
+interface SchemaConfig {
+  context?: string
+  documents?: { name: string; content: string }[]
+  extractedContext?: ProjectContext
+  contextUpdatedAt?: string  // ISO timestamp when context/segments were last saved
+  companiesGeneratedAt?: string  // ISO timestamp when companies were last generated
+}
+
 interface ContextStepProps {
   project: Project
   onUpdate: (project: Project) => void
@@ -36,11 +44,7 @@ interface ContextStepProps {
 }
 
 export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps) {
-  const schemaConfig = project.schema_config as {
-    context?: string
-    documents?: { name: string; content: string }[]
-    extractedContext?: ProjectContext
-  }
+  const schemaConfig = project.schema_config as SchemaConfig
 
   const extractedContext = schemaConfig.extractedContext
 
@@ -132,6 +136,7 @@ export function ContextStep({ project, onUpdate, onComplete }: ContextStepProps)
       const newSchemaConfig = {
         ...schemaConfig,
         extractedContext: updatedContext,
+        contextUpdatedAt: new Date().toISOString(),
       }
 
       const { data, error: updateError } = await supabase

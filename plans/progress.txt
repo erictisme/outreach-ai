@@ -2,3 +2,6 @@
 
 F55: Split Step 2 into 2a (Context) and 2b (Segments) - DONE
 Files: WizardPanel.tsx, ContextStep.tsx, SegmentsStep.tsx (new), page.tsx
+
+F56: Track context changes for Step 3 regeneration - DONE
+Files: ContextStep.tsx, SegmentsStep.tsx, CompaniesStep.tsx (contextUpdatedAt/companiesGeneratedAt timestamps, warning UI)

@@ -6,6 +6,12 @@ import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { ProjectContext, Segment } from '@/types'
 
+interface SchemaConfig {
+  extractedContext?: ProjectContext
+  contextUpdatedAt?: string  // ISO timestamp when context/segments were last saved
+  companiesGeneratedAt?: string  // ISO timestamp when companies were last generated
+}
+
 interface SegmentsStepProps {
   project: Project
   onUpdate: (project: Project) => void
@@ -13,9 +19,7 @@ interface SegmentsStepProps {
 }
 
 export function SegmentsStep({ project, onUpdate, onComplete }: SegmentsStepProps) {
-  const schemaConfig = project.schema_config as {
-    extractedContext?: ProjectContext
-  }
+  const schemaConfig = project.schema_config as SchemaConfig
 
   const extractedContext = schemaConfig.extractedContext
 
@@ -85,6 +89,7 @@ export function SegmentsStep({ project, onUpdate, onComplete }: SegmentsStepProp
       const newSchemaConfig = {
         ...schemaConfig,
         extractedContext: updatedContext,
+        contextUpdatedAt: new Date().toISOString(),
       }
 
       const { data, error: updateError } = await supabase

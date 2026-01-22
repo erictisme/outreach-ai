@@ -1,13 +1,20 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Minus, Plus, Sparkles, Upload, Check, Loader2, FileText, X, ExternalLink } from 'lucide-react'
+import { Minus, Plus, Sparkles, Upload, Check, Loader2, FileText, X, ExternalLink, AlertTriangle } from 'lucide-react'
 import Papa from 'papaparse'
 import { cn } from '@/lib/utils'
 import { getSupabase, Project } from '@/lib/supabase'
 import { ProjectContext, Segment, Company } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { loggedFetch } from '@/lib/promptLogger'
+
+interface SchemaConfig {
+  extractedContext?: ProjectContext
+  companies?: Company[]
+  contextUpdatedAt?: string  // ISO timestamp when context/segments were last saved
+  companiesGeneratedAt?: string  // ISO timestamp when companies were last generated
+}
 
 interface SegmentWithCount extends Segment {
   count: number
@@ -36,10 +43,7 @@ interface CompaniesStepProps {
 
 export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepProps) {
   const { addToast } = useToast()
-  const schemaConfig = project.schema_config as {
-    extractedContext?: ProjectContext
-    companies?: Company[]
-  }
+  const schemaConfig = project.schema_config as SchemaConfig
 
   const extractedContext = schemaConfig.extractedContext
 
@@ -73,6 +77,23 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
   const [csvData, setCsvData] = useState<Record<string, string>[]>([])
   const [enrichProgress, setEnrichProgress] = useState<{ current: number; total: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Context change detection
+  const [warningDismissed, setWarningDismissed] = useState(false)
+
+  // Check if context has changed since last generation
+  const existingCompanies = schemaConfig.companies || []
+  const hasExistingCompanies = existingCompanies.length > 0
+  const contextUpdatedAt = schemaConfig.contextUpdatedAt
+  const companiesGeneratedAt = schemaConfig.companiesGeneratedAt
+
+  // Show warning if: has companies, context was updated after companies were generated, and not dismissed
+  const contextChanged = hasExistingCompanies &&
+    contextUpdatedAt &&
+    companiesGeneratedAt &&
+    new Date(contextUpdatedAt) > new Date(companiesGeneratedAt)
+
+  const showContextWarning = contextChanged && !warningDismissed
 
   // No extracted context yet
   if (!extractedContext) {
@@ -246,10 +267,11 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
         })
       }
 
-      // Update project schema_config with companies list
+      // Update project schema_config with companies list and generation timestamp
       const updatedSchemaConfig = {
         ...schemaConfig,
         companies: allCompanies,
+        companiesGeneratedAt: new Date().toISOString(),
       }
 
       const { error: updateError } = await supabase
@@ -573,10 +595,11 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
         })
       }
 
-      // Update project schema_config with companies list
+      // Update project schema_config with companies list and generation timestamp
       const updatedSchemaConfig = {
         ...schemaConfig,
         companies: allCompanies,
+        companiesGeneratedAt: new Date().toISOString(),
       }
 
       const { error: updateError } = await supabase
@@ -637,6 +660,52 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
     setShowColumnMapper(false)
     setCsvData([])
     setError(null)
+  }
+
+  // Clear existing companies and regenerate
+  const handleRegenerateCompanies = async () => {
+    setError(null)
+
+    try {
+      const supabase = getSupabase()
+
+      // Delete existing companies from the companies table
+      for (const company of existingCompanies) {
+        await supabase.from('companies').delete().eq('id', company.id)
+      }
+
+      // Update schema_config to remove companies
+      const updatedSchemaConfig = {
+        ...schemaConfig,
+        companies: [],
+        companiesGeneratedAt: undefined,
+      }
+
+      const { data, error: updateError } = await supabase
+        .from('projects')
+        .update({
+          schema_config: updatedSchemaConfig,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id)
+        .select()
+        .single()
+
+      if (updateError) throw updateError
+
+      onUpdate(data)
+      setWarningDismissed(true)
+      addToast(`Cleared ${existingCompanies.length} companies. Ready to generate new ones.`, 'success')
+    } catch (err) {
+      console.error('Error clearing companies:', err)
+      setError(err instanceof Error ? err.message : 'Failed to clear companies')
+      addToast('Failed to clear companies', 'error')
+    }
+  }
+
+  // Dismiss the warning and keep existing companies
+  const handleKeepExisting = () => {
+    setWarningDismissed(true)
   }
 
   // Show column mapper for CSV
@@ -1000,6 +1069,37 @@ export function CompaniesStep({ project, onUpdate, onComplete }: CompaniesStepPr
 
   return (
     <div className="space-y-4">
+      {/* Context Changed Warning */}
+      {showContextWarning && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-medium text-amber-800">
+                Context has changed
+              </h4>
+              <p className="text-sm text-amber-700 mt-1">
+                You have {existingCompanies.length} existing companies, but the context or segments have been updated since they were generated.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleRegenerateCompanies}
+                  className="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700 transition-colors"
+                >
+                  Clear & Regenerate
+                </button>
+                <button
+                  onClick={handleKeepExisting}
+                  className="px-3 py-1.5 bg-white text-amber-700 text-sm font-medium rounded-md border border-amber-300 hover:bg-amber-50 transition-colors"
+                >
+                  Keep Existing
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Segment Cards */}
       <div className="space-y-3">
         {segmentsWithCounts.map((segment) => (
